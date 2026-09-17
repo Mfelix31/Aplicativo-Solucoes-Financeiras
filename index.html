@@ -565,7 +565,7 @@
           <label for="s_valor">Valor investido</label>
           <div class="row-input">
             <span class="prefix">R$</span>
-            <input type="number" id="s_valor" value="10000" min="0" step="100">
+            <input type="text" inputmode="decimal" id="s_valor" value="10.000,00" class="money-mask">
           </div>
         </div>
         <div class="field">
@@ -583,7 +583,7 @@
           <label for="s_aporte">Aporte mensal (opcional)</label>
           <div class="row-input">
             <span class="prefix">R$</span>
-            <input type="number" id="s_aporte" value="0" min="0" step="50">
+            <input type="text" inputmode="decimal" id="s_aporte" value="0,00" class="money-mask">
           </div>
         </div>
       </div>
@@ -727,7 +727,7 @@
           <label for="c_valor">Valor investido</label>
           <div class="row-input">
             <span class="prefix">R$</span>
-            <input type="number" id="c_valor" value="10000" min="0" step="100">
+            <input type="text" inputmode="decimal" id="c_valor" value="10.000,00" class="money-mask">
           </div>
         </div>
         <div class="field">
@@ -916,6 +916,27 @@ function fmtBRLShort(v){
 }
 function taxaReal(taxaAnualLiquidaPct, ipcaPct){
   return ((1 + taxaAnualLiquidaPct/100) / (1 + ipcaPct/100) - 1) * 100;
+}
+
+function numeroDoCampo(id){
+  const raw = $(id).value || '0';
+  const num = parseFloat(String(raw).replace(/\./g,'').replace(',','.'));
+  return isNaN(num) ? 0 : num;
+}
+
+function aplicarMascaraMoeda(id){
+  const input = $(id);
+  if(!input) return;
+  input.addEventListener('input', ()=>{
+    let digits = input.value.replace(/\D/g, '');
+    if(digits === '') digits = '0';
+    digits = digits.replace(/^0+(?=\d)/, '');
+    while(digits.length < 3) digits = '0' + digits;
+    const cents = digits.slice(-2);
+    let intPart = digits.slice(0, -2).replace(/^0+(?=\d)/, '') || '0';
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    input.value = intPart + ',' + cents;
+  });
 }
 
 let ultimoNominalSim = null;
@@ -1314,6 +1335,15 @@ function formatarPrazo(dias){
   return Math.round(dias) + ' dias';
 }
 
+$('s_btnSalvarCenario').addEventListener('click', ()=>{
+  if(!ultimoResultadoSim) return;
+  const nomeInput = $('s_cenarioNome');
+  const nome = (nomeInput.value || '').trim() || (ultimoResultadoSim.produtoLabel + ' ' + (cenariosSalvos.length+1));
+  cenariosSalvos.push(Object.assign({}, ultimoResultadoSim, {nome, id: Date.now() + '_' + Math.random().toString(36).slice(2)}));
+  nomeInput.value = '';
+  renderCenarios();
+});
+
 $('s_btnCompararCenarios').addEventListener('click', ()=>{
   if(cenariosSelecionados.length !== 2) return;
   const cores = ['#d7a84c', '#5db3a4'];
@@ -1447,8 +1477,8 @@ $('s_idxSwitch').querySelectorAll('.seg-opt').forEach(el=>{
 });
 
 function calcularSimulacao(){
-  const pv = parseFloat($('s_valor').value) || 0;
-  const aporte = parseFloat($('s_aporte').value) || 0;
+  const pv = numeroDoCampo('s_valor');
+  const aporte = numeroDoCampo('s_aporte');
   const prazoRaw = parseFloat($('s_prazo').value) || 0;
   const unidade = $('s_prazoUnidade').value;
   const dias = Math.max(1, prazoEmDias(prazoRaw, unidade));
@@ -1508,6 +1538,8 @@ function calcularSimulacao(){
 
   ultimoNominalSim = {taxaAnualLiquida, valorFinal, totalCapital, dias};
   atualizarCaixaRealSim();
+  const ipcaAtual = parseFloat($('s_ipca').value) || 0;
+  const prealAtual = taxaReal(taxaAnualLiquida, ipcaAtual);
 
   preencherCard('s', r, pv);
 
@@ -1537,11 +1569,11 @@ function calcularSimulacao(){
     taxa: taxa,
     isentoIR: isentoIR,
     isentoIOF: isentoIOF,
-    ipca: ipca,
+    ipca: ipcaAtual,
     totalCapital: totalCapital,
     valorFinal: valorFinal,
     pAnualLiquida: taxaAnualLiquida,
-    pReal: preal
+    pReal: prealAtual
   };
 
   $('s_resultsBlock').style.display = 'block';
@@ -1597,7 +1629,7 @@ $('c_rdc_idxSwitch').querySelectorAll('.seg-opt').forEach(el=>{
 });
 
 function calcularComparacao(){
-  const pv = parseFloat($('c_valor').value) || 0;
+  const pv = numeroDoCampo('c_valor');
   const prazoRaw = parseFloat($('c_prazo').value) || 0;
   const unidade = $('c_prazoUnidade').value;
   const dias = Math.max(1, prazoEmDias(prazoRaw, unidade));
@@ -1740,6 +1772,10 @@ $('btnTema').addEventListener('click', ()=>{
   $('btnTema').textContent = novo === 'light' ? '☀️' : '🌙';
   setTimeout(redesenharTodosGraficos, 50);
 });
+
+aplicarMascaraMoeda('s_valor');
+aplicarMascaraMoeda('s_aporte');
+aplicarMascaraMoeda('c_valor');
 
 /* primeira simulação automática */
 calcularSimulacao();
