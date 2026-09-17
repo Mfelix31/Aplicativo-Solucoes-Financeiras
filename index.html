@@ -8,14 +8,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #101d17;
-    --panel: #16261e;
-    --panel-2: #1b2e24;
-    --line: #2c4436;
-    --line-soft: #223528;
-    --ink: #f1ede1;
-    --ink-muted: #9db3a4;
-    --ink-faint: #6d8577;
+    --bg: #0c1f1e;
+    --panel: #142e2c;
+    --panel-2: #193531;
+    --line: #26504c;
+    --line-soft: #1d3d3a;
+    --ink: #eef6f4;
+    --ink-muted: #8fc4bf;
+    --ink-faint: #628f8a;
     --gold: #d7a84c;
     --gold-dim: #8a6d33;
     --teal: #5db3a4;
@@ -1086,10 +1086,10 @@ function evolucaoMensal(pv, aporte, taxa, diasTotal, isentoIR, isentoIOF){
 function coresTemaAtual(){
   const cs = getComputedStyle(document.documentElement);
   return {
-    grid: (document.documentElement.dataset.theme === 'light') ? 'rgba(28,42,31,0.10)' : 'rgba(241,237,225,0.10)',
-    textFaint: cs.getPropertyValue('--ink-faint').trim() || '#6d8577',
-    textMuted: cs.getPropertyValue('--ink-muted').trim() || '#9db3a4',
-    textStrong: cs.getPropertyValue('--ink').trim() || '#f1ede1',
+    grid: (document.documentElement.dataset.theme === 'light') ? 'rgba(28,42,31,0.10)' : 'rgba(238,246,244,0.10)',
+    textFaint: cs.getPropertyValue('--ink-faint').trim() || '#628f8a',
+    textMuted: cs.getPropertyValue('--ink-muted').trim() || '#8fc4bf',
+    textStrong: cs.getPropertyValue('--ink').trim() || '#eef6f4',
   };
 }
 
