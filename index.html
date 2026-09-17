@@ -441,7 +441,7 @@
     </div>
     <div class="cdi-hero">
       <div class="label">CDI de referência</div>
-      <div class="value" id="cdiHeroValue">13,90%</div>
+      <div class="value" id="cdiHeroValue">13,65%</div>
       <div class="sub" id="cdiHeroSub">a.a. · manual</div>
       <button class="ghost" id="btnCdiGlobal" type="button">Buscar CDI atual</button>
     </div>
@@ -525,13 +525,13 @@
           <div class="field">
             <label for="s_cdi">CDI (% ao ano)</label>
             <div class="row-input">
-              <input type="number" id="s_cdi" value="13.90" min="0" step="0.01">
+              <input type="number" id="s_cdi" value="13.65" min="0" step="0.01">
               <span class="suffix">% a.a.</span>
             </div>
           </div>
           <button class="ghost" id="s_btnCdi" type="button">Buscar CDI atual</button>
         </div>
-        <div class="cdi-status" id="s_cdiStatus">Valor de referência (set/2026).</div>
+        <div class="cdi-status" id="s_cdiStatus">Valor de referência (16/09/2026, após corte do Copom para 13,75% de Meta Selic).</div>
 
         <div class="grid">
           <div class="field">
@@ -650,7 +650,7 @@
         <div class="field">
           <label for="c_cdi">CDI (% ao ano)</label>
           <div class="row-input">
-            <input type="number" id="c_cdi" value="13.90" min="0" step="0.01">
+            <input type="number" id="c_cdi" value="13.65" min="0" step="0.01">
             <span class="suffix">% a.a.</span>
           </div>
         </div>
@@ -873,18 +873,19 @@ function preencherCard(prefix, r, pv){
 
 async function buscarCDI(inputId, heroSync, statusId){
   try{
-    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados/ultimos/1?formato=json');
+    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json');
     if(!resp.ok) throw new Error('resposta não OK');
     const data = await resp.json();
     if(!data || !data[0] || !data[0].valor) throw new Error('formato inesperado');
-    const diaria = parseFloat(data[0].valor.replace(',','.'));
-    const anualizada = (Math.pow(1+diaria/100, 252) - 1) * 100;
-    $(inputId).value = anualizada.toFixed(2);
+    const metaSelic = parseFloat(data[0].valor.replace(',','.'));
+    const SPREAD_CDI_SELIC = 0.10; // spread histórico entre CDI e a Meta Selic
+    const cdiEstimado = metaSelic - SPREAD_CDI_SELIC;
+    $(inputId).value = cdiEstimado.toFixed(2);
     if(heroSync){
-      $('cdiHeroValue').textContent = fmtPct(anualizada,2);
-      $('cdiHeroSub').textContent = 'a.a. · BCB, ' + data[0].data;
+      $('cdiHeroValue').textContent = fmtPct(cdiEstimado,2);
+      $('cdiHeroSub').textContent = 'a.a. · Selic Meta ' + fmtPct(metaSelic,2) + ' desde ' + data[0].data;
     }
-    if(statusId) $(statusId).textContent = 'CDI atualizado via Banco Central (SGS 12) em ' + data[0].data + '.';
+    if(statusId) $(statusId).textContent = 'CDI estimado a partir da Meta Selic definida pelo Copom (' + fmtPct(metaSelic,2) + ', vigente desde ' + data[0].data + '), descontando o spread histórico de 0,10 p.p. Essa fonte reflete decisões do Copom no mesmo dia, sem a defasagem de 1-2 dias úteis da série de CDI realizado.';
     return true;
   }catch(err){
     if(statusId) $(statusId).textContent = 'Não foi possível consultar o Banco Central agora (rede indisponível). Use o valor manual acima.';
