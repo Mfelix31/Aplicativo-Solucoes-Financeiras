@@ -433,8 +433,6 @@
     display:flex; justify-content:space-between; align-items:center;
     margin-bottom:14px; flex-wrap:wrap; gap:8px;
   }
-  .scenario-actions{display:flex; gap:8px; flex-wrap:wrap;}
-  .scenario-actions .ghost{padding:7px 10px; font-size:11.5px;}
   .scenario-add{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
   .scenario-add input[type=text]{
     flex:1; min-width:160px; background:var(--line-soft); border:1px solid var(--line); border-radius:4px; color:var(--ink);
@@ -688,10 +686,6 @@
       <div class="scenario-box">
         <div class="scenario-header">
           <div class="chart-title" style="margin:0;">Cenários Salvos</div>
-          <div class="scenario-actions">
-            <button class="ghost" id="s_btnExportar" type="button">Exportar .json</button>
-            <label class="ghost" style="cursor:pointer; margin:0;">Importar .json<input type="file" id="s_inputImportar" accept="application/json" hidden></label>
-          </div>
         </div>
         <div class="scenario-add">
           <input type="text" id="s_cenarioNome" placeholder="Nome do cenário (opcional)">
@@ -1366,45 +1360,15 @@ function gerarPdfCenario(c){
   $('pr_prazo').textContent = formatarPrazo(c.prazoDias);
   $('pr_taxa').textContent = fmtPct(c.taxa) + ' a.a.';
   $('pr_totalAportado').textContent = fmtBRL(c.totalCapital);
+  $('pr_iof').textContent = c.valorIOF > 0 ? fmtBRL(c.valorIOF) : (c.isentoIOF ? 'Isenta de IOF' : 'Não incide (prazo ≥ 30 dias)');
+  $('pr_ir').textContent = c.valorIR > 0 ? fmtBRL(c.valorIR) : (c.isentoIR ? 'Isento de IR' : fmtBRL(0));
   $('pr_pAnual').textContent = fmtPct(c.pAnualLiquida);
+  $('pr_pPeriodo').textContent = fmtPct(c.pPeriodo);
   $('pr_pReal').textContent = fmtPct(c.pReal);
+  $('pr_valorReal').textContent = fmtBRL(c.valorReal);
   $('pr_valorFinal').textContent = fmtBRL(c.valorFinal);
   setTimeout(()=>window.print(), 80);
 }
-
-
-
-$('s_btnExportar').addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify(cenariosSalvos, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'cenarios-simulador.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
-$('s_inputImportar').addEventListener('change', (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev)=>{
-    try{
-      const dados = JSON.parse(ev.target.result);
-      if(Array.isArray(dados)){
-        dados.forEach(d=>{ d.id = Date.now() + '_' + Math.random().toString(36).slice(2); });
-        cenariosSalvos = cenariosSalvos.concat(dados);
-        renderCenarios();
-      }
-    }catch(err){
-      alert('Arquivo inválido. Exporte um arquivo gerado por este próprio simulador.');
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-});
 
 /* ---------------- TABS ---------------- */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -1560,6 +1524,8 @@ function calcularSimulacao(){
   ultimoGrafico = {pontos: evolucaoMensal(pv, aporte, taxa, dias, isentoIR, isentoIOF), cor: corMap[tipoSelecionado]};
   desenharGraficoLinha('s_chart', ultimoGrafico.pontos, ultimoGrafico.cor);
 
+  const valorRealAtual = valorFinal / Math.pow(1 + ipcaAtual/100, dias/365);
+
   ultimoResultadoSim = {
     tipo: tipoSelecionado,
     produtoLabel: produtoLabels[tipoSelecionado],
@@ -1571,9 +1537,13 @@ function calcularSimulacao(){
     isentoIOF: isentoIOF,
     ipca: ipcaAtual,
     totalCapital: totalCapital,
+    valorIOF: totalIOF,
+    valorIR: totalIR,
+    pPeriodo: pPeriodo,
     valorFinal: valorFinal,
     pAnualLiquida: taxaAnualLiquida,
-    pReal: prealAtual
+    pReal: prealAtual,
+    valorReal: valorRealAtual
   };
 
   $('s_resultsBlock').style.display = 'block';
@@ -1792,8 +1762,12 @@ selecionarParComparacao('lca');
     <tr><td>Prazo</td><td id="pr_prazo"></td></tr>
     <tr><td>Taxa contratada</td><td id="pr_taxa"></td></tr>
     <tr><td>Total aportado no período</td><td id="pr_totalAportado"></td></tr>
+    <tr><td>IOF</td><td id="pr_iof"></td></tr>
+    <tr><td>Imposto de Renda</td><td id="pr_ir"></td></tr>
     <tr><td>Rentabilidade líquida anual</td><td id="pr_pAnual"></td></tr>
+    <tr><td>Rentabilidade no período</td><td id="pr_pPeriodo"></td></tr>
     <tr><td>Rentabilidade real (após IPCA)</td><td id="pr_pReal"></td></tr>
+    <tr><td>Valor real (poder de compra de hoje)</td><td id="pr_valorReal"></td></tr>
     <tr class="pr-total"><td>Valor final líquido</td><td id="pr_valorFinal"></td></tr>
   </table>
   <p class="pr-footer"><strong>Aviso:</strong> este documento é uma <strong>simulação</strong> gerada com base em parâmetros hipotéticos informados pelo usuário (taxas, prazo e valores). Os números apresentados não representam a realidade garantida do investimento nem constituem previsão: CDI, IPCA e demais condições de mercado variam ao longo do tempo, e o resultado real pode ser diferente do projetado aqui. Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido. Este material tem caráter meramente informativo, não constitui oferta nem recomendação de investimento, e não considera os objetivos, a situação financeira ou as necessidades específicas de cada investidor. Consulte um profissional certificado antes de tomar qualquer decisão.</p>
