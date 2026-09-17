@@ -24,6 +24,26 @@
     --blue-dim: #3f5c7a;
     --red: #c96a52;
   }
+  :root[data-theme="light"]{
+    --bg: #eef1e9;
+    --panel: #f9faf6;
+    --panel-2: #eff2ea;
+    --line: #d3d9c9;
+    --line-soft: #e4e8dc;
+    --ink: #1c2a1f;
+    --ink-muted: #4d5c48;
+    --ink-faint: #7c8a72;
+    --gold: #9c7423;
+    --gold-dim: #c9a34f;
+    --teal: #2f7a6c;
+    --teal-dim: #6fb0a2;
+    --blue: #3d5f8a;
+    --blue-dim: #7a9dc7;
+    --red: #a8482f;
+  }
+  body, .ledger, section.panel, .equiv-box, .chart-box, .scenario-box, .field .row-input, .field select{
+    transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
@@ -65,6 +85,22 @@
   }
   .cdi-hero .sub{font-size:11px; color:var(--ink-faint); font-family:'IBM Plex Mono', monospace;}
   .cdi-hero button.ghost{margin-top:8px;}
+
+  .theme-toggle{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .theme-toggle:hover{border-color: var(--teal);}
 
   /* Tabs */
   .tabs{
@@ -407,10 +443,10 @@
   .scenario-list{overflow-x:auto;}
   .scenario-row-head, .scenario-row{
     display:grid;
-    grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
+    grid-template-columns: 24px 1.3fr 1fr 1fr 1fr auto;
     gap:10px;
     align-items:center;
-    min-width: 480px;
+    min-width: 540px;
   }
   .scenario-row-head{
     font-size:11px; color:var(--ink-faint);
@@ -424,11 +460,57 @@
   .scenario-row:first-of-type{border-top:none;}
   .scenario-row .nome{color:var(--ink);}
   .scenario-row .val{font-family:'IBM Plex Mono', monospace; color:var(--ink-muted); text-align:right;}
-  .scenario-row button.remove{
+  .scenario-row input[type=checkbox]{
+    width:16px; height:16px; cursor:pointer; accent-color: var(--teal);
+  }
+  .scenario-row .row-actions{display:flex; gap:6px; justify-content:flex-end;}
+  .scenario-row button.remove, .scenario-row button.pdf{
     background:transparent; border:1px solid var(--line); color:var(--red);
     border-radius:4px; padding:4px 8px; cursor:pointer; font-size:10.5px; white-space:nowrap;
   }
+  .scenario-row button.pdf{color: var(--teal);}
   .scenario-row button.remove:hover{border-color:var(--red);}
+  .scenario-row button.pdf:hover{border-color:var(--teal);}
+
+  #printArea{display:none;}
+
+  .sim-disclaimer{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    background: var(--line-soft);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--gold-dim);
+    border-radius: 5px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    max-width: 620px;
+  }
+  .sim-disclaimer .ico{font-size:15px; line-height:1.3;}
+
+  @media print{
+    body > *:not(#printArea){display:none !important;}
+    #printArea{
+      display:block !important;
+      background:#fff; color:#111;
+      font-family: 'IBM Plex Sans', sans-serif;
+      padding: 20px;
+    }
+    #printArea h1{font-family:'Source Serif 4', serif; font-size:22px; margin-bottom:4px;}
+    #printArea .pr-badge{
+      display:inline-block; background:#fdf0e3; color:#8a4a1f; border:1px solid #e0b083;
+      font-size:10px; font-weight:600; letter-spacing:.3px; padding:3px 8px; border-radius:3px; margin-bottom:8px;
+    }
+    #printArea .pr-sub{color:#555; font-size:12px; margin-bottom:20px;}
+    #printArea table{width:100%; border-collapse:collapse;}
+    #printArea td{padding:8px 6px; border-bottom:1px solid #ddd; font-size:13px;}
+    #printArea td:first-child{color:#555;}
+    #printArea td:last-child{text-align:right; font-family:'IBM Plex Mono', monospace; font-weight:600;}
+    #printArea tr.pr-total td{border-top:2px solid #111; border-bottom:none; font-size:15px; padding-top:12px;}
+    #printArea .pr-footer{margin-top:24px; font-size:10.5px; color:#777;}
+  }
 </style>
 </head>
 <body>
@@ -439,11 +521,14 @@
       <h1>Simulador de Investimentos</h1>
       <p>Simule cada investimento isoladamente ou compare os dois lado a lado.</p>
     </div>
-    <div class="cdi-hero">
-      <div class="label">CDI de referência</div>
-      <div class="value" id="cdiHeroValue">13,65%</div>
-      <div class="sub" id="cdiHeroSub">a.a. · manual</div>
-      <button class="ghost" id="btnCdiGlobal" type="button">Buscar CDI atual</button>
+    <div style="display:flex; align-items:flex-start; gap:14px;">
+      <div class="cdi-hero">
+        <div class="label">CDI de referência</div>
+        <div class="value" id="cdiHeroValue">13,65%</div>
+        <div class="sub" id="cdiHeroSub">a.a. · manual</div>
+        <button class="ghost" id="btnCdiGlobal" type="button">Buscar CDI atual</button>
+      </div>
+      <button class="theme-toggle" id="btnTema" type="button" title="Alternar tema claro/escuro">🌙</button>
     </div>
   </header>
 
@@ -558,6 +643,10 @@
     </section>
 
     <div id="s_resultsBlock">
+      <div class="sim-disclaimer">
+        <span class="ico">⚠️</span>
+        <span>Esta é uma <strong>simulação</strong> com base nos parâmetros que você informou (taxas, prazo, valores). Os números não representam a realidade garantida do investimento — CDI, IPCA e demais condições de mercado mudam ao longo do tempo e o resultado real pode ser diferente do projetado aqui.</span>
+      </div>
       <div class="ledger" id="s_card" style="--accent: var(--gold); max-width: 460px;">
         <h3 id="s_cardTitle">LCA</h3>
         <div class="desc" id="s_cardDesc">Letra de Crédito do Agronegócio — isenta de IR para pessoa física</div>
@@ -610,6 +699,14 @@
         </div>
         <div id="s_cenariosLista" class="scenario-list"></div>
         <div class="equiv-note" id="s_cenariosVazio" style="margin-top:4px;">Nenhum cenário salvo ainda — calcule uma simulação e clique em "Salvar cenário atual" para comparar depois.</div>
+
+        <div id="s_cenarioCompareWrap" class="hidden" style="margin-top:16px;">
+          <button class="ghost" id="s_btnCompararCenarios" type="button" disabled>Comparar os 2 cenários selecionados</button>
+          <div class="chart-box hidden" id="s_cenarioChartBox" style="margin-top:12px;">
+            <div class="chart-title">Evolução comparada dos cenários selecionados</div>
+            <canvas id="s_cenarioChart" width="600" height="240"></canvas>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -720,6 +817,10 @@
     </section>
 
     <div id="c_resultsBlock">
+      <div class="sim-disclaimer">
+        <span class="ico">⚠️</span>
+        <span>Esta é uma <strong>simulação</strong> com base nos parâmetros que você informou (taxas, prazo, valores). Os números não representam a realidade garantida do investimento — CDI, IPCA e demais condições de mercado mudam ao longo do tempo e o resultado real pode ser diferente do projetado aqui.</span>
+      </div>
       <div class="compare">
         <div class="ledger" id="c_cardLCA" style="--accent: var(--gold);">
           <span class="tag" id="c_tagLCA" style="display:none;">MELHOR OPÇÃO</span>
@@ -794,7 +895,7 @@
     <p>Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido.</p>
     <p>As informações contidas neste material têm caráter meramente informativo e não constituem uma oferta de compra ou venda de ativos. O investidor é integralmente responsável por suas decisões financeiras.</p>
     <p>Este material foi elaborado de forma generalista e não considera os objetivos de investimento, a situação financeira ou as necessidades específicas de cada investidor. Consulte um profissional certificado antes de tomar qualquer decisão.</p>
-    <p>CDI automático consultado diretamente da série histórica do Banco Central do Brasil (SGS). Se a consulta falhar (rede bloqueada, CORS, etc.), ajuste o valor manualmente.</p>
+    <p>CDI automático estimado a partir da série histórica da Meta Selic definida pelo Copom (Banco Central, SGS 432), descontando o spread padrão de 0,10 p.p. entre CDI e Selic — essa fonte reflete decisões do Copom no mesmo dia, sem a defasagem de publicação da série de CDI realizado. IPCA automático consultado na série de IPCA acumulado em 12 meses (SGS 13522), atualizada mensalmente pelo IBGE/Banco Central. Se a consulta falhar (rede bloqueada, CORS, etc.), ajuste os valores manualmente.</p>
   </footer>
 
 </div>
@@ -816,6 +917,34 @@ function fmtBRLShort(v){
 function taxaReal(taxaAnualLiquidaPct, ipcaPct){
   return ((1 + taxaAnualLiquidaPct/100) / (1 + ipcaPct/100) - 1) * 100;
 }
+
+let ultimoNominalSim = null;
+function atualizarCaixaRealSim(){
+  if(!ultimoNominalSim) return;
+  const {taxaAnualLiquida, valorFinal, totalCapital, dias} = ultimoNominalSim;
+  const ipca = parseFloat($('s_ipca').value) || 0;
+  const preal = taxaReal(taxaAnualLiquida, ipca);
+  const valorRealFinal = valorFinal / Math.pow(1 + ipca/100, dias/365);
+  $('s_realValue').textContent = fmtPct(preal) + ' a.a.';
+  $('s_realMoney').textContent = fmtBRL(valorRealFinal);
+  $('s_realNote').textContent = 'Descontando um IPCA de ' + fmtPct(ipca) + ' ao ano, esse é o ganho de poder de compra estimado — acima de zero significa que o investimento venceu a inflação.';
+}
+
+let ultimoNominalCmp = null;
+function atualizarCaixasRealCmp(){
+  if(!ultimoNominalCmp) return;
+  const {panualEsq, valorFinalEsq, panualDir, valorFinalDir, pv, dias} = ultimoNominalCmp;
+  const ipca = parseFloat($('c_ipca').value) || 0;
+  const prealEsq = taxaReal(panualEsq, ipca);
+  const prealDir = taxaReal(panualDir, ipca);
+  const valorRealEsq = valorFinalEsq / Math.pow(1 + ipca/100, dias/365);
+  const valorRealDir = valorFinalDir / Math.pow(1 + ipca/100, dias/365);
+  $('c_lca_realValue').textContent = fmtPct(prealEsq) + ' a.a.';
+  $('c_lca_realMoney').textContent = fmtBRL(valorRealEsq);
+  $('c_rdc_realValue').textContent = fmtPct(prealDir) + ' a.a.';
+  $('c_rdc_realMoney').textContent = fmtBRL(valorRealDir);
+}
+
 
 const IOF_TABLE = [96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,46,43,40,36,33,30,26,23,20,16,13,10,6,3];
 function iofAliquota(dias){
@@ -901,7 +1030,10 @@ async function buscarIPCA(inputId, statusId){
     if(!data || !data[0] || !data[0].valor) throw new Error('formato inesperado');
     const valor = parseFloat(data[0].valor.replace(',','.'));
     $(inputId).value = valor.toFixed(2);
-    if(statusId) $(statusId).textContent = 'IPCA acumulado em 12 meses atualizado via Banco Central (SGS 13522), referente a ' + data[0].data + '.';
+    const partes = data[0].data.split('/');
+    const mesesNome = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    const refMes = partes.length === 3 ? mesesNome[parseInt(partes[1],10)-1] + '/' + partes[2] : data[0].data;
+    if(statusId) $(statusId).textContent = 'IPCA acumulado em 12 meses até ' + refMes + ': ' + fmtPct(valor) + ' (série 13522, BCB). Esta é a série oficial mais atual — o IPCA é um índice fechado mensalmente pelo IBGE (divulgado por volta do dia 10 do mês seguinte), diferente da Selic, que muda por decisão do Copom; por isso não existe uma versão "mais rápida" para consultar.';
     return true;
   }catch(err){
     if(statusId) $(statusId).textContent = 'Não foi possível consultar o Banco Central agora (rede indisponível). Use o valor manual acima.';
@@ -936,6 +1068,16 @@ function evolucaoMensal(pv, aporte, taxa, diasTotal, isentoIR, isentoIOF){
   return pontos;
 }
 
+function coresTemaAtual(){
+  const cs = getComputedStyle(document.documentElement);
+  return {
+    grid: (document.documentElement.dataset.theme === 'light') ? 'rgba(28,42,31,0.10)' : 'rgba(241,237,225,0.10)',
+    textFaint: cs.getPropertyValue('--ink-faint').trim() || '#6d8577',
+    textMuted: cs.getPropertyValue('--ink-muted').trim() || '#9db3a4',
+    textStrong: cs.getPropertyValue('--ink').trim() || '#f1ede1',
+  };
+}
+
 function desenharGraficoLinha(canvasId, pontos, cor){
   const canvas = $(canvasId);
   if(!canvas) return;
@@ -958,10 +1100,11 @@ function desenharGraficoLinha(canvasId, pontos, cor){
   const xFor = i => padding.left + (plotW * i/(pontos.length-1));
   const yFor = v => padding.top + plotH - ((v-minV)/rangeV)*plotH;
 
-  ctx.strokeStyle = 'rgba(241,237,225,0.10)';
+  const cores = coresTemaAtual();
+  ctx.strokeStyle = cores.grid;
   ctx.lineWidth = 1;
   ctx.font = '10.5px IBM Plex Mono, monospace';
-  ctx.fillStyle = '#6d8577';
+  ctx.fillStyle = cores.textFaint;
   ctx.textAlign = 'left';
   for(let g=0; g<=3; g++){
     const v = minV + rangeV*g/3;
@@ -1001,7 +1144,7 @@ function desenharGraficoLinha(canvasId, pontos, cor){
     ctx.fill();
   });
 
-  ctx.fillStyle = '#9db3a4';
+  ctx.fillStyle = cores.textMuted;
   ctx.font = '11px IBM Plex Sans, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText('Início', padding.left, H-6);
@@ -1032,10 +1175,11 @@ function desenharGraficoMultiplo(canvasId, series){
   const xFor = i => padding.left + (plotW * i/(nPontos-1));
   const yFor = v => padding.top + plotH - ((v-minV)/rangeV)*plotH;
 
-  ctx.strokeStyle = 'rgba(241,237,225,0.10)';
+  const cores = coresTemaAtual();
+  ctx.strokeStyle = cores.grid;
   ctx.lineWidth = 1;
   ctx.font = '10.5px IBM Plex Mono, monospace';
-  ctx.fillStyle = '#6d8577';
+  ctx.fillStyle = cores.textFaint;
   ctx.textAlign = 'left';
   for(let g=0; g<=3; g++){
     const v = minV + rangeV*g/3;
@@ -1071,12 +1215,12 @@ function desenharGraficoMultiplo(canvasId, series){
   series.forEach(s=>{
     ctx.fillStyle = s.cor;
     ctx.fillRect(lx, 10, 10, 10);
-    ctx.fillStyle = '#f1ede1';
+    ctx.fillStyle = cores.textStrong;
     ctx.fillText(s.nome, lx+14, 19);
     lx += ctx.measureText(s.nome).width + 40;
   });
 
-  ctx.fillStyle = '#9db3a4';
+  ctx.fillStyle = cores.textMuted;
   ctx.font = '11px IBM Plex Sans, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText('Início', padding.left, H-6);
@@ -1089,52 +1233,116 @@ let cenariosSalvos = [];
 let ultimoResultadoSim = null;
 let ultimoGrafico = null;
 let ultimoGraficoCmp = null;
+let ultimoGraficoCenarios = null;
 const produtoLabels = {lca:'LCA', rdc:'RDC', compromissada:'Compromissada'};
+
+let cenariosSelecionados = [];
 
 function renderCenarios(){
   const lista = $('s_cenariosLista');
   const vazio = $('s_cenariosVazio');
   lista.innerHTML = '';
+  cenariosSelecionados = cenariosSelecionados.filter(id => cenariosSalvos.some(c=>String(c.id)===String(id)));
+
   if(cenariosSalvos.length === 0){
     vazio.classList.remove('hidden');
+    $('s_cenarioCompareWrap').classList.add('hidden');
     return;
   }
   vazio.classList.add('hidden');
+  $('s_cenarioCompareWrap').classList.toggle('hidden', cenariosSalvos.length < 2);
 
   const head = document.createElement('div');
   head.className = 'scenario-row-head';
-  head.innerHTML = '<span>Cenário</span><span style="text-align:right;">Total Aportado</span><span style="text-align:right;">Rentab. Líquida a.a.</span><span style="text-align:right;">Valor Final</span><span></span>';
+  head.innerHTML = '<span></span><span>Cenário</span><span style="text-align:right;">Total Aportado</span><span style="text-align:right;">Rentab. Líquida a.a.</span><span style="text-align:right;">Valor Final</span><span></span>';
   lista.appendChild(head);
 
+  const atingiuLimite = cenariosSelecionados.length >= 2;
+
   cenariosSalvos.forEach(c=>{
+    const marcado = cenariosSelecionados.some(id=>String(id)===String(c.id));
     const row = document.createElement('div');
     row.className = 'scenario-row';
     row.innerHTML =
+      '<input type="checkbox" class="cenario-check" data-id="'+c.id+'" '+(marcado?'checked':'')+' '+((!marcado && atingiuLimite)?'disabled':'')+'>' +
       '<span class="nome">' + c.nome + ' <span style="color:var(--ink-faint);">(' + c.produtoLabel + ')</span></span>' +
       '<span class="val">' + fmtBRL(c.totalCapital) + '</span>' +
       '<span class="val">' + fmtPct(c.pAnualLiquida) + '</span>' +
       '<span class="val">' + fmtBRL(c.valorFinal) + '</span>' +
-      '<button class="remove" data-id="'+c.id+'" type="button">remover</button>';
+      '<span class="row-actions"><button class="pdf" data-id="'+c.id+'" type="button">PDF</button><button class="remove" data-id="'+c.id+'" type="button">remover</button></span>';
     lista.appendChild(row);
+  });
+
+  lista.querySelectorAll('.cenario-check').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      const id = String(chk.dataset.id);
+      if(chk.checked){
+        if(cenariosSelecionados.length >= 2){ chk.checked = false; return; }
+        cenariosSelecionados.push(id);
+      } else {
+        cenariosSelecionados = cenariosSelecionados.filter(x=>String(x)!==id);
+      }
+      renderCenarios();
+    });
   });
 
   lista.querySelectorAll('.remove').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const id = String(btn.dataset.id);
       cenariosSalvos = cenariosSalvos.filter(c=>String(c.id) !== id);
+      cenariosSelecionados = cenariosSelecionados.filter(x=>String(x)!==id);
       renderCenarios();
     });
   });
+
+  lista.querySelectorAll('.pdf').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const c = cenariosSalvos.find(x=>String(x.id)===String(btn.dataset.id));
+      if(c) gerarPdfCenario(c);
+    });
+  });
+
+  $('s_btnCompararCenarios').disabled = cenariosSelecionados.length !== 2;
+  if(cenariosSelecionados.length !== 2){
+    $('s_cenarioChartBox').classList.add('hidden');
+  }
 }
 
-$('s_btnSalvarCenario').addEventListener('click', ()=>{
-  if(!ultimoResultadoSim) return;
-  const nomeInput = $('s_cenarioNome');
-  const nome = (nomeInput.value || '').trim() || (ultimoResultadoSim.produtoLabel + ' ' + (cenariosSalvos.length+1));
-  cenariosSalvos.push(Object.assign({}, ultimoResultadoSim, {nome, id: Date.now() + '_' + Math.random().toString(36).slice(2)}));
-  nomeInput.value = '';
-  renderCenarios();
+function formatarPrazo(dias){
+  if(dias % 365 === 0 && dias >= 365) return (dias/365) + (dias===365 ? ' ano' : ' anos');
+  if(dias % 30 === 0 && dias >= 30) return (dias/30) + (dias===30 ? ' mês' : ' meses');
+  return Math.round(dias) + ' dias';
+}
+
+$('s_btnCompararCenarios').addEventListener('click', ()=>{
+  if(cenariosSelecionados.length !== 2) return;
+  const cores = ['#d7a84c', '#5db3a4'];
+  const series = cenariosSelecionados.map((id, i)=>{
+    const c = cenariosSalvos.find(x=>String(x.id)===String(id));
+    const pontos = evolucaoMensal(c.valorInvestido, c.aporte || 0, c.taxa, c.prazoDias, c.isentoIR, c.isentoIOF);
+    return {pontos, cor: cores[i], nome: c.nome};
+  });
+  ultimoGraficoCenarios = series;
+  $('s_cenarioChartBox').classList.remove('hidden');
+  desenharGraficoMultiplo('s_cenarioChart', series);
 });
+
+function gerarPdfCenario(c){
+  $('pr_titulo').textContent = c.nome;
+  $('pr_subtitulo').textContent = 'Gerado em ' + new Date().toLocaleDateString('pt-BR');
+  $('pr_produto').textContent = c.produtoLabel;
+  $('pr_valorInicial').textContent = fmtBRL(c.valorInvestido);
+  $('pr_aporte').textContent = c.aporte > 0 ? fmtBRL(c.aporte) + ' / mês' : 'Sem aporte mensal';
+  $('pr_prazo').textContent = formatarPrazo(c.prazoDias);
+  $('pr_taxa').textContent = fmtPct(c.taxa) + ' a.a.';
+  $('pr_totalAportado').textContent = fmtBRL(c.totalCapital);
+  $('pr_pAnual').textContent = fmtPct(c.pAnualLiquida);
+  $('pr_pReal').textContent = fmtPct(c.pReal);
+  $('pr_valorFinal').textContent = fmtBRL(c.valorFinal);
+  setTimeout(()=>window.print(), 80);
+}
+
+
 
 $('s_btnExportar').addEventListener('click', ()=>{
   const blob = new Blob([JSON.stringify(cenariosSalvos, null, 2)], {type:'application/json'});
@@ -1298,12 +1506,8 @@ function calcularSimulacao(){
     pmensal: pMensal
   };
 
-  const ipca = parseFloat($('s_ipca').value) || 0;
-  const preal = taxaReal(taxaAnualLiquida, ipca);
-  const valorRealFinal = valorFinal / Math.pow(1 + ipca/100, dias/365);
-  $('s_realValue').textContent = fmtPct(preal) + ' a.a.';
-  $('s_realMoney').textContent = fmtBRL(valorRealFinal);
-  $('s_realNote').textContent = 'Descontando um IPCA de ' + fmtPct(ipca) + ' ao ano, esse é o ganho de poder de compra estimado — acima de zero significa que o investimento venceu a inflação.';
+  ultimoNominalSim = {taxaAnualLiquida, valorFinal, totalCapital, dias};
+  atualizarCaixaRealSim();
 
   preencherCard('s', r, pv);
 
@@ -1329,6 +1533,11 @@ function calcularSimulacao(){
     produtoLabel: produtoLabels[tipoSelecionado],
     valorInvestido: pv,
     aporte: aporte,
+    prazoDias: dias,
+    taxa: taxa,
+    isentoIR: isentoIR,
+    isentoIOF: isentoIOF,
+    ipca: ipca,
     totalCapital: totalCapital,
     valorFinal: valorFinal,
     pAnualLiquida: taxaAnualLiquida,
@@ -1352,7 +1561,11 @@ function calcularSimulacao(){
 }
 $('s_btnCalc').addEventListener('click', calcularSimulacao);
 $('s_btnCdi').addEventListener('click', ()=>buscarCDI('s_cdi', true, 's_cdiStatus'));
-$('s_btnIpca').addEventListener('click', ()=>buscarIPCA('s_ipca', 's_ipcaStatus'));
+$('s_btnIpca').addEventListener('click', async ()=>{
+  await buscarIPCA('s_ipca', 's_ipcaStatus');
+  atualizarCaixaRealSim();
+});
+$('s_ipca').addEventListener('input', atualizarCaixaRealSim);
 $('btnCdiGlobal').addEventListener('click', async ()=>{
   await buscarCDI('s_cdi', true, 's_cdiStatus');
   $('c_cdi').value = $('s_cdi').value;
@@ -1421,15 +1634,8 @@ function calcularComparacao(){
   ];
   desenharGraficoMultiplo('c_chart', ultimoGraficoCmp);
 
-  const ipca = parseFloat($('c_ipca').value) || 0;
-  const prealEsq = taxaReal(rLCA.panual, ipca);
-  const prealDir = taxaReal(rRDC.panual, ipca);
-  const valorRealEsq = rLCA.valorFinal / Math.pow(1 + ipca/100, dias/365);
-  const valorRealDir = rRDC.valorFinal / Math.pow(1 + ipca/100, dias/365);
-  $('c_lca_realValue').textContent = fmtPct(prealEsq) + ' a.a.';
-  $('c_lca_realMoney').textContent = fmtBRL(valorRealEsq);
-  $('c_rdc_realValue').textContent = fmtPct(prealDir) + ' a.a.';
-  $('c_rdc_realMoney').textContent = fmtBRL(valorRealDir);
+  ultimoNominalCmp = {panualEsq: rLCA.panual, valorFinalEsq: rLCA.valorFinal, panualDir: rRDC.panual, valorFinalDir: rRDC.valorFinal, pv, dias};
+  atualizarCaixasRealCmp();
 
   preencherCard('c_lca', rLCA, pv);
   preencherCard('c_rdc', rRDC, pv);
@@ -1471,7 +1677,11 @@ function calcularComparacao(){
 }
 $('c_btnCalc').addEventListener('click', calcularComparacao);
 $('c_btnCdi').addEventListener('click', ()=>buscarCDI('c_cdi', false, 'c_cdiStatus'));
-$('c_btnIpca').addEventListener('click', ()=>buscarIPCA('c_ipca', 'c_ipcaStatus'));
+$('c_btnIpca').addEventListener('click', async ()=>{
+  await buscarIPCA('c_ipca', 'c_ipcaStatus');
+  atualizarCaixasRealCmp();
+});
+$('c_ipca').addEventListener('input', atualizarCaixasRealCmp);
 
 /* ------------- alternância do par comparado (LCA x Compromissada) ------------- */
 let parComparacao = 'lca';
@@ -1510,18 +1720,47 @@ $('c_parSwitch').querySelectorAll('.seg-opt').forEach(el=>{
   el.addEventListener('click', ()=>selecionarParComparacao(el.dataset.par));
 });
 
+function redesenharTodosGraficos(){
+  if(ultimoGrafico) desenharGraficoLinha('s_chart', ultimoGrafico.pontos, ultimoGrafico.cor);
+  if(ultimoGraficoCmp) desenharGraficoMultiplo('c_chart', ultimoGraficoCmp);
+  if(ultimoGraficoCenarios) desenharGraficoMultiplo('s_cenarioChart', ultimoGraficoCenarios);
+}
+
 let resizeTimer;
 window.addEventListener('resize', ()=>{
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(()=>{
-    if(ultimoGrafico) desenharGraficoLinha('s_chart', ultimoGrafico.pontos, ultimoGrafico.cor);
-    if(ultimoGraficoCmp) desenharGraficoMultiplo('c_chart', ultimoGraficoCmp);
-  }, 150);
+  resizeTimer = setTimeout(redesenharTodosGraficos, 150);
+});
+
+/* ---------------- TEMA CLARO/ESCURO ---------------- */
+$('btnTema').addEventListener('click', ()=>{
+  const atual = document.documentElement.dataset.theme;
+  const novo = atual === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = novo;
+  $('btnTema').textContent = novo === 'light' ? '☀️' : '🌙';
+  setTimeout(redesenharTodosGraficos, 50);
 });
 
 /* primeira simulação automática */
 calcularSimulacao();
 selecionarParComparacao('lca');
 </script>
+<div id="printArea">
+  <div class="pr-badge">SIMULAÇÃO — NÃO É EXTRATO NEM PROMESSA DE RENTABILIDADE</div>
+  <h1 id="pr_titulo">Cenário simulado</h1>
+  <div class="pr-sub" id="pr_subtitulo"></div>
+  <table>
+    <tr><td>Produto</td><td id="pr_produto"></td></tr>
+    <tr><td>Valor investido (inicial)</td><td id="pr_valorInicial"></td></tr>
+    <tr><td>Aporte mensal</td><td id="pr_aporte"></td></tr>
+    <tr><td>Prazo</td><td id="pr_prazo"></td></tr>
+    <tr><td>Taxa contratada</td><td id="pr_taxa"></td></tr>
+    <tr><td>Total aportado no período</td><td id="pr_totalAportado"></td></tr>
+    <tr><td>Rentabilidade líquida anual</td><td id="pr_pAnual"></td></tr>
+    <tr><td>Rentabilidade real (após IPCA)</td><td id="pr_pReal"></td></tr>
+    <tr class="pr-total"><td>Valor final líquido</td><td id="pr_valorFinal"></td></tr>
+  </table>
+  <p class="pr-footer"><strong>Aviso:</strong> este documento é uma <strong>simulação</strong> gerada com base em parâmetros hipotéticos informados pelo usuário (taxas, prazo e valores). Os números apresentados não representam a realidade garantida do investimento nem constituem previsão: CDI, IPCA e demais condições de mercado variam ao longo do tempo, e o resultado real pode ser diferente do projetado aqui. Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido. Este material tem caráter meramente informativo, não constitui oferta nem recomendação de investimento, e não considera os objetivos, a situação financeira ou as necessidades específicas de cada investidor. Consulte um profissional certificado antes de tomar qualquer decisão.</p>
+</div>
 </body>
 </html>
