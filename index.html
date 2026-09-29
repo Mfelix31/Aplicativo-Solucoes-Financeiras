@@ -470,7 +470,7 @@
   .scenario-row button.remove:hover{border-color:var(--red);}
   .scenario-row button.pdf:hover{border-color:var(--teal);}
 
-  #printArea{display:none;}
+  #printArea, #printAreaCmp{display:none;}
 
   .sim-disclaimer{
     display:flex;
@@ -489,25 +489,27 @@
   .sim-disclaimer .ico{font-size:15px; line-height:1.3;}
 
   @media print{
-    body > *:not(#printArea){display:none !important;}
-    #printArea{
+    body > *:not(.print-active){display:none !important;}
+    .print-active{
       display:block !important;
       background:#fff; color:#111;
       font-family: 'IBM Plex Sans', sans-serif;
       padding: 20px;
     }
-    #printArea h1{font-family:'Source Serif 4', serif; font-size:22px; margin-bottom:4px;}
-    #printArea .pr-badge{
+    .print-active h1{font-family:'Source Serif 4', serif; font-size:22px; margin-bottom:4px;}
+    .print-active .pr-badge{
       display:inline-block; background:#fdf0e3; color:#8a4a1f; border:1px solid #e0b083;
       font-size:10px; font-weight:600; letter-spacing:.3px; padding:3px 8px; border-radius:3px; margin-bottom:8px;
     }
-    #printArea .pr-sub{color:#555; font-size:12px; margin-bottom:20px;}
-    #printArea table{width:100%; border-collapse:collapse;}
-    #printArea td{padding:8px 6px; border-bottom:1px solid #ddd; font-size:13px;}
-    #printArea td:first-child{color:#555;}
-    #printArea td:last-child{text-align:right; font-family:'IBM Plex Mono', monospace; font-weight:600;}
-    #printArea tr.pr-total td{border-top:2px solid #111; border-bottom:none; font-size:15px; padding-top:12px;}
-    #printArea .pr-footer{margin-top:24px; font-size:10.5px; color:#777;}
+    .print-active .pr-sub{color:#555; font-size:12px; margin-bottom:20px;}
+    .print-active table{width:100%; border-collapse:collapse;}
+    .print-active td{padding:8px 6px; border-bottom:1px solid #ddd; font-size:13px;}
+    .print-active td:first-child{color:#555;}
+    .print-active td:not(:first-child){text-align:right; font-family:'IBM Plex Mono', monospace; font-weight:600;}
+    .print-active tr.pr-head-row td{font-weight:700; color:#111; border-bottom:2px solid #111; font-family:'IBM Plex Sans', sans-serif;}
+    .print-active tr.pr-total td{border-top:2px solid #111; border-bottom:none; font-size:15px; padding-top:12px;}
+    .print-active .pr-verdict{margin-top:16px; font-size:13px; color:#111; font-weight:600;}
+    .print-active .pr-footer{margin-top:24px; font-size:10.5px; color:#777;}
   }
 </style>
 </head>
@@ -699,6 +701,7 @@
           <div class="chart-box hidden" id="s_cenarioChartBox" style="margin-top:12px;">
             <div class="chart-title">Evolução comparada dos cenários selecionados</div>
             <canvas id="s_cenarioChart" width="600" height="240"></canvas>
+            <button class="ghost" id="s_btnPdfComparativo" type="button" style="margin-top:12px;">Baixar PDF comparativo</button>
           </div>
         </div>
       </div>
@@ -891,8 +894,8 @@
     <p>4 - Simulação didática. Considera IR regressivo (22,5% a 15% conforme prazo) para RDC e para a Operação Compromissada, e isenção de IR para LCA (pessoa física). O IOF regressivo para resgates com menos de 30 dias se aplica à LCA e ao RDC, mas não incide sobre a Operação Compromissada — daí ela ser mais indicada para prazos curtos. Os cálculos usam capitalização composta sobre o CDI informado, mantido constante durante todo o período — na prática o CDI varia diariamente. A LCA costuma ter carência mínima (atualmente 6 meses) que pode impedir resgate antecipado; verifique as condições do emissor. Isso não é recomendação de investimento.</p>
     <p>5 - Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido.</p>
     <p>6 - CDI automático estimado a partir da série histórica da Meta Selic definida pelo Copom (Banco Central, SGS 432), descontando o spread padrão de 0,10 p.p. entre CDI e Selic — essa fonte reflete decisões do Copom no mesmo dia, sem a defasagem de publicação da série de CDI realizado. IPCA automático consultado na série de IPCA acumulado em 12 meses (SGS 13522), atualizada mensalmente pelo IBGE/Banco Central. Se a consulta falhar (rede bloqueada, CORS, etc.), ajuste os valores manualmente.</p>
-  </footer>
-
+  <footer>
+    
 </div>
 
 <script>
@@ -1109,8 +1112,12 @@ function desenharGraficoLinha(canvasId, pontos, cor){
   const plotH = H - padding.top - padding.bottom;
 
   const valores = pontos.map(p=>p.valor);
-  const minV = Math.min(...valores, 0);
-  const maxV = Math.max(...valores);
+  const minRaw = Math.min(...valores);
+  const maxRaw = Math.max(...valores);
+  const spread = maxRaw - minRaw;
+  const folga = spread > 0 ? spread * 0.15 : Math.max(maxRaw * 0.05, 10);
+  const minV = minRaw - folga;
+  const maxV = maxRaw + folga;
   const rangeV = (maxV - minV) || 1;
 
   const xFor = i => padding.left + (plotW * i/(pontos.length-1));
@@ -1183,8 +1190,12 @@ function desenharGraficoMultiplo(canvasId, series){
   const plotH = H - padding.top - padding.bottom;
 
   const allValores = series.flatMap(s=>s.pontos.map(p=>p.valor));
-  const minV = Math.min(...allValores, 0);
-  const maxV = Math.max(...allValores);
+  const minRaw = Math.min(...allValores);
+  const maxRaw = Math.max(...allValores);
+  const spread = maxRaw - minRaw;
+  const folga = spread > 0 ? spread * 0.15 : Math.max(maxRaw * 0.05, 10);
+  const minV = minRaw - folga;
+  const maxV = maxRaw + folga;
   const rangeV = (maxV - minV) || 1;
 
   const nPontos = series[0].pontos.length;
@@ -1339,17 +1350,25 @@ $('s_btnSalvarCenario').addEventListener('click', ()=>{
   renderCenarios();
 });
 
+let ultimoParComparado = null;
+
 $('s_btnCompararCenarios').addEventListener('click', ()=>{
   if(cenariosSelecionados.length !== 2) return;
   const cores = ['#d7a84c', '#5db3a4'];
-  const series = cenariosSelecionados.map((id, i)=>{
-    const c = cenariosSalvos.find(x=>String(x.id)===String(id));
+  const cenariosObj = cenariosSelecionados.map(id => cenariosSalvos.find(x=>String(x.id)===String(id)));
+  const series = cenariosObj.map((c, i)=>{
     const pontos = evolucaoMensal(c.valorInvestido, c.aporte || 0, c.taxa, c.prazoDias, c.isentoIR, c.isentoIOF);
     return {pontos, cor: cores[i], nome: c.nome};
   });
   ultimoGraficoCenarios = series;
+  ultimoParComparado = cenariosObj;
   $('s_cenarioChartBox').classList.remove('hidden');
   desenharGraficoMultiplo('s_cenarioChart', series);
+});
+
+$('s_btnPdfComparativo').addEventListener('click', ()=>{
+  if(!ultimoParComparado) return;
+  gerarPdfComparativo(ultimoParComparado[0], ultimoParComparado[1]);
 });
 
 function gerarPdfCenario(c){
@@ -1368,6 +1387,47 @@ function gerarPdfCenario(c){
   $('pr_pReal').textContent = fmtPct(c.pReal);
   $('pr_valorReal').textContent = fmtBRL(c.valorReal);
   $('pr_valorFinal').textContent = fmtBRL(c.valorFinal);
+
+  $('printArea').classList.add('print-active');
+  $('printAreaCmp').classList.remove('print-active');
+  setTimeout(()=>window.print(), 80);
+}
+
+function preencherColunaPdfComparativo(sufixo, c){
+  $('prc_nome'+sufixo).textContent = c.nome;
+  $('prc_produto'+sufixo).textContent = c.produtoLabel;
+  $('prc_valorInicial'+sufixo).textContent = fmtBRL(c.valorInvestido);
+  $('prc_aporte'+sufixo).textContent = c.aporte > 0 ? fmtBRL(c.aporte) + ' / mês' : 'Sem aporte';
+  $('prc_prazo'+sufixo).textContent = formatarPrazo(c.prazoDias);
+  $('prc_taxa'+sufixo).textContent = fmtPct(c.taxa) + ' a.a.';
+  $('prc_total'+sufixo).textContent = fmtBRL(c.totalCapital);
+  $('prc_iof'+sufixo).textContent = c.valorIOF > 0 ? fmtBRL(c.valorIOF) : (c.isentoIOF ? 'Isenta' : 'Não incide');
+  $('prc_ir'+sufixo).textContent = c.valorIR > 0 ? fmtBRL(c.valorIR) : (c.isentoIR ? 'Isento' : fmtBRL(0));
+  $('prc_pAnual'+sufixo).textContent = fmtPct(c.pAnualLiquida);
+  $('prc_pPeriodo'+sufixo).textContent = fmtPct(c.pPeriodo);
+  $('prc_pReal'+sufixo).textContent = fmtPct(c.pReal);
+  $('prc_valorReal'+sufixo).textContent = fmtBRL(c.valorReal);
+  $('prc_valorFinal'+sufixo).textContent = fmtBRL(c.valorFinal);
+}
+
+function gerarPdfComparativo(cenarioA, cenarioB){
+  $('prc_subtitulo').textContent = 'Gerado em ' + new Date().toLocaleDateString('pt-BR');
+  preencherColunaPdfComparativo('A', cenarioA);
+  preencherColunaPdfComparativo('B', cenarioB);
+
+  const diffAnual = cenarioA.pAnualLiquida - cenarioB.pAnualLiquida;
+  let veredito;
+  if(Math.abs(diffAnual) < 0.01){
+    veredito = 'As duas simulações têm rentabilidade líquida anual praticamente igual nas condições informadas.';
+  } else if(diffAnual > 0){
+    veredito = '"' + cenarioA.nome + '" tem rentabilidade líquida anual ' + fmtPct(Math.abs(diffAnual)) + ' p.p. maior que "' + cenarioB.nome + '" nas condições simuladas.';
+  } else {
+    veredito = '"' + cenarioB.nome + '" tem rentabilidade líquida anual ' + fmtPct(Math.abs(diffAnual)) + ' p.p. maior que "' + cenarioA.nome + '" nas condições simuladas.';
+  }
+  $('prc_veredito').textContent = veredito;
+
+  $('printAreaCmp').classList.add('print-active');
+  $('printArea').classList.remove('print-active');
   setTimeout(()=>window.print(), 80);
 }
 
@@ -1451,12 +1511,13 @@ function calcularSimulacao(){
   const isentoIOF = tipoSelecionado === 'compromissada';
 
   let taxa;
+  let cdiAtualSim = 0;
   if(indexadorSim === 'pre'){
     taxa = parseFloat($('s_taxaPre').value) || 0;
   } else {
-    const cdi = parseFloat($('s_cdi').value) || 0;
+    cdiAtualSim = parseFloat($('s_cdi').value) || 0;
     const perc = parseFloat($('s_perc').value) || 0;
-    taxa = cdi * perc/100;
+    taxa = cdiAtualSim * perc/100;
   }
 
   const rInicial = simular(pv, taxa, dias, isentoIR, isentoIOF);
@@ -1559,7 +1620,14 @@ function calcularSimulacao(){
     const nomeProduto = tipoSelecionado === 'rdc' ? 'esse RDC' : 'essa Operação Compromissada';
     nota = 'Uma LCA (isenta de IR) precisaria pagar essa taxa ao ano para render o mesmo líquido que ' + nomeProduto + ', que perde ' + fmtPct(aliqIR,1) + ' de IR nesse prazo.';
   }
-  $('s_equivValue').textContent = fmtPct(equivalente) + ' a.a.';
+
+  if(indexadorSim === 'pos' && cdiAtualSim > 0){
+    const percCDIequivalente = (equivalente / cdiAtualSim) * 100;
+    $('s_equivValue').textContent = fmtPct(percCDIequivalente, 0) + ' do CDI';
+    nota += ' Isso equivale a ' + fmtPct(percCDIequivalente, 0) + ' do CDI atual (' + fmtPct(cdiAtualSim) + ' a.a.), ou ' + fmtPct(equivalente) + ' a.a. em taxa fixa — a mesma referência (% do CDI) usada na sua simulação.';
+  } else {
+    $('s_equivValue').textContent = fmtPct(equivalente) + ' a.a.';
+  }
   $('s_equivNote').textContent = nota;
 }
 $('s_btnCalc').addEventListener('click', calcularSimulacao);
@@ -1772,6 +1840,30 @@ selecionarParComparacao('lca');
     <tr class="pr-total"><td>Valor final líquido</td><td id="pr_valorFinal"></td></tr>
   </table>
   <p class="pr-footer"><strong>Aviso:</strong> este documento é uma <strong>simulação</strong> gerada com base em parâmetros hipotéticos informados pelo usuário (taxas, prazo e valores). Os números apresentados não representam a realidade garantida do investimento nem constituem previsão: CDI, IPCA e demais condições de mercado variam ao longo do tempo, e o resultado real pode ser diferente do projetado aqui. Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido. Este material tem caráter meramente informativo, não constitui oferta nem recomendação de investimento, e não considera os objetivos, a situação financeira ou as necessidades específicas de cada investidor. Consulte um profissional certificado antes de tomar qualquer decisão.</p>
+</div>
+
+<div id="printAreaCmp">
+  <div class="pr-badge">SIMULAÇÃO — NÃO É EXTRATO NEM PROMESSA DE RENTABILIDADE</div>
+  <h1>Comparação de cenários</h1>
+  <div class="pr-sub" id="prc_subtitulo"></div>
+  <table>
+    <tr class="pr-head-row"><td></td><td id="prc_nomeA"></td><td id="prc_nomeB"></td></tr>
+    <tr><td>Produto</td><td id="prc_produtoA"></td><td id="prc_produtoB"></td></tr>
+    <tr><td>Valor investido (inicial)</td><td id="prc_valorInicialA"></td><td id="prc_valorInicialB"></td></tr>
+    <tr><td>Aporte mensal</td><td id="prc_aporteA"></td><td id="prc_aporteB"></td></tr>
+    <tr><td>Prazo</td><td id="prc_prazoA"></td><td id="prc_prazoB"></td></tr>
+    <tr><td>Taxa contratada</td><td id="prc_taxaA"></td><td id="prc_taxaB"></td></tr>
+    <tr><td>Total aportado</td><td id="prc_totalA"></td><td id="prc_totalB"></td></tr>
+    <tr><td>IOF</td><td id="prc_iofA"></td><td id="prc_iofB"></td></tr>
+    <tr><td>Imposto de Renda</td><td id="prc_irA"></td><td id="prc_irB"></td></tr>
+    <tr><td>Rentabilidade líquida anual</td><td id="prc_pAnualA"></td><td id="prc_pAnualB"></td></tr>
+    <tr><td>Rentabilidade no período</td><td id="prc_pPeriodoA"></td><td id="prc_pPeriodoB"></td></tr>
+    <tr><td>Rentabilidade real (após IPCA)</td><td id="prc_pRealA"></td><td id="prc_pRealB"></td></tr>
+    <tr><td>Valor real (poder de compra de hoje)</td><td id="prc_valorRealA"></td><td id="prc_valorRealB"></td></tr>
+    <tr class="pr-total"><td>Valor final líquido</td><td id="prc_valorFinalA"></td><td id="prc_valorFinalB"></td></tr>
+  </table>
+  <p class="pr-verdict" id="prc_veredito"></p>
+  <p class="pr-footer"><strong>Aviso:</strong> este documento é uma <strong>simulação comparativa</strong> gerada com base em parâmetros hipotéticos informados pelo usuário (taxas, prazo e valores). Os números apresentados não representam a realidade garantida do investimento nem constituem previsão: CDI, IPCA e demais condições de mercado variam ao longo do tempo, e o resultado real pode ser diferente do projetado aqui. Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido. Este material tem caráter meramente informativo, não constitui oferta nem recomendação de investimento, e não considera os objetivos, a situação financeira ou as necessidades específicas de cada investidor. Consulte um profissional certificado antes de tomar qualquer decisão.</p>
 </div>
 </body>
 </html>
