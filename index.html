@@ -891,10 +891,10 @@
     <p>1 - Este é um simulador educativo. Não coletamos, não armazenamos e não transmitimos dados pessoais. O processamento é realizado exclusivamente de forma local em seu navegador.</p>
     <p>2 - As informações contidas neste material têm caráter meramente informativo e não constituem uma oferta de compra ou venda de ativos. O investidor é integralmente responsável por suas decisões financeiras.</p>
     <p>3 - Este material foi elaborado de forma generalista e não considera os objetivos de investimento, a situação financeira ou as necessidades específicas de cada investidor. Consulte um profissional certificado antes de tomar qualquer decisão.</p>
-    <p>4 - Simulação didática. Considera IR regressivo (22,5% a 15% conforme prazo) para RDC e para a Operação Compromissada, e isenção de IR para LCA (pessoa física). O IOF regressivo para resgates com menos de 30 dias se aplica à LCA e ao RDC, mas não incide sobre a Operação Compromissada — daí ela ser mais indicada para prazos curtos. Os cálculos usam capitalização composta sobre o CDI informado, mantido constante durante todo o período — na prática o CDI varia diariamente. A LCA costuma ter carência mínima (atualmente 6 meses) que pode impedir resgate antecipado; verifique as condições do emissor. Isso não é recomendação de investimento.</p>
+    <p>4 - Simulação didática. Considera IR regressivo (22,5% a 15% conforme prazo) para RDC e para a Operação Compromissada, e isenção de IR para LCA (pessoa física). O IOF regressivo para resgates com menos de 30 dias se aplica à LCA e ao RDC, mas não incide sobre a Operação Compromissada — daí ela ser mais indicada para prazos curtos. A isenção de IOF considerada para a Operação Compromissada vale para operações lastreadas em debêntures, o formato usual dos bancos; com outros lastros pode haver IOF. O rendimento segue a convenção de mercado: capitalização composta em dias úteis, base 252 (fator = (1 + taxa)^(dias úteis/252)), descontando fins de semana e feriados nacionais; as faixas de IR e IOF usam dias corridos entre a aplicação (hoje) e o resgate. Prazos em meses e anos são convertidos pelas datas do calendário. A taxa (CDI ou prefixada) é mantida constante durante todo o período — na prática o CDI varia diariamente. A LCA não atualizada por índice de preços tem prazo mínimo de 6 meses (Resolução CMN nº 5.215/2025), o que pode impedir resgate antecipado; verifique as condições do emissor. Isso não é recomendação de investimento.</p>
     <p>5 - Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido.</p>
     <p>6 - CDI automático estimado a partir da série histórica da Meta Selic definida pelo Copom (Banco Central, SGS 432), descontando o spread padrão de 0,10 p.p. entre CDI e Selic — essa fonte reflete decisões do Copom no mesmo dia, sem a defasagem de publicação da série de CDI realizado. IPCA automático consultado na série de IPCA acumulado em 12 meses (SGS 13522), atualizada mensalmente pelo IBGE/Banco Central. Se a consulta falhar (rede bloqueada, CORS, etc.), ajuste os valores manualmente.</p>
-  <footer>
+  </footer>
     
 </div>
 
@@ -914,6 +914,10 @@ function fmtBRLShort(v){
 }
 function taxaReal(taxaAnualLiquidaPct, ipcaPct){
   return ((1 + taxaAnualLiquidaPct/100) / (1 + ipcaPct/100) - 1) * 100;
+}
+
+function escHTML(s){
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 
 function numeroDoCampo(id){
@@ -977,16 +981,72 @@ function irAliquota(dias){
   if(dias <= 720) return 17.5;
   return 15;
 }
+/* ---------------- CALENDÁRIO: dias corridos e dias úteis (base 252) ----------------
+   Convenção de mercado para CDB/LCA/RDC/compromissada:
+   - rendimento: (1 + taxa)^(DU/252), DU = dias úteis de [aplicação, resgate)
+   - IR e IOF: dias corridos entre aplicação e resgate
+   Feriados nacionais (calendário ANBIMA): fixos + móveis calculados pela Páscoa. */
+const HOJE0 = (()=>{ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); })();
+function pascoa(ano){
+  const a = ano % 19, b = Math.floor(ano/100), c = ano % 100, d = Math.floor(b/4), e = b % 4;
+  const f = Math.floor((b+8)/25), g = Math.floor((b-f+1)/3), h = (19*a + b - d - g + 15) % 30;
+  const i = Math.floor(c/4), k = c % 4, l = (32 + 2*e + 2*i - h - k) % 7, m = Math.floor((a + 11*h + 22*l)/451);
+  const mes = Math.floor((h + l - 7*m + 114)/31), dia = ((h + l - 7*m + 114) % 31) + 1;
+  return new Date(ano, mes-1, dia);
+}
+const _feriados = {};
+function feriadosNacionais(ano){
+  if(_feriados[ano]) return _feriados[ano];
+  const set = new Set(['1-1','4-21','5-1','9-7','10-12','11-2','11-15','12-25']);
+  if(ano >= 2024) set.add('11-20'); // Dia Nacional de Zumbi e da Consciência Negra (Lei 14.759/2023)
+  const p = pascoa(ano);
+  [-48, -47, -2, 60].forEach(off=>{ // Carnaval (seg e ter), Sexta-feira Santa, Corpus Christi
+    const d = new Date(p.getFullYear(), p.getMonth(), p.getDate() + off);
+    set.add((d.getMonth()+1) + '-' + d.getDate());
+  });
+  return (_feriados[ano] = set);
+}
+function ehDiaUtil(d){
+  const w = d.getDay();
+  if(w === 0 || w === 6) return false;
+  return !feriadosNacionais(d.getFullYear()).has((d.getMonth()+1) + '-' + d.getDate());
+}
+const _cumDU = [0]; // _cumDU[n] = dias úteis em [hoje, hoje + n)
+function diasUteisAte(n){
+  n = Math.max(0, Math.round(n));
+  while(_cumDU.length <= n){
+    const i = _cumDU.length - 1;
+    const d = new Date(HOJE0.getFullYear(), HOJE0.getMonth(), HOJE0.getDate() + i);
+    _cumDU.push(_cumDU[i] + (ehDiaUtil(d) ? 1 : 0));
+  }
+  return _cumDU[n];
+}
+function diasUteisEntre(offIni, offFim){ return diasUteisAte(offFim) - diasUteisAte(offIni); }
+function diasAteMesesDepois(n){
+  const dia = HOJE0.getDate();
+  const alvo = new Date(HOJE0.getFullYear(), HOJE0.getMonth() + n, 1);
+  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+  alvo.setDate(Math.min(dia, ultimo));
+  return Math.round((alvo - HOJE0) / 864e5);
+}
 function prazoEmDias(valor, unidade){
-  if(unidade === 'dias') return valor;
-  if(unidade === 'meses') return valor * 30;
-  return valor * 365;
+  if(unidade === 'dias') return Math.round(valor);
+  if(unidade === 'meses') return diasAteMesesDepois(Math.round(valor));
+  return diasAteMesesDepois(Math.round(valor * 12));
+}
+function textoPrazo(valor, unidade){
+  const v = Math.round(valor);
+  if(unidade === 'dias') return v + (v===1 ? ' dia' : ' dias');
+  if(unidade === 'meses') return v + (v===1 ? ' mês' : ' meses');
+  return v + (v===1 ? ' ano' : ' anos');
 }
 
-function simular(pv, taxaAnualPct, dias, isentoIR, isentoIOF){
+function simular(pv, taxaAnualPct, dias, isentoIR, isentoIOF, inicioOffset){
+  // dias = dias corridos da aplicação ao resgate; inicioOffset = dias corridos entre hoje e a aplicação
   const taxaAnual = taxaAnualPct/100;
-  const anos = dias/365;
-  const fv = pv * Math.pow(1+taxaAnual, anos);
+  const ini = Math.round(inicioOffset || 0);
+  const du = diasUteisEntre(ini, ini + Math.round(dias));
+  const fv = pv * Math.pow(1+taxaAnual, du/252);
   const bruto = fv - pv;
 
   const aliqIOF = isentoIOF ? 0 : iofAliquota(dias);
@@ -999,10 +1059,10 @@ function simular(pv, taxaAnualPct, dias, isentoIR, isentoIOF){
 
   const valorFinal = pv + liquido;
   const pPeriodo = (liquido/pv)*100;
-  const taxaAnualLiquida = (Math.pow(valorFinal/pv, 365/dias) - 1) * 100;
+  const taxaAnualLiquida = du > 0 ? (Math.pow(valorFinal/pv, 252/du) - 1) * 100 : 0;
   const pMensal = (Math.pow(1+taxaAnualLiquida/100, 1/12) - 1) * 100;
 
-  return {bruto, pBrutoAnual: taxaAnualPct, iofValor, aliqIOF, isentoIOF: !!isentoIOF, irValor, aliqIR, liquido, valorFinal, pPeriodo, panual: taxaAnualLiquida, pmensal: pMensal};
+  return {bruto, pBrutoAnual: taxaAnualPct, iofValor, aliqIOF, isentoIOF: !!isentoIOF, irValor, aliqIR, liquido, valorFinal, pPeriodo, panual: taxaAnualLiquida, pmensal: pMensal, du, dc: Math.round(dias)};
 }
 
 function preencherCard(prefix, r, pv){
@@ -1061,24 +1121,34 @@ async function buscarIPCA(inputId, statusId){
 }
 
 /* ---------------- GRÁFICO DE EVOLUÇÃO ---------------- */
+/* datas (em dias corridos a partir de hoje) dos aportes mensais dentro do prazo */
+function datasAportes(diasTotal){
+  const datas = [];
+  for(let k=1; ; k++){
+    const off = diasAteMesesDepois(k);
+    if(off > diasTotal) break;
+    datas.push(off);
+  }
+  return datas;
+}
 function evolucaoMensal(pv, aporte, taxa, diasTotal, isentoIR, isentoIOF){
-  const nAportesTotal = aporte > 0 ? Math.max(0, Math.floor(diasTotal/30)) : 0;
+  const datas = aporte > 0 ? datasAportes(diasTotal) : [];
   const nPontos = Math.min(24, Math.max(6, Math.round(diasTotal/15)));
   const pontos = [];
   for(let i=0; i<=nPontos; i++){
-    const diaAtual = (diasTotal * i) / nPontos;
+    const diaAtual = Math.round((diasTotal * i) / nPontos);
     let liquidoTotal = 0;
     let capitalTotal = pv;
     if(diaAtual > 0){
       const rIni = simular(pv, taxa, diaAtual, isentoIR, isentoIOF);
       liquidoTotal += rIni.liquido;
     }
-    const aportesFeitos = aporte > 0 ? Math.min(nAportesTotal, Math.floor(diaAtual/30)) : 0;
-    for(let k=1; k<=aportesFeitos; k++){
+    for(const off of datas){
+      if(off > diaAtual) break;
       capitalTotal += aporte;
-      const diasAporte = diaAtual - k*30;
+      const diasAporte = diaAtual - off;
       if(diasAporte > 0){
-        const rAp = simular(aporte, taxa, diasAporte, isentoIR, isentoIOF);
+        const rAp = simular(aporte, taxa, diasAporte, isentoIR, isentoIOF, off);
         liquidoTotal += rAp.liquido;
       }
     }
@@ -1292,7 +1362,7 @@ function renderCenarios(){
     row.className = 'scenario-row';
     row.innerHTML =
       '<input type="checkbox" class="cenario-check" data-id="'+c.id+'" '+(marcado?'checked':'')+' '+((!marcado && atingiuLimite)?'disabled':'')+'>' +
-      '<span class="nome">' + c.nome + ' <span style="color:var(--ink-faint);">(' + c.produtoLabel + ')</span></span>' +
+      '<span class="nome">' + escHTML(c.nome) + ' <span style="color:var(--ink-faint);">(' + c.produtoLabel + ')</span></span>' +
       '<span class="val">' + fmtBRL(c.totalCapital) + '</span>' +
       '<span class="val">' + fmtPct(c.pAnualLiquida) + '</span>' +
       '<span class="val">' + fmtBRL(c.valorFinal) + '</span>' +
@@ -1377,7 +1447,7 @@ function gerarPdfCenario(c){
   $('pr_produto').textContent = c.produtoLabel;
   $('pr_valorInicial').textContent = fmtBRL(c.valorInvestido);
   $('pr_aporte').textContent = c.aporte > 0 ? fmtBRL(c.aporte) + ' / mês' : 'Sem aporte mensal';
-  $('pr_prazo').textContent = formatarPrazo(c.prazoDias);
+  $('pr_prazo').textContent = c.prazoTexto || formatarPrazo(c.prazoDias);
   $('pr_taxa').textContent = fmtPct(c.taxa) + ' a.a.';
   $('pr_totalAportado').textContent = fmtBRL(c.totalCapital);
   $('pr_iof').textContent = c.valorIOF > 0 ? fmtBRL(c.valorIOF) : (c.isentoIOF ? 'Isenta de IOF' : 'Não incide (prazo ≥ 30 dias)');
@@ -1398,7 +1468,7 @@ function preencherColunaPdfComparativo(sufixo, c){
   $('prc_produto'+sufixo).textContent = c.produtoLabel;
   $('prc_valorInicial'+sufixo).textContent = fmtBRL(c.valorInvestido);
   $('prc_aporte'+sufixo).textContent = c.aporte > 0 ? fmtBRL(c.aporte) + ' / mês' : 'Sem aporte';
-  $('prc_prazo'+sufixo).textContent = formatarPrazo(c.prazoDias);
+  $('prc_prazo'+sufixo).textContent = c.prazoTexto || formatarPrazo(c.prazoDias);
   $('prc_taxa'+sufixo).textContent = fmtPct(c.taxa) + ' a.a.';
   $('prc_total'+sufixo).textContent = fmtBRL(c.totalCapital);
   $('prc_iof'+sufixo).textContent = c.valorIOF > 0 ? fmtBRL(c.valorIOF) : (c.isentoIOF ? 'Isenta' : 'Não incide');
@@ -1530,10 +1600,12 @@ function calcularSimulacao(){
   let nAportes = 0;
 
   if(aporte > 0){
-    nAportes = Math.max(0, Math.floor(dias/30));
-    for(let k=1; k<=nAportes; k++){
-      const diasAporte = Math.max(1, dias - k*30);
-      const rAporte = simular(aporte, taxa, diasAporte, isentoIR, isentoIOF);
+    const datas = datasAportes(dias);
+    nAportes = datas.length;
+    for(const off of datas){
+      const diasAporte = dias - off;
+      if(diasAporte <= 0){ totalCapital += aporte; continue; } // aporte no dia do resgate: entra sem render
+      const rAporte = simular(aporte, taxa, diasAporte, isentoIR, isentoIOF, off);
       totalBruto += rAporte.bruto;
       totalIOF += rAporte.iofValor;
       totalIR += rAporte.irValor;
@@ -1544,7 +1616,8 @@ function calcularSimulacao(){
 
   const valorFinal = totalCapital + totalLiquido;
   const pPeriodo = totalCapital > 0 ? (totalLiquido/totalCapital)*100 : 0;
-  const taxaAnualLiquida = (Math.pow(valorFinal/totalCapital, 365/dias) - 1) * 100;
+  const duTotal = rInicial.du;
+  const taxaAnualLiquida = duTotal > 0 && totalCapital > 0 ? (Math.pow(valorFinal/totalCapital, 252/duTotal) - 1) * 100 : 0;
   const pMensal = (Math.pow(1+taxaAnualLiquida/100, 1/12) - 1) * 100;
 
   const r = {
@@ -1594,6 +1667,7 @@ function calcularSimulacao(){
     valorInvestido: pv,
     aporte: aporte,
     prazoDias: dias,
+    prazoTexto: textoPrazo(prazoRaw, unidade),
     taxa: taxa,
     isentoIR: isentoIR,
     isentoIOF: isentoIOF,
