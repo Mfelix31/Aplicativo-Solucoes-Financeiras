@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planejamento Financeiro</title>
+<script src="assets/tema.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Tokens idênticos ao Simulador de Investimentos */
+  :root[data-theme="dark"]{
+    --bg:#0c1f1e; --panel:#142e2c; --panel-2:#193531; --line:#26504c; --line-soft:#1d3d3a;
+    --ink:#eef6f4; --ink-muted:#8fc4bf; --ink-faint:#628f8a;
+    --gold:#d7a84c; --gold-dim:#8a6d33; --teal:#5db3a4; --teal-dim:#3a6b62;
+    --blue:#6f95c2; --blue-dim:#3f5c7a; --red:#c96a52;
+    --ok:#6fbf86;
+  }
+  :root{
+    --bg:#eef1e9; --panel:#f9faf6; --panel-2:#eff2ea; --line:#d3d9c9; --line-soft:#e4e8dc;
+    --ink:#1c2a1f; --ink-muted:#4d5c48; --ink-faint:#7c8a72;
+    --gold:#9c7423; --gold-dim:#c9a34f; --teal:#2f7a6c; --teal-dim:#6fb0a2;
+    --blue:#3d5f8a; --blue-dim:#7a9dc7; --red:#a8482f;
+    --ok:#2f7f4a;
+  }
+  .home-link{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); text-decoration:none; margin-bottom:10px; border:1px solid var(--line); border-radius:20px; padding:3px 11px;}
+  .home-link:hover{color:var(--ink); border-color:var(--teal);}
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans',sans-serif; line-height:1.5; padding:28px 16px 60px;}
+  .wrap{max-width:920px; margin:0 auto;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  header{border-bottom:1px solid var(--line); padding-bottom:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px;}
+  header h1{font-family:'Source Serif 4',serif; font-weight:600; font-size:30px; margin:0 0 4px;}
+  header p{margin:0; color:var(--ink-muted); font-size:14px; max-width:52ch;}
+  .head-right{display:flex; align-items:center; gap:12px;}
+  .badge{font-size:10.5px; font-weight:600; letter-spacing:.4px; color:var(--gold); border:1px solid var(--gold-dim); padding:3px 9px; border-radius:20px;}
+  .theme-toggle{background:var(--panel-2); border:1px solid var(--line); color:var(--ink); width:38px; height:38px; border-radius:50%; font-size:16px; cursor:pointer;}
+  .theme-toggle:hover{border-color:var(--teal);}
+
+  /* etapas */
+  .steps{display:flex; gap:4px; margin-bottom:22px; border-bottom:1px solid var(--line); overflow-x:auto;}
+  .step-btn{background:transparent; border:none; color:var(--ink-faint); font-family:'Source Serif 4',serif; font-size:16px; padding:10px 4px; margin-right:24px; cursor:pointer; position:relative; top:1px; white-space:nowrap; display:flex; align-items:center; gap:8px;}
+  .step-btn .n{font-family:'IBM Plex Mono',monospace; font-size:11px; border:1px solid var(--line); padding:0 6px; border-radius:3px;}
+  .step-btn.active{color:var(--ink); border-bottom:2px solid var(--gold); padding-bottom:9px;}
+  .step-btn.active .n{border-color:var(--gold-dim); color:var(--gold);}
+  .step-panel{display:none;}
+  .step-panel.active{display:block;}
+
+  section.panel{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px 20px 8px; margin-bottom:18px;}
+  section.panel h2{font-family:'Source Serif 4',serif; font-size:17px; font-weight:600; margin:0 0 4px;}
+  section.panel .sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 16px;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px 18px; margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:6px;}
+  .row-input{display:flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--panel-2);}
+  .row-input:focus-within{border-color:var(--teal);}
+  .row-input.invalid{border-color:var(--red);}
+  .row-input input, .row-input select{flex:1; min-width:0; background:transparent; border:none; color:var(--ink); font-family:'IBM Plex Mono',monospace; font-size:15px; padding:10px; width:100%; outline:none;}
+  .row-input select{font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; color:var(--ink);}
+  .row-input select option{background:var(--panel); color:var(--ink);}
+  .prefix,.suffix{display:flex; align-items:center; padding:0 10px; color:var(--ink-faint); font-family:'IBM Plex Mono',monospace; font-size:12.5px; background:var(--line-soft); white-space:nowrap;}
+  .hint{font-size:11.5px; color:var(--ink-faint); margin-top:5px;}
+  .hint.err{color:var(--red);}
+  .tag-ir{display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.3px; color:var(--ink-muted); border:1px dashed var(--line); border-radius:3px; padding:1px 7px; margin-left:6px; vertical-align:middle;}
+
+  .scen-inputs{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px;}
+  @media(max-width:560px){.scen-inputs{grid-template-columns:1fr;}}
+  .scen-inputs .field label .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:0;}
+
+  /* objetivos */
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+  .chip{background:var(--panel-2); border:1px solid var(--line); color:var(--ink-muted); border-radius:20px; padding:6px 12px; font-size:12.5px; cursor:pointer; font-family:'IBM Plex Sans',sans-serif;}
+  .chip:hover{border-color:var(--gold); color:var(--ink);}
+  .obj-list{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+  .obj-row{display:grid; grid-template-columns:1.3fr 1.1fr 1fr 1fr auto; gap:10px; align-items:end; background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:12px;}
+  @media(max-width:720px){.obj-row{grid-template-columns:1fr 1fr;} .obj-row .rm-wrap{grid-column:1/-1; text-align:right;}}
+  .obj-row .field label{font-size:11.5px;}
+  .obj-row .row-input input,.obj-row .row-input select{font-size:13.5px; padding:8px;}
+  .btn-rm{background:transparent; border:1px solid var(--line); color:var(--red); border-radius:4px; padding:8px 10px; cursor:pointer; font-size:12px;}
+  .btn-rm:hover{border-color:var(--red);}
+  .empty{font-size:12.5px; color:var(--ink-faint); padding:4px 0 12px;}
+
+  .nav-row{display:flex; justify-content:flex-end; gap:10px; margin:4px 0 22px;}
+  button.primary{background:var(--gold); color:#1a1305; border:none; font-family:'IBM Plex Sans',sans-serif; font-weight:600; font-size:14.5px; padding:12px 20px; border-radius:4px; cursor:pointer;}
+  button.primary:hover{filter:brightness(1.08);}
+  button.ghost{background:transparent; border:1px solid var(--teal-dim); color:var(--teal); font-family:'IBM Plex Sans',sans-serif; font-size:13px; padding:11px 16px; border-radius:4px; cursor:pointer;}
+  button.ghost:hover{border-color:var(--teal);}
+
+  /* indicadores */
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-bottom:18px;}
+  .kpi{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px 18px;}
+  .kpi .k{font-size:12px; color:var(--ink-muted);}
+  .kpi .v{font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:600; color:var(--gold); line-height:1.25; margin-top:2px;}
+  .kpi .s{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink); margin-top:6px;}
+  .kpi .s .lbl{font-family:'IBM Plex Sans',sans-serif; color:var(--ink-faint); font-size:11.5px; display:block;}
+  .unit{font-size:10.5px; font-weight:600; letter-spacing:.3px; padding:1px 6px; border-radius:3px; margin-left:6px; vertical-align:middle; font-family:'IBM Plex Sans',sans-serif;}
+  .unit.hoje{color:var(--teal); border:1px solid var(--teal-dim);}
+  .unit.nom{color:var(--ink-faint); border:1px solid var(--line);}
+
+  .explain{background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--teal-dim); border-radius:5px; padding:12px 16px; font-size:12.5px; color:var(--ink-muted); margin-bottom:18px;}
+  .explain p{margin:0 0 6px;} .explain p:last-child{margin:0;}
+  .explain .f{font-family:'IBM Plex Mono',monospace; color:var(--ink); font-size:12px;}
+  .warn-box{display:flex; gap:10px; align-items:flex-start; background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--gold-dim); border-radius:5px; padding:10px 14px; font-size:12px; color:var(--ink-muted); margin-bottom:18px;}
+
+  .chart-box{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px 18px; margin-bottom:18px; position:relative;}
+  .chart-head{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
+  .chart-title{font-size:13px; color:var(--ink-muted);}
+  .chart-box canvas{display:block; width:100%; height:280px;}
+  .legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink-muted); margin-top:8px;}
+  .legend span::before{content:''; display:inline-block; width:14px; height:3px; border-radius:2px; background:var(--c); margin-right:6px; vertical-align:middle;}
+  .legend span.dash::before{background:repeating-linear-gradient(90deg,var(--c) 0 4px,transparent 4px 7px);}
+  .tooltip{position:absolute; pointer-events:none; background:var(--panel-2); border:1px solid var(--line); border-radius:5px; padding:8px 10px; font-size:11.5px; color:var(--ink); white-space:nowrap; display:none; z-index:2; box-shadow:0 4px 14px rgba(0,0,0,.18);}
+  .tooltip .t{color:var(--ink-faint); margin-bottom:3px;}
+  .tooltip .r{font-family:'IBM Plex Mono',monospace;}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden;}
+  .seg button{background:transparent; border:none; color:var(--ink-muted); font-size:12px; padding:6px 10px; cursor:pointer; font-family:'IBM Plex Sans',sans-serif;}
+  .seg button.active{background:var(--gold); color:#14140f; font-weight:600;}
+
+  .curve-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;}
+  @media(max-width:720px){.curve-cards{grid-template-columns:1fr;}}
+  .curve-card{background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--c); border-radius:6px; padding:14px 16px;}
+  .curve-card h3{font-family:'Source Serif 4',serif; font-size:15px; margin:0 0 4px; color:var(--ink);}
+  .curve-card p{margin:0; font-size:12px; color:var(--ink-muted);}
+  .curve-card .res{font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--ink); margin-top:8px;}
+  .curve-card .row-input{margin-top:8px;}
+
+  /* cenários */
+  .scen-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px;}
+  @media(max-width:820px){.scen-cards{grid-template-columns:1fr;}}
+  .ledger{background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--c); border-radius:6px; padding:16px 16px 12px;}
+  .ledger h3{font-family:'Source Serif 4',serif; font-size:17px; margin:0; color:var(--ink);}
+  .ledger .desc{font-size:11.5px; color:var(--ink-faint); margin-bottom:10px;}
+  .status{display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; margin:4px 0 10px;}
+  .status.ok{background:rgba(111,191,134,.14); color:var(--ok); border:1px solid var(--ok);}
+  .status.no{background:rgba(201,106,82,.12); color:var(--red); border:1px solid var(--red);}
+  .lrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 0; border-top:1px dashed var(--line); font-size:12.5px;}
+  .lrow .k{color:var(--ink-muted);}
+  .lrow .v{font-family:'IBM Plex Mono',monospace; color:var(--ink); text-align:right;}
+  .lrow .v small{display:block; color:var(--ink-faint); font-size:10.5px;}
+  .lrow.hl .v{color:var(--c); font-weight:600;}
+  .freedom{font-size:12.5px; color:var(--ink); background:var(--panel-2); border-radius:4px; padding:9px 10px; margin-top:8px;}
+
+  table.obj-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .obj-table th{text-align:left; font-weight:500; color:var(--ink-faint); font-size:11.5px; padding:6px 8px; border-bottom:1px solid var(--line);}
+  .obj-table td{padding:8px; border-top:1px dashed var(--line);}
+  .obj-table td.num{font-family:'IBM Plex Mono',monospace; text-align:right;}
+  .obj-table th.c, .obj-table td.c{text-align:center;}
+  .ok-t{color:var(--ok); font-weight:600;} .no-t{color:var(--red); font-weight:600;}
+  .table-scroll{overflow-x:auto;}
+
+  /* popup */
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:16px; z-index:10;}
+  .modal-bg.open{display:flex;}
+  .modal{background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--red); border-radius:8px; max-width:480px; width:100%; padding:20px 22px; max-height:85vh; display:flex; flex-direction:column;}
+  .modal h3{font-family:'Source Serif 4',serif; margin:0 0 8px; font-size:19px;}
+  .modal ul{margin:8px 0 12px; padding:0 8px 0 18px; font-size:13px; color:var(--ink); overflow-y:auto; flex:1 1 auto; min-height:0; overscroll-behavior:contain;}
+  .modal h3, .modal p, .modal .modal-actions{flex:0 0 auto;}
+  .modal p{font-size:13px; color:var(--ink-muted); margin:0 0 14px;}
+  .modal.ok{border-top-color:var(--ok);}
+  .modal ul li{margin-bottom:6px;}
+  .modal .modal-rec{color:var(--red); font-weight:700; font-size:13.5px;}
+  .obj-lines{margin-top:8px; border-top:1px dashed var(--line); padding-top:8px;}
+  .obj-lines .t{font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;}
+  .obj-line{display:flex; justify-content:space-between; align-items:center; gap:8px; width:100%; background:transparent; border:none; border-radius:4px; padding:6px 4px; cursor:pointer; font-family:'IBM Plex Sans',sans-serif; font-size:12.5px; color:var(--ink); text-align:left;}
+  .obj-line:hover{background:var(--panel-2);}
+  .obj-line:focus-visible{outline:2px solid var(--teal); outline-offset:1px;}
+  .obj-line .st{font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; white-space:nowrap;}
+  .obj-line .st.ok{color:var(--ok); border:1px solid var(--ok);}
+  .obj-line .st.no{color:var(--red); border:1px solid var(--red);}
+  .obj-line .st::after{content:' ›';}
+
+  footer{margin-top:28px; font-size:11.5px; color:var(--ink-faint); border-top:1px solid var(--line); padding-top:14px;}
+  footer p{margin:0 0 8px;}
+
+  /* ---------- relatório em PDF (impressão) ---------- */
+  #printArea{display:none;}
+  @media print{
+    @page{size:A4; margin:14mm 12mm;}
+    body{background:#fff !important; padding:0 !important;}
+    body > *:not(#printArea){display:none !important;}
+    #printArea{display:block !important; color:#111; font-family:'IBM Plex Sans',sans-serif; font-size:11.5px; line-height:1.45;}
+    #printArea *{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    #printArea .pr-badge{display:inline-block; background:#fdf0e3; color:#8a4a1f; border:1px solid #e0b083; font-size:9.5px; font-weight:700; letter-spacing:.3px; padding:3px 8px; border-radius:3px; margin-bottom:8px;}
+    #printArea h1{font-family:'Source Serif 4',serif; font-size:22px; margin:0 0 2px;}
+    #printArea .pr-sub{color:#555; font-size:11px; margin-bottom:14px;}
+    #printArea h2{font-family:'Source Serif 4',serif; font-size:14.5px; margin:16px 0 6px; padding-bottom:4px; border-bottom:2px solid #111; break-after:avoid;}
+    #printArea table{width:100%; border-collapse:collapse; break-inside:avoid;}
+    #printArea td, #printArea th{padding:5px 6px; border-bottom:1px solid #ddd; vertical-align:top; text-align:left;}
+    #printArea th{font-size:10.5px; color:#555; font-weight:600; border-bottom:1.5px solid #999;}
+    #printArea td.n, #printArea th.n{text-align:right; font-family:'IBM Plex Mono',monospace;}
+    #printArea td.k{color:#555; width:46%;}
+    #printArea td.v{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+    #printArea .ok{color:#2f7f4a; font-weight:700;} #printArea .no{color:#a8482f; font-weight:700;}
+    #printArea .pr-note{font-size:10.5px; color:#444; margin:6px 0 0;}
+    #printArea .pr-chart{width:100%; border:1px solid #ddd; border-radius:4px; margin-top:8px; break-inside:avoid;}
+    #printArea .pr-legend{font-size:10px; color:#444; margin-top:4px;}
+    #printArea .pr-legend span{margin-right:14px;}
+    #printArea .pr-legend i{display:inline-block; width:12px; height:3px; vertical-align:middle; margin-right:4px;}
+    #printArea .pr-aviso{border:1px solid #e0b083; background:#fdf6ee; border-radius:4px; padding:8px 10px; margin-top:16px; font-size:10.5px; color:#333; break-inside:avoid;}
+    #printArea .pr-footer{margin-top:10px; font-size:9.5px; color:#666;}
+    #printArea .pr-footer p{margin:0 0 5px;}
+    #printArea .bloco{break-inside:avoid;}
+  }
+  .err-banner{display:none; background:rgba(201,106,82,.12); border:1px solid var(--red); color:var(--ink); border-radius:5px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;}
+  .err-banner.show{display:block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <a class="home-link" href="index.html">← Início</a>
+      <h1>Planejamento Financeiro</h1>
+      <p>Descubra quanto patrimônio você precisa para viver de renda, se os seus aportes chegam lá e quando.</p>
+    </div>
+    <div class="head-right">
+      <button class="theme-toggle" id="btnTema" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema">🌙</button>
+    </div>
+  </header>
+
+  <nav class="steps" role="tablist">
+    <button class="step-btn active" data-step="1" role="tab"><span class="n">01</span>Dados e objetivos</button>
+    <button class="step-btn" data-step="2" role="tab"><span class="n">02</span>Capital necessário</button>
+    <button class="step-btn" data-step="3" role="tab"><span class="n">03</span>Planejamento</button>
+  </nav>
+
+  <div class="err-banner" id="errBanner"></div>
+
+  <!-- ========================= ETAPA 1 ========================= -->
+  <div class="step-panel active" id="step-1">
+
+    <section class="panel">
+      <h2>Você hoje</h2>
+      <p class="sub">Só o necessário para o cálculo. Nada é enviado ou armazenado — tudo roda no seu navegador.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="idade">Idade atual</label>
+          <div class="row-input"><input type="number" id="idade" value="30" min="0" max="99" step="1"><span class="suffix">anos</span></div>
+        </div>
+        <div class="field">
+          <label for="patrimonio">Patrimônio investido hoje</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="patrimonio" class="money" value="100.000,00"></div>
+        </div>
+        <div class="field">
+          <label for="aporte">Aporte mensal</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="aporte" class="money" value="1.000,00"></div>
+          <div class="hint">Valor fixo todo mês, sem reajuste.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Renda que você quer receber</h2>
+      <p class="sub">Informe em valores de hoje — o app corrige pela inflação até a data.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="renda">Renda mensal desejada <span class="unit hoje">R$ DE HOJE</span></label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="renda" class="money" value="20.000,00"></div>
+        </div>
+        <div class="field">
+          <label for="anosRenda">Começar a receber daqui a</label>
+          <div class="row-input" id="anosRendaWrap"><input type="number" id="anosRenda" value="20" min="1" max="80" step="1"><span class="suffix">anos</span></div>
+          <div class="hint" id="anosRendaHint"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Premissas <span class="tag-ir">VALORES ANTES DE IR</span></h2>
+      <p class="sub">Médias fixas para todo o período. Ajuste quando quiser testar outro cenário.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="inflacao">Inflação média prevista</label>
+          <div class="row-input"><input type="number" id="inflacao" value="4.00" min="0" max="50" step="0.1"><span class="suffix">% a.a.</span></div>
+          <div class="hint">Premissa de longo prazo. Referência: a meta contínua de inflação definida pelo CMN é 3% a.a.</div>
+        </div>
+        <div class="field">
+          <label for="spread">Rentabilidade real da carteira na fase de renda</label>
+          <div class="row-input"><span class="prefix">IPCA +</span><input type="number" id="spread" value="5.16" min="0" max="30" step="0.01"><span class="suffix">% a.a.</span></div>
+          <div class="hint">Média histórica dos títulos do Tesouro atrelados ao IPCA, também usada como meta por RPPS. Bruta.</div>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:6px;"><label>Rentabilidade nominal anual na fase de acumulação — 3 cenários</label></div>
+      <div class="scen-inputs">
+        <div class="field">
+          <label for="tx0"><span class="dot" style="background:var(--blue)"></span>Conservador</label>
+          <div class="row-input"><input type="number" id="tx0" value="8" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
+          <div class="hint" id="tx0Real"></div>
+        </div>
+        <div class="field">
+          <label for="tx1"><span class="dot" style="background:var(--gold)"></span>Base</label>
+          <div class="row-input"><input type="number" id="tx1" value="10" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
+          <div class="hint" id="tx1Real"></div>
+        </div>
+        <div class="field">
+          <label for="tx2"><span class="dot" style="background:var(--teal)"></span>Otimista</label>
+          <div class="row-input"><input type="number" id="tx2" value="12" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
+          <div class="hint" id="tx2Real"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Objetivos de vida</h2>
+      <p class="sub">Compras que você quer fazer antes de começar a receber a renda. Valores de hoje; o app corrige pela inflação e verifica se o patrimônio cobre na data. Se cobrir, o valor sai do patrimônio.</p>
+      <div class="chips" id="chips"></div>
+      <div class="obj-list" id="objList"></div>
+      <div class="empty" id="objEmpty">Nenhum objetivo adicionado. Toque em uma opção acima para incluir.</div>
+    </section>
+
+    <div class="nav-row"><button class="primary" type="button" data-goto="2">Ver capital necessário →</button></div>
+  </div>
+
+  <!-- ========================= ETAPA 2 ========================= -->
+  <div class="step-panel" id="step-2">
+    <div class="kpis">
+      <div class="kpi">
+        <div class="k">Renda mensal desejada</div>
+        <div class="v" id="k_renda">—</div>
+        <div class="s"><span class="lbl" id="k_rendaNomLbl">Equivalente nominal na data</span><span id="k_rendaNom">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="k">Rentabilidade da carteira na renda</div>
+        <div class="v" id="k_taxa">—</div>
+        <div class="s"><span class="lbl">Nominal equivalente com a inflação prevista</span><span id="k_taxaNom">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="k">Patrimônio necessário</div>
+        <div class="v" id="k_meta">—</div>
+        <div class="s"><span class="lbl">Para gerar a renda desejada ao mês</span><span id="k_metaNom">—</span></div>
+      </div>
+    </div>
+
+    <div class="explain" id="explainMeta"></div>
+
+    <section class="panel">
+      <h2>O que acontece com o patrimônio conforme o consumo</h2>
+      <p class="sub">Partindo do patrimônio necessário: a cada ano a carteira rende a taxa abaixo e você consome um percentual do patrimônio.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="rentUso">Rentabilidade da carteira na fase de renda</label>
+          <div class="row-input"><input type="number" id="rentUso" value="10" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
+          <div class="hint" id="rentUsoHint"></div>
+        </div>
+      </div>
+      <div class="curve-cards" id="curveCards"></div>
+    </section>
+
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">Patrimônio ao longo da fase de renda, descontada a inflação (poder de compra de hoje)</div></div>
+      <canvas id="chUso" height="280"></canvas>
+      <div class="legend" id="lgUso"></div>
+      <div class="tooltip" id="ttUso"></div>
+    </div>
+
+    <div class="nav-row">
+      <button class="ghost" type="button" data-goto="1">← Ajustar dados</button>
+      <button class="primary" type="button" data-goto="3">Ver planejamento →</button>
+    </div>
+  </div>
+
+  <!-- ========================= ETAPA 3 ========================= -->
+  <div class="step-panel" id="step-3">
+    <div class="warn-box"><span>⚠️</span><span>Esta é uma <strong>simulação</strong> com taxas médias fixas e valores <strong>antes de IR</strong>. Rentabilidade e inflação reais variam ano a ano; o resultado efetivo pode ser diferente.</span></div>
+
+    <p class="sub" id="scenNote" style="font-size:12.5px; color:var(--ink-faint); margin:0 0 10px;"></p>
+    <div class="scen-cards" id="scenCards"></div>
+
+    <div class="chart-box">
+      <div class="chart-head">
+        <div class="chart-title">Evolução do patrimônio por cenário</div>
+      </div>
+      <canvas id="chPlan" height="280"></canvas>
+      <div class="legend" id="lgPlan"></div>
+      <div class="tooltip" id="ttPlan"></div>
+    </div>
+
+
+    <div class="explain">
+      <p><strong>Como ler.</strong> O patrimônio projetado é o valor futuro acumulado com o patrimônio atual, os aportes e a rentabilidade de cada cenário. O patrimônio necessário é o tamanho de carteira que, rendendo IPCA + a taxa real informada, paga a renda desejada sem consumir o principal.</p>
+      <p><strong>Liberdade financeira</strong> é o momento em que o patrimônio projetado alcança o patrimônio necessário.</p>
+      <p><strong>Aporte necessário</strong> é o aporte mensal fixo que faria o patrimônio atingir a meta exatamente na data de início da renda, mantendo os objetivos de vida.</p>
+    </div>
+
+    <div class="nav-row"><button class="ghost" type="button" data-goto="1">← Ajustar dados</button><button class="primary" type="button" id="btnPdf">Baixar PDF do planejamento</button></div>
+  </div>
+
+  <footer>
+    <p>1 - Simulador educativo. Não coletamos, não armazenamos e não transmitimos dados pessoais; o processamento é feito no seu navegador.</p>
+    <p>2 - Premissas: projeção em base de 360 dias (12 meses de 30 dias), capitalização mensal com taxa equivalente; aportes e retiradas no fim de cada mês; aporte mensal nominal fixo; inflação média e rentabilidades constantes durante todo o período; valores brutos, antes de IR, taxas e custos. Patrimônio necessário = renda mensal ÷ taxa real mensal equivalente (perpetuidade real). Curvas de consumo: a cada ano o patrimônio rende a taxa informada e é consumido o percentual indicado do patrimônio do início do ano.</p>
+    <p>3 - As informações têm caráter meramente informativo e não constituem oferta, recomendação de investimento ou promessa de rentabilidade. Rentabilidade passada não garante rentabilidade futura. Consulte um profissional certificado antes de decidir.</p>
+  </footer>
+</div>
+
+<div id="printArea"></div>
+
+<div class="modal-bg" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal" id="modalBox">
+    <h3 id="modalTitle">Não chega no objetivo</h3>
+    <p id="modalIntro"></p>
+    <ul id="modalList"></ul>
+    <p class="modal-rec" id="modalRec">Reveja o valor e o prazo, ou avalie consórcio e financiamento para esse objetivo.</p>
+    <div class="modal-actions" style="text-align:right;"><button class="primary" type="button" id="modalOk">Entendi</button></div>
+  </div>
+</div>
+
+<script src="engine/planejamento.js"></script>
+
+<script>
+(function(){
+'use strict';
+const E = window.PlanEngine;
+const $ = id => document.getElementById(id);
+const HOJE = new Date();
+const ANO = HOJE.getFullYear();
+
+/* ---------- formatação ---------- */
+const fmtBRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const fmtBRL0 = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+const fmtPct = (v, c=2) => (v*100).toLocaleString('pt-BR', {minimumFractionDigits:c, maximumFractionDigits:c}) + '%';
+function fmtCurto(v){
+  const a = Math.abs(v);
+  if(a >= 1e6) return 'R$ ' + (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' mi';
+  if(a >= 1e3) return 'R$ ' + (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' mil';
+  return fmtBRL0(v);
+}
+const fmtAnos = n => n === 1 ? '1 ano' : n + ' anos';
+function fmtPrazo(meses){
+  const a = Math.floor(meses/12), m = meses % 12;
+  if(a === 0) return m + (m===1?' mês':' meses');
+  return fmtAnos(a) + (m ? ' e ' + m + (m===1?' mês':' meses') : '');
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- entrada de moeda (mesma máscara do simulador) ---------- */
+function lerMoeda(el){ const n = parseFloat(String(el.value||'0').replace(/\./g,'').replace(',','.')); return isNaN(n) ? 0 : n; }
+function escreverMoeda(el, v){ el.value = v.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function mascara(el){
+  el.addEventListener('input', ()=>{
+    let d = el.value.replace(/\D/g,'') || '0';
+    d = d.replace(/^0+(?=\d)/,'');
+    while(d.length < 3) d = '0' + d;
+    const int = (d.slice(0,-2).replace(/^0+(?=\d)/,'') || '0').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    el.value = int + ',' + d.slice(-2);
+  });
+}
+const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? NaN : v; };
+
+/* ---------- objetivos ---------- */
+const TIPOS = {
+  carro:   {rotulo:'Carro', recorrente:true},
+  imovel:  {rotulo:'Imóvel', recorrente:false},
+  terreno: {rotulo:'Terreno', recorrente:false},
+  viagem:  {rotulo:'Viagem', recorrente:true},
+  educacao:{rotulo:'Educação dos filhos', recorrente:false},
+  outro:   {rotulo:'Outro objetivo', recorrente:false}
+};
+let objetivos = [];
+let seqObj = 1;
+
+function mesFuturo(meses){
+  const d = new Date(HOJE.getFullYear(), HOJE.getMonth() + meses, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function addObjetivo(tipo){
+  objetivos.push({id: seqObj++, tipo, nome: TIPOS[tipo].rotulo, valorHoje: 0, data: mesFuturo(24), recorrenciaAnos: 0});
+  renderObjetivos();
+  const last = document.querySelector('.obj-row:last-child .money');
+  if(last) last.focus();
+  recalcular();
+}
+function renderChips(){
+  $('chips').innerHTML = Object.keys(TIPOS).map(t => '<button type="button" class="chip" data-tipo="'+t+'">+ '+esc(TIPOS[t].rotulo)+'</button>').join('');
+  $('chips').querySelectorAll('.chip').forEach(b => b.addEventListener('click', ()=>addObjetivo(b.dataset.tipo)));
+}
+function renderObjetivos(){
+  const box = $('objList');
+  box.innerHTML = '';
+  $('objEmpty').style.display = objetivos.length ? 'none' : 'block';
+  objetivos.forEach(o=>{
+    const rec = TIPOS[o.tipo].recorrente;
+    const row = document.createElement('div');
+    row.className = 'obj-row';
+    row.innerHTML =
+      '<div class="field"><label>Objetivo</label><div class="row-input"><input type="text" data-k="nome" maxlength="40" value="'+esc(o.nome)+'"></div></div>' +
+      '<div class="field"><label>Valor <span class="unit hoje">HOJE</span></label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" class="money" data-k="valorHoje"></div></div>' +
+      '<div class="field"><label>Quando</label><div class="row-input" data-wrap="data"><input type="month" data-k="data" value="'+o.data+'"></div><div class="hint" data-hint="data"></div></div>' +
+      '<div class="field"><label>Frequência</label><div class="row-input"><select data-k="recorrenciaAnos" '+(rec?'':'disabled')+'>' +
+        [0,1,2,3,4,5,10].map(n=>'<option value="'+n+'"'+(o.recorrenciaAnos===n?' selected':'')+'>'+(n===0?'Uma vez':(n===1?'Todo ano':'A cada '+n+' anos'))+'</option>').join('') +
+      '</select></div></div>' +
+      '<div class="rm-wrap"><button type="button" class="btn-rm" aria-label="Remover objetivo">Remover</button></div>';
+    const money = row.querySelector('.money');
+    escreverMoeda(money, o.valorHoje);
+    mascara(money);
+    row.querySelectorAll('[data-k]').forEach(el=>{
+      el.addEventListener('input', ()=>{
+        const k = el.dataset.k;
+        if(k === 'valorHoje') o.valorHoje = lerMoeda(el);
+        else if(k === 'recorrenciaAnos') o.recorrenciaAnos = parseInt(el.value,10) || 0;
+        else o[k] = el.value;
+        agendar();
+      });
+      if(el.tagName === 'SELECT') el.addEventListener('change', ()=>{ o.recorrenciaAnos = parseInt(el.value,10)||0; agendar(); });
+    });
+    row.querySelector('.btn-rm').addEventListener('click', ()=>{
+      objetivos = objetivos.filter(x=>x.id!==o.id);
+      renderObjetivos(); recalcular();
+    });
+    o._row = row;
+    box.appendChild(row);
+  });
+}
+
+/* ---------- leitura e validação ---------- */
+function lerEntradas(){
+  const erros = [];
+  const idade = num('idade');
+  const anos = num('anosRenda');
+  const inflacao = num('inflacao')/100;
+  const spread = num('spread')/100;
+  const taxas = [num('tx0'), num('tx1'), num('tx2')].map(t=>t/100);
+  if(!(idade >= 0 && idade < 100)) erros.push('Informe uma idade entre 0 e 99 anos.');
+  if(!(anos >= 1 && Number.isInteger(anos))) erros.push('O prazo para começar a receber deve ser de pelo menos 1 ano (número inteiro).');
+  if(idade + anos >= 100) erros.push('A idade de início da renda precisa ser menor que 100 anos.');
+  if(!(inflacao >= 0 && inflacao <= 0.5)) erros.push('Inflação média deve estar entre 0% e 50% a.a.');
+  if(!(spread > 0)) erros.push('A rentabilidade real da fase de renda precisa ser maior que zero; com taxa real zero ou negativa não existe patrimônio que pague a renda para sempre.');
+  if(taxas.some(t=>!(t >= 0 && t <= 0.5))) erros.push('As rentabilidades dos cenários devem estar entre 0% e 50% a.a.');
+  const rentUso = num('rentUso')/100;
+  if(!(rentUso >= 0 && rentUso <= 0.5)) erros.push('A rentabilidade da fase de renda deve estar entre 0% e 50% a.a.');
+  if([0,1,2].some(i=>!(num('cons'+i) >= 0 && num('cons'+i) <= 100))) erros.push('As taxas de consumo devem estar entre 0% e 100% a.a.');
+
+  const objs = [];
+  objetivos.forEach(o=>{
+    const m = E.mesesAteData(o.data, HOJE);
+    let msg = '';
+    if(m === null) msg = 'Informe mês e ano.';
+    else if(m < 1) msg = 'Data no passado — use um mês futuro.';
+    else if(isFinite(anos) && m > anos*12) msg = 'Depois do início da renda — não entra no cálculo.';
+    if(o._row){
+      o._row.querySelector('[data-hint="data"]').textContent = msg || ('daqui a ' + fmtPrazo(m));
+      o._row.querySelector('[data-hint="data"]').classList.toggle('err', !!msg);
+      o._row.querySelector('[data-wrap="data"]').classList.toggle('invalid', !!msg && m !== null && m < 1);
+    }
+    if(m !== null && m >= 1 && o.valorHoje > 0){
+      objs.push({id:o.id, nome:(o.nome||TIPOS[o.tipo].rotulo).trim() || TIPOS[o.tipo].rotulo, tipo:o.tipo,
+        valorHoje:o.valorHoje, mes:m, recorrenciaAnos: TIPOS[o.tipo].recorrente ? o.recorrenciaAnos : 0});
+    }
+  });
+
+  return {
+    erros, idade, anos, inflacao, spread, taxas,
+    patrimonio: lerMoeda($('patrimonio')), aporte: lerMoeda($('aporte')),
+    renda: lerMoeda($('renda')), rentUso: num('rentUso')/100,
+    consumo: [0,1,2].map(i=>num('cons'+i)/100),
+    objetivos: objs
+  };
+}
+
+/* ---------- cálculo ---------- */
+const CENARIOS = [
+  {nome:'Conservador', cor:'--blue'},
+  {nome:'Base', cor:'--gold'},
+  {nome:'Otimista', cor:'--teal'}
+];
+let ultimo = null;
+let modoGrafico = 'nominal';
+
+function recalcular(){
+  const inp = lerEntradas();
+  const banner = $('errBanner');
+  if(inp.erros.length){
+    banner.innerHTML = inp.erros.map(esc).join('<br>');
+    banner.classList.add('show');
+    ultimo = null;
+    return;
+  }
+  banner.classList.remove('show');
+
+
+  const N = inp.anos*12;
+  const meta = E.patrimonioNecessario(inp.renda, inp.spread);
+  const fN = E.fatorInflacao(inp.inflacao, N);
+  const mesesMax = (100 - inp.idade)*12;
+
+  const cenarios = inp.taxas.map((tx, i)=>Object.assign({}, CENARIOS[i], {taxa:tx},
+    E.planejarCenario({
+      patrimonioInicial: inp.patrimonio, aporteMensal: inp.aporte, rentabNominalAnual: tx,
+      inflacaoAnual: inp.inflacao, objetivos: inp.objetivos, anosParaRenda: inp.anos,
+      metaHoje: meta, mesesMaximo: mesesMax
+    })));
+
+  const curvas = E.curvasConsumo({
+    patrimonioInicial: meta, rentabNominalAnual: inp.rentUso, inflacaoAnual: inp.inflacao,
+    taxasConsumo: inp.consumo, anos: Math.max(10, 100 - inp.idade - inp.anos)
+  });
+
+  ultimo = {inp, N, meta, fN, cenarios, curvas};
+  renderEtapa1Hints();
+  renderEtapa2();
+  renderEtapa3();
+}
+let timer;
+function agendar(){ clearTimeout(timer); timer = setTimeout(recalcular, 120); }
+
+/* ---------- etapa 1: dicas ---------- */
+function renderEtapa1Hints(){
+  const {inp} = ultimo;
+  $('anosRendaHint').textContent = 'Aos ' + (inp.idade + inp.anos) + ' anos, em ' + (ANO + inp.anos) + '.';
+  inp.taxas.forEach((t,i)=>{
+    $('tx'+i+'Real').textContent = '≈ IPCA + ' + fmtPct(E.taxaRealDeNominal(t, inp.inflacao)) + ' (real)';
+  });
+}
+
+/* ---------- etapa 2 ---------- */
+function renderEtapa2(){
+  const {inp, N, meta, fN, curvas} = ultimo;
+  const anoRenda = ANO + inp.anos;
+  const rm = E.taxaMensal(inp.spread);
+  $('k_renda').innerHTML = fmtBRL0(inp.renda) + '<span class="unit hoje">HOJE</span>';
+  $('k_rendaNomLbl').textContent = 'Equivalente nominal em ' + anoRenda + ' (inflação de ' + fmtPct(inp.inflacao,1) + ' a.a.)';
+  $('k_rendaNom').textContent = fmtBRL0(inp.renda*fN) + ' /mês';
+  $('k_taxa').textContent = 'IPCA + ' + fmtPct(inp.spread);
+  $('k_taxaNom').textContent = fmtPct(E.nominalDeReal(inp.spread, inp.inflacao)) + ' a.a. · real ' + fmtPct(rm, 4) + ' a.m.';
+  $('k_meta').textContent = fmtCurto(meta);
+  $('k_metaNom').textContent = fmtBRL0(meta) + ' × ' + fmtPct(rm,4) + ' = ' + fmtBRL0(inp.renda) + '/mês';
+
+  $('explainMeta').innerHTML =
+    '<p><strong>Como calculamos.</strong> A carteira precisa render pelo menos IPCA + ' + fmtPct(inp.spread) + ' ao ano. Convertendo para taxa mensal equivalente: ' +
+    '<span class="f">(1 + ' + fmtPct(inp.spread) + ')^(1/12) − 1 = ' + fmtPct(rm,4) + ' ao mês</span>.</p>' +
+    '<p>O patrimônio necessário é aquele cujo ganho real mensal paga a renda: <span class="f">' + fmtBRL0(inp.renda) + ' ÷ ' + fmtPct(rm,4) + ' = ' + fmtBRL0(meta) + '</span> em valores de hoje. ' +
+    'Esse é o patrimônio comparado com o patrimônio projetado na etapa de Planejamento.</p>' +
+    '<p>Por usar ganho real, esse patrimônio paga a renda corrigida pela inflação sem se desgastar — desde que a carteira de fato renda o percentual acima. Valores antes de IR.</p>';
+
+  renderCurvas();
+}
+
+const CORES_CURVA = ['--teal', '--gold', '--red'];
+const NOME_TIPO = {
+  acumulo: {titulo:'Acúmulo de patrimônio', txt:'Consome menos que o ganho acima da inflação: a carteira continua crescendo além do principal.'},
+  perpetuidade: {titulo:'Perpetuidade do patrimônio', txt:'Consome exatamente o ganho acima da inflação: o patrimônio fica estável em poder de compra.'},
+  deterioracao: {titulo:'Deterioração do patrimônio', txt:'Consome também a parte do rendimento que repõe a inflação: o principal vai sendo consumido.'}
+};
+function montarCardsCurvas(){
+  const padrao = [5.16, 6, 10];
+  $('curveCards').innerHTML = padrao.map((v,i)=>
+    '<div class="curve-card" style="--c:var(' + CORES_CURVA[i] + ')">' +
+      '<h3 id="cvT'+i+'">Curva ' + (i+1) + '</h3>' +
+      '<label for="cons'+i+'" style="display:block;font-size:12px;color:var(--ink-muted);margin-top:6px;">Taxa de consumo</label>' +
+      '<div class="row-input"><input type="number" id="cons'+i+'" value="'+v+'" min="0" max="100" step="0.01"><span class="suffix">% a.a.</span></div>' +
+      '<p id="cvD'+i+'" style="margin-top:8px;"></p>' +
+      '<div class="res" id="cvR'+i+'"></div>' +
+    '</div>').join('');
+  [0,1,2].forEach(i=>$('cons'+i).addEventListener('input', agendar));
+}
+function renderCurvas(){
+  const {inp, meta, curvas} = ultimo;
+  const idadeIni = inp.idade + inp.anos;
+  const realRent = E.taxaRealDeNominal(inp.rentUso, inp.inflacao);
+  $('rentUsoHint').textContent = 'Com inflação de ' + fmtPct(inp.inflacao,1) + ', o ganho acima da inflação é ' + fmtPct(realRent) + ' a.a. (' + fmtPct(inp.rentUso - inp.inflacao) + ' pela conta simples).';
+  const anosVer = Math.min(20, curvas[0].serie.length - 1);
+  curvas.forEach((c,i)=>{
+    const n = NOME_TIPO[c.tipo];
+    $('cvT'+i).textContent = n.titulo;
+    $('cvD'+i).textContent = n.txt;
+    const fim = c.serie[anosVer];
+    const sinal = c.variacaoReal >= 0 ? '+' : '−';
+    $('cvR'+i).innerHTML =
+      'Renda no 1º ano: ' + fmtBRL0(c.serie[0].retiradaMensalNominal) + '/mês<br>' +
+      'Variação real: ' + sinal + fmtPct(Math.abs(c.variacaoReal)) + ' a.a.<br>' +
+      'Em ' + anosVer + ' anos: ' + fmtCurto(fim.real) + ' (' + (fim.real >= meta ? '+' : '−') + fmtPct(Math.abs(fim.real/meta - 1), 0) + ')';
+  });
+  desenharGrafico('chUso', 'ttUso', {
+    series: curvas.map((c,i)=>({
+      nome: NOME_TIPO[c.tipo].titulo + ' (' + fmtPct(c.taxaConsumo) + ')', cor: cssVar(CORES_CURVA[i]),
+      pontos: c.serie.map(p=>({x: idadeIni + p.ano, y: p.real}))
+    })),
+    xFmt: x => Math.round(x) + ' anos'
+  });
+  legenda('lgUso', curvas.map((c,i)=>({nome: NOME_TIPO[c.tipo].titulo + ' — consumo de ' + fmtPct(c.taxaConsumo) + ' a.a.', cor: CORES_CURVA[i]})));
+}
+
+/* ---------- etapa 3 ---------- */
+function textoLiberdade(c, inp){
+  const N = c.mesesAteRenda;
+  if(c.mesLiberdade === null){
+    return '<strong>Não atinge</strong> a liberdade financeira até os 100 anos mantendo esses parâmetros. Aumente o aporte, o prazo ou reveja a renda desejada.';
+  }
+  const idade = Math.floor(inp.idade + c.mesLiberdade/12);
+  if(c.mesLiberdade === 0) return '<strong>Já atingiu</strong> a liberdade financeira com o patrimônio atual.';
+  if(c.mesLiberdade <= N){
+    const antes = N - c.mesLiberdade;
+    return 'Atinge a liberdade em <strong>' + fmtPrazo(c.mesLiberdade) + '</strong>, aos ' + idade + ' anos' + (antes >= 12 ? ' — ' + fmtPrazo(antes) + ' antes do previsto.' : '.');
+  }
+  const falta = c.mesLiberdade - N;
+  return 'Não atinge em ' + fmtAnos(inp.anos) + '. Mantendo os parâmetros, <strong>faltam ' + fmtPrazo(falta) + '</strong>: atinge aos ' + idade + ' anos.';
+}
+
+function renderEtapa3(){
+  const {inp, meta, cenarios} = ultimo;
+  const idadeRenda = inp.idade + inp.anos;
+  $('scenNote').textContent = 'Patrimônio projetado em ' + (ANO + inp.anos) + ' comparado com o patrimônio necessário para que a carteira, rendendo IPCA + ' +
+    fmtPct(inp.spread) + ', pague a renda desejada.';
+  $('scenCards').innerHTML = cenarios.map((c, ci)=>{
+    const ap = c.aporteNecessario;
+    const apTxt = ap === null ? 'inviável' : (ap === 0 ? 'nenhum' : fmtBRL0(ap) + '/mês');
+    const apSub = ap === null ? '' : (ap > inp.aporte ? '+' + fmtBRL0(ap - inp.aporte) + ' sobre o atual' : (ap < inp.aporte ? 'abaixo do atual' : ''));
+    return '<div class="ledger" style="--c:var('+c.cor+')">' +
+      '<h3>' + c.nome + '</h3>' +
+      '<div class="desc">' + fmtPct(c.taxa,2) + ' a.a. nominal · IPCA + ' + fmtPct(E.taxaRealDeNominal(c.taxa, inp.inflacao)) + '</div>' +
+      '<span class="status ' + (c.atinge?'ok':'no') + '">' + (c.atinge ? 'Chega na liberdade financeira' : 'Não chega na liberdade financeira') + '</span>' +
+      '<div class="lrow hl"><span class="k">Patrimônio projetado aos ' + idadeRenda + '</span><span class="v">' + fmtCurto(c.projetadoNominal) + '</span></div>' +
+      '<div class="lrow"><span class="k">Patrimônio necessário</span><span class="v">' + fmtCurto(meta) + '</span></div>' +
+      '<div class="lrow"><span class="k">' + (c.atinge ? 'Excedente' : 'Lacuna') + '</span><span class="v" style="color:var(' + (c.atinge?'--ok':'--red') + ')">' + fmtCurto(c.atinge ? c.excedente : c.lacuna) + '</span></div>' +
+      '<div class="lrow"><span class="k">Aporte necessário p/ ' + idadeRenda + ' anos</span><span class="v">' + apTxt + (apSub ? '<small>' + apSub + '</small>' : '') + '</span></div>' +
+      '<div class="freedom">' + textoLiberdade(c, inp) + '</div>' +
+      linhasObjetivos(c, ci) +
+    '</div>';
+  }).join('');
+
+  desenharPlano();
+}
+
+function desenharPlano(){
+  if(!ultimo) return;
+  const {inp, meta, cenarios, N} = ultimo;
+  // horizonte: até 5 anos após a renda, ou até a liberdade mais tardia (limite 100 anos)
+  let fim = N + 60;
+  cenarios.forEach(c=>{ if(c.mesLiberdade !== null) fim = Math.max(fim, c.mesLiberdade + 24); });
+  fim = Math.min(fim, (100 - inp.idade)*12);
+  const passo = Math.max(1, Math.round(fim/240));
+  const series = cenarios.map(c=>({
+    nome: c.nome, cor: cssVar(c.cor),
+    pontos: c.serie.filter(p=>p.mes<=fim && (p.mes%passo===0 || p.mes===fim)).map(p=>({x: inp.idade + p.mes/12, y: modoGrafico==='real' ? p.real : p.nominal}))
+  }));
+  const metaPts = [];
+  for(let m=0; m<=fim; m+=passo){ metaPts.push({x: inp.idade + m/12, y: meta}); }
+  series.push({nome:'Patrimônio necessário', cor: cssVar('--ink-muted'), pontos: metaPts, dash:true});
+  desenharGrafico('chPlan', 'ttPlan', {
+    series,
+    xFmt: x => Math.floor(x) + ' anos',
+    vline: {x: inp.idade + inp.anos, rotulo: 'Início da renda'}
+  });
+  legenda('lgPlan', CENARIOS.map(c=>({nome:c.nome, cor:c.cor})).concat([{nome:'Patrimônio necessário', cor:'--ink-muted', dash:true}]));
+}
+
+/* objetivos agrupados por id (várias ocorrências se houver frequência) */
+function gruposObjetivos(c){
+  const mapa = new Map();
+  c.eventos.forEach(e=>{ if(!mapa.has(e.id)) mapa.set(e.id, []); mapa.get(e.id).push(e); });
+  return [...mapa.values()];
+}
+function linhasObjetivos(c, ci){
+  const grupos = gruposObjetivos(c);
+  if(!grupos.length) return '';
+  return '<div class="obj-lines"><div class="t">Objetivos — toque para ver o detalhe</div>' + grupos.map(evs=>{
+    const ok = evs.every(e=>e.atingido);
+    return '<button type="button" class="obj-line" data-ci="' + ci + '" data-id="' + evs[0].id + '">' +
+      '<span>' + esc(evs[0].nome) + (evs.length > 1 ? ' <span style="color:var(--ink-faint)">(' + evs.length + 'x)</span>' : '') + '</span>' +
+      '<span class="st ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Alcançado' : 'Rever planejamento') + '</span></button>';
+  }).join('') + '</div>';
+}
+const dataTxt = m => mesFuturo(m).split('-').reverse().join('/');
+function popupObjetivo(ci, id){
+  if(!ultimo) return;
+  const c = ultimo.cenarios[ci];
+  const evs = c.eventos.filter(e=>String(e.id) === String(id));
+  if(!evs.length) return;
+  const ok = evs.every(e=>e.atingido);
+  const nome = esc(evs[0].nome);
+  $('modalBox').classList.toggle('ok', ok);
+  $('modalTitle').textContent = ok ? 'Objetivo alcançado' : 'Não chega no objetivo';
+  $('modalIntro').innerHTML = ok
+    ? 'No cenário <strong>' + c.nome + '</strong>, o patrimônio projetado cobre <strong>' + nome + '</strong>' + (evs.length > 1 ? ' em todas as datas' : ' na data escolhida') + '. O valor é corrigido pela inflação até a data e retirado do patrimônio:'
+    : 'No cenário <strong>' + c.nome + '</strong>, o patrimônio projetado não cobre <strong>' + nome + '</strong>' + (evs.length > 1 ? ' em todas as datas' : ' na data escolhida') + ':';
+  $('modalList').innerHTML = evs.map(e=>{
+    const quando = (evs.length > 1 ? e.ocorrencia + 'ª vez, ' : '') + dataTxt(e.mes);
+    if(e.atingido){
+      return '<li>' + (ok ? '' : '<span class="ok-t">✓</span> ') + '<strong>' + quando + '</strong>: precisa de ' + fmtBRL0(e.valorNominal) +
+        ' (' + fmtBRL0(e.valorHoje) + ' hoje); patrimônio projetado ' + fmtBRL0(e.patrimonioNominalAntes) +
+        ' — após a compra restam ' + fmtBRL0(e.patrimonioNominalAntes - e.valorNominal) + '.</li>';
+    }
+    return '<li><span class="no-t">✕</span> <strong>' + quando + '</strong>: precisa de ' + fmtBRL0(e.valorNominal) +
+      ' (' + fmtBRL0(e.valorHoje) + ' hoje); patrimônio projetado ' + fmtBRL0(e.patrimonioNominalAntes) +
+      ' — faltam ' + fmtBRL0(e.valorNominal - e.patrimonioNominalAntes) + '. Nada é retirado do patrimônio.</li>';
+  }).join('');
+  $('modalRec').style.display = ok ? 'none' : 'block';
+  $('modal').classList.add('open');
+  $('modalOk').focus();
+}
+$('scenCards').addEventListener('click', ev=>{
+  const b = ev.target.closest('.obj-line');
+  if(b) popupObjetivo(parseInt(b.dataset.ci,10), b.dataset.id);
+});
+$('modalOk').addEventListener('click', ()=>$('modal').classList.remove('open'));
+$('modal').addEventListener('click', e=>{ if(e.target.id==='modal') $('modal').classList.remove('open'); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') $('modal').classList.remove('open'); });
+
+/* ---------- gráficos (canvas, sem bibliotecas) ---------- */
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function legenda(id, itens){
+  $(id).innerHTML = itens.map(i=>'<span class="'+(i.dash?'dash':'')+'" style="--c:var('+i.cor+')">'+esc(i.nome)+'</span>').join('');
+}
+const graficos = {};
+function desenharGrafico(canvasId, ttId, cfg){
+  graficos[canvasId] = {ttId, cfg};
+  const canvas = $(canvasId);
+  const W = canvas.parentElement.clientWidth - 36;
+  if(W <= 0) return; // aba oculta: desenha ao abrir
+  const H = 280, dpr = window.devicePixelRatio || 1;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  ctx.font = '10.5px "IBM Plex Mono", monospace';
+  const yMaxPrev = Math.max(...cfg.series.flatMap(s=>s.pontos.map(p=>p.y)), 1)*1.08;
+  const pad = {t:14, r:14, b:28, l: Math.ceil(ctx.measureText(fmtCurto(yMaxPrev)).width) + 16};
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  const all = cfg.series.flatMap(s=>s.pontos);
+  if(!all.length) return;
+  const xMin = Math.min(...all.map(p=>p.x)), xMax = Math.max(...all.map(p=>p.x));
+  let yMax = Math.max(...all.map(p=>p.y)), yMin = 0;
+  yMax = yMax > 0 ? yMax*1.08 : 1;
+  const X = x => pad.l + (xMax===xMin ? 0 : (x - xMin)/(xMax - xMin)*pw);
+  const Y = y => pad.t + ph - (y - yMin)/(yMax - yMin)*ph;
+  const grid = document.documentElement.dataset.theme !== 'dark' ? 'rgba(28,42,31,.10)' : 'rgba(238,246,244,.10)';
+  const faint = cssVar('--ink-faint');
+  ctx.font = '10.5px "IBM Plex Mono", monospace';
+  ctx.fillStyle = faint; ctx.strokeStyle = grid; ctx.lineWidth = 1;
+  for(let g=0; g<=4; g++){
+    const v = yMin + (yMax-yMin)*g/4, y = Y(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
+    ctx.textAlign = 'right'; ctx.fillText(fmtCurto(v), pad.l - 8, y + 3);
+  }
+  // eixo x: idades
+  ctx.textAlign = 'center';
+  const span = xMax - xMin;
+  const stepX = span > 50 ? 10 : (span > 20 ? 5 : (span > 8 ? 2 : 1));
+  for(let x = Math.ceil(xMin/stepX)*stepX; x <= xMax + 1e-9; x += stepX){
+    ctx.fillText(Math.round(x) + '', X(x), H - 10);
+  }
+  ctx.textAlign = 'left'; ctx.fillText('idade', pad.l, H - 0.5);
+  if(cfg.vline){
+    const vx = X(cfg.vline.x);
+    ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = faint;
+    ctx.beginPath(); ctx.moveTo(vx, pad.t); ctx.lineTo(vx, pad.t+ph); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = faint; ctx.textAlign = vx > W - 110 ? 'right' : 'left';
+    ctx.fillText(cfg.vline.rotulo, vx + (ctx.textAlign==='left'?5:-5), pad.t + 10);
+  }
+  cfg.series.forEach(s=>{
+    ctx.save();
+    if(s.dash) ctx.setLineDash([6,4]);
+    ctx.strokeStyle = s.cor; ctx.lineWidth = s.dash ? 1.5 : 2.2;
+    ctx.beginPath();
+    s.pontos.forEach((p,i)=>{ const x=X(p.x), y=Y(p.y); i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
+    ctx.stroke(); ctx.restore();
+  });
+  graficos[canvasId].geo = {X, Y, xMin, xMax, pad, pw, W};
+}
+function ligarTooltip(canvasId){
+  const canvas = $(canvasId);
+  const mover = ev=>{
+    const g = graficos[canvasId]; if(!g || !g.geo) return;
+    const tt = $(g.ttId);
+    const r = canvas.getBoundingClientRect();
+    const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    const {xMin, xMax, pad, pw, W} = g.geo;
+    if(px < pad.l || px > pad.l + pw){ tt.style.display='none'; return; }
+    const xv = xMin + (px - pad.l)/pw*(xMax - xMin);
+    const linhas = g.cfg.series.map(s=>{
+      let best = s.pontos[0];
+      for(const p of s.pontos){ if(Math.abs(p.x-xv) < Math.abs(best.x-xv)) best = p; }
+      return '<div class="r"><span style="color:'+s.cor+'">●</span> ' + esc(s.nome) + ': ' + fmtCurto(best.y) + '</div>';
+    }).join('');
+    tt.innerHTML = '<div class="t">' + g.cfg.xFmt(xv) + '</div>' + linhas;
+    tt.style.display = 'block';
+    const left = Math.min(px + 30, W - tt.offsetWidth + 10);
+    tt.style.left = Math.max(10, left) + 'px';
+    tt.style.top = '54px';
+  };
+  canvas.addEventListener('mousemove', mover);
+  canvas.addEventListener('touchmove', mover, {passive:true});
+  canvas.addEventListener('mouseleave', ()=>{ const g=graficos[canvasId]; if(g) $(g.ttId).style.display='none'; });
+}
+function redesenhar(){
+  Object.keys(graficos).forEach(id=>{ const g = graficos[id]; desenharGrafico(id, g.ttId, g.cfg); });
+}
+
+/* ---------- navegação ---------- */
+function irPara(n){
+  document.querySelectorAll('.step-btn').forEach(b=>b.classList.toggle('active', b.dataset.step==String(n)));
+  document.querySelectorAll('.step-panel').forEach(p=>p.classList.toggle('active', p.id==='step-'+n));
+  if(ultimo){ if(n===2) renderEtapa2(); if(n===3){ renderEtapa3(); } }
+  redesenhar();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.querySelectorAll('.step-btn').forEach(b=>b.addEventListener('click', ()=>irPara(parseInt(b.dataset.step,10))));
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click', ()=>irPara(parseInt(b.dataset.goto,10))));
+
+/* ---------- relatório em PDF ---------- */
+function graficoParaImpressao(){
+  // redesenha o gráfico em tema claro para o papel, captura a imagem e restaura o tema
+  const temaAnterior = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = 'light';
+  desenharPlano();
+  const img = $('chPlan').toDataURL('image/png');
+  document.documentElement.dataset.theme = temaAnterior || 'light';
+  desenharPlano();
+  return img;
+}
+function gerarPdf(){
+  recalcular();
+  if(!ultimo){ irPara(1); return; }
+  const {inp, meta, cenarios} = ultimo;
+  const anoRenda = ANO + inp.anos, idadeRenda = inp.idade + inp.anos;
+  const hoje = HOJE.toLocaleDateString('pt-BR');
+  const linha = (k, v) => '<tr><td class="k">' + k + '</td><td class="v">' + v + '</td></tr>';
+  const semHtml = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent; };
+
+  // objetivos informados
+  const objsInformados = objetivos.filter(o => o.valorHoje > 0);
+  const tabObj = objsInformados.length ? (
+    '<h2>Objetivos de vida</h2><table><tr><th>Objetivo</th><th class="n">Valor (hoje)</th><th>Quando</th><th>Frequência</th></tr>' +
+    objsInformados.map(o => '<tr><td>' + esc(o.nome || TIPOS[o.tipo].rotulo) + '</td><td class="n">' + fmtBRL0(o.valorHoje) + '</td><td>' +
+      esc((o.data || '').split('-').reverse().join('/')) + '</td><td>' +
+      (TIPOS[o.tipo].recorrente && o.recorrenciaAnos ? (o.recorrenciaAnos === 1 ? 'Todo ano' : 'A cada ' + o.recorrenciaAnos + ' anos') : 'Uma vez') + '</td></tr>').join('') +
+    '</table>'
+  ) : '';
+
+  // cenários
+  const col = f => cenarios.map(c => '<td class="n">' + f(c) + '</td>').join('');
+  const objLinhas = (() => {
+    const ids = [...new Set(cenarios.flatMap(c => c.eventos.map(e => e.id)))];
+    return ids.map(id => {
+      const nome = (cenarios.flatMap(c => c.eventos).find(e => e.id === id) || {}).nome || '';
+      return '<tr><td>Objetivo: ' + esc(nome) + '</td>' + cenarios.map(c => {
+        const evs = c.eventos.filter(e => e.id === id);
+        const ok = evs.length && evs.every(e => e.atingido);
+        return '<td class="n ' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Alcançado' : 'Rever planejamento') + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+  })();
+  const temFalha = cenarios.some(c => c.eventos.some(e => !e.atingido));
+
+  const tabCen = '<table><tr><th></th>' + cenarios.map(c => '<th class="n">' + c.nome + '</th>').join('') + '</tr>' +
+    '<tr><td>Rentabilidade nominal</td>' + col(c => fmtPct(c.taxa) + ' a.a.') + '</tr>' +
+    '<tr><td>Situação</td>' + cenarios.map(c => '<td class="n ' + (c.atinge ? 'ok' : 'no') + '">' + (c.atinge ? 'Chega na liberdade' : 'Não chega') + '</td>').join('') + '</tr>' +
+    '<tr><td>Patrimônio projetado aos ' + idadeRenda + '</td>' + col(c => fmtBRL0(c.projetadoNominal)) + '</tr>' +
+    '<tr><td>Patrimônio necessário</td>' + col(() => fmtBRL0(meta)) + '</tr>' +
+    '<tr><td>Lacuna / excedente</td>' + cenarios.map(c => '<td class="n ' + (c.atinge ? 'ok' : 'no') + '">' + (c.atinge ? '+' + fmtBRL0(c.excedente) : '−' + fmtBRL0(c.lacuna)) + '</td>').join('') + '</tr>' +
+    '<tr><td>Aporte necessário p/ ' + idadeRenda + ' anos</td>' + col(c => c.aporteNecessario === null ? 'inviável' : (c.aporteNecessario === 0 ? 'nenhum' : fmtBRL0(c.aporteNecessario) + '/mês')) + '</tr>' +
+    objLinhas + '</table>' +
+    '<table style="margin-top:6px">' + cenarios.map(c => '<tr><td class="k" style="width:18%"><strong>' + c.nome + '</strong></td><td>' + esc(semHtml(textoLiberdade(c, inp))) + '</td></tr>').join('') + '</table>' +
+    (temFalha ? '<p class="pr-note no">Objetivo com "Rever planejamento": reveja o valor e o prazo, ou avalie consórcio e financiamento para esse objetivo.</p>' : '');
+
+  const img = graficoParaImpressao();
+  const legenda = CENARIOS.map(c => '<span><i style="background:' + ({'--blue':'#3d5f8a','--gold':'#9c7423','--teal':'#2f7a6c'})[c.cor] + '"></i>' + c.nome + '</span>').join('') +
+    '<span><i style="background:repeating-linear-gradient(90deg,#4d5c48 0 4px,transparent 4px 7px)"></i>Patrimônio necessário</span>';
+
+  $('printArea').innerHTML =
+    '<div class="pr-badge">SIMULAÇÃO — NÃO É EXTRATO NEM PROMESSA DE RENTABILIDADE</div>' +
+    '<h1>Planejamento Financeiro</h1><div class="pr-sub">Simulação gerada em ' + hoje + ' · valores antes de IR</div>' +
+
+    '<div class="bloco"><h2>Dados informados</h2><table>' +
+      linha('Idade atual', inp.idade + ' anos') +
+      linha('Patrimônio investido hoje', fmtBRL(inp.patrimonio)) +
+      linha('Aporte mensal', fmtBRL(inp.aporte)) +
+      linha('Renda mensal desejada', fmtBRL(inp.renda)) +
+      linha('Início da renda', 'daqui a ' + fmtAnos(inp.anos) + ' — aos ' + idadeRenda + ' anos, em ' + anoRenda) +
+      linha('Inflação média prevista', fmtPct(inp.inflacao) + ' a.a.') +
+      linha('Rentabilidade Base Mínima', 'IPCA + ' + fmtPct(inp.spread) + ' a.a.') +
+      linha('Rentabilidade nominal dos cenários', cenarios.map(c => c.nome + ' ' + fmtPct(c.taxa)).join(' · ')) +
+    '</table></div>' +
+
+    tabObj +
+
+    '<div class="bloco"><h2>Planejamento por cenário</h2>' + tabCen + '</div>' +
+
+    '<div class="bloco"><h2>Evolução do patrimônio</h2><img class="pr-chart" src="' + img + '" alt="Gráfico da evolução do patrimônio por cenário"><div class="pr-legend">' + legenda + '</div></div>' +
+
+    '<div class="pr-aviso"><strong>Aviso:</strong> este documento é uma <strong>simulação</strong> gerada com base nos parâmetros informados (idade, patrimônio, aporte, renda desejada, taxas, inflação e prazos). ' +
+      'Os valores apresentados <strong>podem se alterar</strong> e não representam a realidade garantida do investimento nem constituem previsão: rentabilidade e inflação reais variam ao longo do tempo, e o resultado efetivo pode ser diferente do projetado. ' +
+      'Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido.</div>' +
+    '<div class="pr-footer">' + [...document.querySelectorAll('footer p')].map(p => '<p>' + esc(p.textContent) + '</p>').join('') + '</div>';
+
+  setTimeout(() => window.print(), 120);
+}
+$('btnPdf').addEventListener('click', gerarPdf);
+
+/* ---------- tema ---------- */
+function atualizarBotaoTema(){ $('btnTema').textContent = Tema.icone(); $('btnTema').title = Tema.rotulo(); $('btnTema').setAttribute('aria-label', Tema.rotulo()); }
+atualizarBotaoTema();
+$('btnTema').addEventListener('click', ()=>{
+  Tema.alternar();
+  atualizarBotaoTema();
+  setTimeout(()=>{ if(ultimo){ renderEtapa2(); desenharPlano(); } }, 30);
+});
+let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeout(redesenhar, 150); });
+
+/* ---------- inicialização ---------- */
+document.querySelectorAll('.money').forEach(mascara);
+['idade','patrimonio','aporte','renda','anosRenda','inflacao','spread','tx0','tx1','tx2'].forEach(id=>$(id).addEventListener('input', agendar));
+$('rentUso').addEventListener('input', agendar);
+ligarTooltip('chUso'); ligarTooltip('chPlan');
+montarCardsCurvas();
+renderChips();
+renderObjetivos();
+recalcular();
+})();
+</script>
+</body>
+</html>
