@@ -205,6 +205,8 @@
   }
   .err-banner{display:none; background:rgba(201,106,82,.12); border:1px solid var(--red); color:var(--ink); border-radius:5px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;}
   .err-banner.show{display:block;}
+  .stale{opacity:.3; filter:grayscale(.6); pointer-events:none; user-select:none; transition:opacity .15s ease;}
+  .kpi .s .extra{display:block; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink);}
 </style>
 </head>
 <body>
@@ -259,6 +261,11 @@
         <div class="field">
           <label for="renda">Renda mensal desejada <span class="unit hoje">R$ DE HOJE</span></label>
           <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="renda" class="money" value="20.000,00"></div>
+        </div>
+        <div class="field">
+          <label for="outrasRendas">Outras rendas mensais (opcional)</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="outrasRendas" class="money" value="0,00"></div>
+          <div class="hint">INSS, aluguel, previdência… Descontadas da renda desejada: a carteira precisa gerar só a diferença.</div>
         </div>
         <div class="field">
           <label for="anosRenda">Começar a receber daqui a</label>
@@ -320,7 +327,7 @@
       <div class="kpi">
         <div class="k">Renda mensal desejada</div>
         <div class="v" id="k_renda">—</div>
-        <div class="s"><span class="lbl">O cálculo é feito para você ter essa renda em qualquer momento da vida, sempre corrigida pela inflação.</span></div>
+        <div class="s"><span class="lbl">O cálculo é feito para você ter essa renda em qualquer momento da vida, sempre corrigida pela inflação.</span><span class="extra" id="k_rendaCarteira" hidden></span></div>
       </div>
       <div class="kpi">
         <div class="k">Rentabilidade base mínima da carteira</div>
@@ -451,6 +458,7 @@ const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? NaN : v
 
 /* ---------- objetivos ---------- */
 const TIPOS = {
+  reserva: {rotulo:'Reserva de emergência', recorrente:false, mesesPadrao:12},
   carro:   {rotulo:'Carro', recorrente:true},
   imovel:  {rotulo:'Imóvel', recorrente:false},
   terreno: {rotulo:'Terreno', recorrente:false},
@@ -466,7 +474,7 @@ function mesFuturo(meses){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
 }
 function addObjetivo(tipo){
-  objetivos.push({id: seqObj++, tipo, nome: TIPOS[tipo].rotulo, valorHoje: 0, data: mesFuturo(24), recorrenciaAnos: 0});
+  objetivos.push({id: seqObj++, tipo, nome: TIPOS[tipo].rotulo, valorHoje: 0, data: mesFuturo(TIPOS[tipo].mesesPadrao || 24), recorrenciaAnos: 0});
   renderObjetivos();
   const last = document.querySelector('.obj-row:last-child .money');
   if(last) last.focus();
@@ -523,6 +531,7 @@ function lerEntradas(){
   const spread = num('spread')/100;
   const taxas = [num('tx0'), num('tx1'), num('tx2')].map(t=>t/100);
   if(!(idade >= 0 && idade < 100)) erros.push('Informe uma idade entre 0 e 99 anos.');
+  if(!(lerMoeda($('renda')) > 0)) erros.push('Informe a renda mensal desejada (maior que zero).');
   if(!(anos >= 1 && Number.isInteger(anos))) erros.push('O prazo para começar a receber deve ser de pelo menos 1 ano (número inteiro).');
   if(idade + anos >= 100) erros.push('A idade de início da renda precisa ser menor que 100 anos.');
   if(!(inflacao >= 0 && inflacao <= 0.5)) erros.push('Inflação média deve estar entre 0% e 50% a.a.');
@@ -553,7 +562,7 @@ function lerEntradas(){
   return {
     erros, idade, anos, inflacao, spread, taxas,
     patrimonio: lerMoeda($('patrimonio')), aporte: lerMoeda($('aporte')),
-    renda: lerMoeda($('renda')), rentUso: num('rentUso')/100,
+    renda: lerMoeda($('renda')), outrasRendas: lerMoeda($('outrasRendas')), rentUso: num('rentUso')/100,
     consumo: [0,1,2].map(i=>num('cons'+i)/100),
     objetivos: objs
   };
@@ -575,13 +584,16 @@ function recalcular(){
     banner.innerHTML = inp.erros.map(esc).join('<br>');
     banner.classList.add('show');
     ultimo = null;
+    marcarResultados(true);
     return;
   }
   banner.classList.remove('show');
+  marcarResultados(false);
 
 
   const N = inp.anos*12;
-  const meta = E.patrimonioNecessario(inp.renda, inp.spread);
+  inp.rendaCarteira = Math.max(0, inp.renda - inp.outrasRendas);   // a carteira gera só o que faltar
+  const meta = E.patrimonioNecessario(inp.rendaCarteira, inp.spread);
   const fN = E.fatorInflacao(inp.inflacao, N);
   const mesesMax = (100 - inp.idade)*12;
 
@@ -602,6 +614,14 @@ function recalcular(){
   renderEtapa2();
   renderEtapa3();
 }
+/* com dado inválido, os resultados das etapas 2 e 3 ficam esmaecidos (não mostram cálculo antigo) */
+function marcarResultados(invalido){
+  document.querySelectorAll('#step-2 > *, #step-3 > *').forEach(el=>{
+    if(el.classList.contains('nav-row')){ const b = el.querySelector('#btnPdf'); if(b) b.disabled = invalido; return; }
+    el.classList.toggle('stale', invalido);
+  });
+}
+const fmtIpca = r => r >= 0 ? 'IPCA + ' + fmtPct(r) : 'IPCA − ' + fmtPct(-r);
 let timer;
 function agendar(){ clearTimeout(timer); timer = setTimeout(recalcular, 120); }
 
@@ -610,7 +630,7 @@ function renderEtapa1Hints(){
   const {inp} = ultimo;
   $('anosRendaHint').textContent = 'Aos ' + (inp.idade + inp.anos) + ' anos, em ' + (ANO + inp.anos) + '.';
   inp.taxas.forEach((t,i)=>{
-    $('tx'+i+'Real').textContent = '≈ IPCA + ' + fmtPct(E.taxaRealDeNominal(t, inp.inflacao)) + ' (real)';
+    $('tx'+i+'Real').textContent = '≈ ' + fmtIpca(E.taxaRealDeNominal(t, inp.inflacao)) + ' (real)';
   });
 }
 
@@ -623,12 +643,18 @@ function renderEtapa2(){
   $('k_taxa').textContent = 'IPCA + ' + fmtPct(inp.spread);
   $('k_taxaNom').textContent = fmtPct(E.nominalDeReal(inp.spread, inp.inflacao)) + ' a.a. · real ' + fmtPct(rm, 4) + ' a.m.';
   $('k_meta').textContent = fmtCurto(meta);
-  $('k_metaNom').textContent = fmtBRL0(meta) + ' × ' + fmtPct(rm,4) + ' = ' + fmtBRL0(inp.renda) + '/mês';
+  $('k_metaNom').textContent = fmtBRL0(meta) + ' × ' + fmtPct(rm,4) + ' = ' + fmtBRL0(inp.rendaCarteira) + '/mês';
+  const extra = $('k_rendaCarteira');
+  extra.hidden = !(inp.outrasRendas > 0);
+  extra.textContent = inp.outrasRendas >= inp.renda
+    ? 'Outras rendas (' + fmtBRL0(inp.outrasRendas) + ') já cobrem a renda desejada.'
+    : 'A carteira gera ' + fmtBRL0(inp.rendaCarteira) + '/mês; ' + fmtBRL0(inp.outrasRendas) + ' vêm de outras rendas.';
 
   $('explainMeta').innerHTML =
     '<p><strong>Como calculamos.</strong> A carteira precisa render pelo menos IPCA + ' + fmtPct(inp.spread) + ' ao ano. Convertendo para taxa mensal equivalente: ' +
     '<span class="f">(1 + ' + fmtPct(inp.spread) + ')^(1/12) − 1 = ' + fmtPct(rm,4) + ' ao mês</span>.</p>' +
-    '<p>O patrimônio necessário é aquele cujo ganho real mensal paga a renda: <span class="f">' + fmtBRL0(inp.renda) + ' ÷ ' + fmtPct(rm,4) + ' = ' + fmtBRL0(meta) + '</span> em valores de hoje. ' +
+    (inp.outrasRendas > 0 ? '<p>Das ' + fmtBRL0(inp.renda) + ' desejadas, ' + fmtBRL0(Math.min(inp.outrasRendas, inp.renda)) + ' vêm de outras rendas (INSS, aluguel, previdência…). A carteira precisa gerar <span class="f">' + fmtBRL0(inp.rendaCarteira) + '/mês</span>.</p>' : '') +
+    '<p>O patrimônio necessário é aquele cujo ganho real mensal paga a renda: <span class="f">' + fmtBRL0(inp.rendaCarteira) + ' ÷ ' + fmtPct(rm,4) + ' = ' + fmtBRL0(meta) + '</span> em valores de hoje. ' +
     'Esse é o patrimônio comparado com o patrimônio projetado na etapa de Planejamento.</p>' +
     '<p>Por usar ganho real, esse patrimônio paga a renda corrigida pela inflação sem se desgastar — desde que a carteira de fato renda o percentual acima. Valores antes de IR.</p>';
 
@@ -707,7 +733,7 @@ function renderEtapa3(){
     const apSub = ap === null ? '' : (ap > inp.aporte ? '+' + fmtBRL0(ap - inp.aporte) + ' sobre o atual' : (ap < inp.aporte ? 'abaixo do atual' : ''));
     return '<div class="ledger" style="--c:var('+c.cor+')">' +
       '<h3>' + c.nome + '</h3>' +
-      '<div class="desc">' + fmtPct(c.taxa,2) + ' a.a. nominal · IPCA + ' + fmtPct(E.taxaRealDeNominal(c.taxa, inp.inflacao)) + '</div>' +
+      '<div class="desc">' + fmtPct(c.taxa,2) + ' a.a. nominal · ' + fmtIpca(E.taxaRealDeNominal(c.taxa, inp.inflacao)) + '</div>' +
       '<span class="status ' + (c.atinge?'ok':'no') + '">' + (c.atinge ? 'Chega na liberdade financeira' : 'Não chega na liberdade financeira') + '</span>' +
       '<div class="lrow hl"><span class="k">Patrimônio projetado aos ' + idadeRenda + '</span><span class="v">' + fmtCurto(c.projetadoNominal) + '</span></div>' +
       '<div class="lrow"><span class="k">Patrimônio necessário</span><span class="v">' + fmtCurto(meta) + '</span></div>' +
@@ -967,6 +993,7 @@ function gerarPdf(){
       linha('Patrimônio investido hoje', fmtBRL(inp.patrimonio)) +
       linha('Aporte mensal', fmtBRL(inp.aporte)) +
       linha('Renda mensal desejada', fmtBRL(inp.renda)) +
+      (inp.outrasRendas > 0 ? linha('Outras rendas mensais', fmtBRL(inp.outrasRendas)) + linha('Renda gerada pela carteira', fmtBRL(inp.rendaCarteira)) : '') +
       linha('Início da renda', 'daqui a ' + fmtAnos(inp.anos) + ' — aos ' + idadeRenda + ' anos, em ' + anoRenda) +
       linha('Inflação média prevista', fmtPct(inp.inflacao) + ' a.a.') +
       linha('Rentabilidade Base Mínima', 'IPCA + ' + fmtPct(inp.spread) + ' a.a.') +
@@ -1000,7 +1027,7 @@ let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeou
 
 /* ---------- inicialização ---------- */
 document.querySelectorAll('.money').forEach(mascara);
-['idade','patrimonio','aporte','renda','anosRenda','inflacao','spread','tx0','tx1','tx2'].forEach(id=>$(id).addEventListener('input', agendar));
+['idade','patrimonio','aporte','renda','outrasRendas','anosRenda','inflacao','spread','tx0','tx1','tx2'].forEach(id=>$(id).addEventListener('input', agendar));
 $('rentUso').addEventListener('input', agendar);
 ligarTooltip('chUso'); ligarTooltip('chPlan');
 montarCardsCurvas();

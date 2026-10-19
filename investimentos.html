@@ -223,6 +223,35 @@
     margin-bottom:3px;
   }
   .type-opt .t-desc{font-size:11.5px; color: var(--ink-faint);}
+  .type-opt{min-width:0;}
+  @media(max-width:600px){.type-switch{flex-direction:column;}}
+  .garantia{display:flex; gap:6px; align-items:baseline; font-size:11.5px; color:var(--ink-muted); margin:-6px 0 12px; padding:6px 9px; border:1px dashed var(--line); border-radius:4px;}
+  .garantia strong{color:var(--ink); font-weight:600;}
+  .prazo-msg{margin-top:-6px; margin-bottom:14px; min-height:0;}
+  .prazo-msg:empty{display:none;}
+  .prazo-msg.warn{color:var(--gold); font-weight:600;}
+  .prazo-msg.err{color:var(--red); font-weight:600;}
+  .row-input.invalid{border-color:var(--red) !important;}
+  .cdi-modo{margin:4px 0 16px;}
+  .cdi-modo .idx-switch{margin-bottom:8px;}
+  .curva{border:1px solid var(--line); border-radius:5px; background:var(--panel-2); padding:10px 12px;}
+  .curva .curva-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(118px,1fr)); gap:8px; margin:8px 0 4px;}
+  .curva label{display:block; font-size:11px; color:var(--ink-faint); margin-bottom:3px;}
+  .curva .row-input input{font-size:13px; padding:6px 8px;}
+  .curva .curva-status{font-size:11.5px; color:var(--ink-muted);}
+  .curva .curva-status.err{color:var(--red);}
+  .ref-box{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px 18px; margin:18px 0;}
+  .ref-inputs{display:flex; flex-wrap:wrap; gap:12px 18px; margin:8px 0 12px;}
+  .ref-inputs .field{min-width:170px; flex:1;}
+  .ref-scroll{overflow-x:auto;}
+  table.ref-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .ref-table th{text-align:left; font-weight:500; font-size:11.5px; color:var(--ink-faint); padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  .ref-table td{padding:8px; border-top:1px dashed var(--line); vertical-align:top;}
+  .ref-table td.n, .ref-table th.n{text-align:right; font-family:'IBM Plex Mono', monospace; white-space:nowrap;}
+  .ref-table tr.atual td{background:var(--panel-2); font-weight:600;}
+  .ref-table .pos{color:var(--teal);} .ref-table .neg{color:var(--red);}
+  .ref-table small{display:block; color:var(--ink-faint); font-weight:400; font-size:10.5px;}
+  .stale{opacity:.35; filter:grayscale(.5); pointer-events:none; transition:opacity .15s ease;}
   .type-opt.selected{border-color: var(--accent-sel, var(--gold)); background: rgba(215,168,76,0.06);}
   .type-opt.selected .t-name{color: var(--accent-sel, var(--gold));}
   .type-opt[data-type="lca"].selected{--accent-sel: var(--gold);}
@@ -557,7 +586,7 @@
         </div>
         <div class="type-opt" data-type="compromissada" id="optCompromissada">
           <div class="t-name">Operação Compromissada</div>
-          <div class="t-desc">Lastreada em títulos, indicada para prazos curtos (até 30 dias) — não tem IOF, mas tem IR regressivo</div>
+          <div class="t-desc">Lastreada em título de crédito privado, com isenção de IOF — eficiente para aplicações de curto prazo; IR regressivo</div>
         </div>
       </div>
     </section>
@@ -592,6 +621,8 @@
         </div>
       </div>
 
+      <div class="cdi-status prazo-msg" id="s_prazoMsg"></div>
+
       <div class="cdi-row">
         <div class="field">
           <label for="s_ipca">IPCA acumulado 12m (% ao ano)</label>
@@ -621,6 +652,13 @@
           <button class="ghost" id="s_btnCdi" type="button">Buscar CDI atual</button>
         </div>
         <div class="cdi-status" id="s_cdiStatus">Valor de referência (16/09/2026, após corte do Copom para 13,75% de Meta Selic).</div>
+        <div class="cdi-modo">
+          <div class="idx-switch" id="s_cdiModo" style="--accent: var(--teal);">
+            <div class="seg-opt active" data-modo="constante">CDI constante</div>
+            <div class="seg-opt" data-modo="projetado">CDI projetado por ano (Focus)</div>
+          </div>
+          <div class="curva hidden" id="s_curvaBox"></div>
+        </div>
 
         <div class="grid">
           <div class="field">
@@ -654,6 +692,7 @@
       <div class="ledger" id="s_card" style="--accent: var(--gold); max-width: 460px;">
         <h3 id="s_cardTitle">LCA</h3>
         <div class="desc" id="s_cardDesc">Letra de Crédito do Agronegócio — isenta de IR para pessoa física</div>
+        <div class="garantia" id="s_garantia"></div>
         <div class="lrow"><span class="k">Valor Investido</span><span class="v" id="s_pv"></span></div>
         <div class="lrow hidden" id="s_aporteRow"><span class="k">Aporte Mensal</span><span class="v" id="s_aporteValue"></span></div>
         <div class="lrow hidden" id="s_totalRow"><span class="k">Total Aportado no Período</span><span class="v" id="s_totalAportado"></span></div>
@@ -682,6 +721,23 @@
           <div class="equiv-subvalue"><span class="lbl">Valor final em poder de compra de hoje</span><span id="s_realMoney">—</span></div>
           <div class="equiv-note" id="s_realNote"></div>
         </div>
+      </div>
+
+      <div class="ref-box" id="s_refBox">
+        <div class="chart-title">Comparativo com referências de mercado</div>
+        <div class="equiv-note" style="margin:0;">Mesmo valor, prazo e aportes da simulação acima, valor final líquido de impostos.</div>
+        <div class="ref-inputs">
+          <div class="field">
+            <label for="s_refCdb">CDB — % do CDI</label>
+            <div class="row-input"><input type="number" id="s_refCdb" value="100" min="0" step="1"><span class="suffix">% do CDI</span></div>
+          </div>
+          <div class="field">
+            <label for="s_refTr">TR mensal (poupança)</label>
+            <div class="row-input"><input type="number" id="s_refTr" value="0.1690" min="0" step="0.0001"><span class="suffix">% a.m.</span></div>
+          </div>
+        </div>
+        <div class="ref-scroll"><table class="ref-table" id="s_refTable"></table></div>
+        <div class="equiv-note" id="s_refNote" style="margin-top:10px;"></div>
       </div>
 
       <div class="chart-box">
@@ -744,6 +800,8 @@
         </div>
       </div>
 
+      <div class="cdi-status prazo-msg" id="c_prazoMsg"></div>
+
       <div class="cdi-row">
         <div class="field">
           <label for="c_cdi">CDI (% ao ano)</label>
@@ -755,6 +813,13 @@
         <button class="ghost" id="c_btnCdi" type="button">Buscar CDI atual</button>
       </div>
       <div class="cdi-status" id="c_cdiStatus">Usado apenas pelas pontas configuradas como pós-fixado.</div>
+      <div class="cdi-modo">
+        <div class="idx-switch" id="c_cdiModo" style="--accent: var(--teal);">
+          <div class="seg-opt active" data-modo="constante">CDI constante</div>
+          <div class="seg-opt" data-modo="projetado">CDI projetado por ano (Focus)</div>
+        </div>
+        <div class="curva hidden" id="c_curvaBox"></div>
+      </div>
 
       <div class="cdi-row">
         <div class="field">
@@ -827,6 +892,7 @@
           <span class="tag" id="c_tagLCA" style="display:none;">MELHOR OPÇÃO</span>
           <h3 id="c_lca_cardTitle">LCA</h3>
           <div class="desc" id="c_lca_cardDesc">Letra de Crédito do Agronegócio — isenta de IR para pessoa física</div>
+          <div class="garantia" id="c_lca_garantia"></div>
           <div class="lrow"><span class="k">Valor Investido</span><span class="v" id="c_lca_pv"></span></div>
           <div class="lrow"><span class="k">Rendimento Bruto</span><span class="v" id="c_lca_bruto"></span></div>
           <div class="lrow"><span class="k">Rentabilidade Bruta Anual</span><span class="v" id="c_lca_pbrutoanual"></span></div>
@@ -843,6 +909,7 @@
           <span class="tag" id="c_tagRDC" style="display:none;">MELHOR OPÇÃO</span>
           <h3>RDC</h3>
           <div class="desc">Recibo de Depósito Cooperativo — tributado pela tabela regressiva de IR</div>
+          <div class="garantia" id="c_rdc_garantia"></div>
           <div class="lrow"><span class="k">Valor Investido</span><span class="v" id="c_rdc_pv"></span></div>
           <div class="lrow"><span class="k">Rendimento Bruto</span><span class="v" id="c_rdc_bruto"></span></div>
           <div class="lrow"><span class="k">Rentabilidade Bruta Anual</span><span class="v" id="c_rdc_pbrutoanual"></span></div>
@@ -895,7 +962,7 @@
     <p>1 - Este é um simulador educativo. Não coletamos, não armazenamos e não transmitimos dados pessoais. O processamento é realizado exclusivamente de forma local em seu navegador.</p>
     <p>2 - As informações contidas neste material têm caráter meramente informativo e não constituem uma oferta de compra ou venda de ativos. O investidor é integralmente responsável por suas decisões financeiras.</p>
     <p>3 - Este material foi elaborado de forma generalista e não considera os objetivos de investimento, a situação financeira ou as necessidades específicas de cada investidor. Consulte um profissional certificado antes de tomar qualquer decisão.</p>
-    <p>4 - Simulação didática. Considera IR regressivo (22,5% a 15% conforme prazo) para RDC e para a Operação Compromissada, e isenção de IR para LCA (pessoa física). O IOF regressivo para resgates com menos de 30 dias se aplica à LCA e ao RDC, mas não incide sobre a Operação Compromissada — daí ela ser mais indicada para prazos curtos. A isenção de IOF considerada para a Operação Compromissada vale para operações lastreadas em debêntures, o formato usual dos bancos; com outros lastros pode haver IOF. O rendimento segue a convenção de mercado: capitalização composta em dias úteis, base 252 (fator = (1 + taxa)^(dias úteis/252)), descontando fins de semana e feriados nacionais; as faixas de IR e IOF usam dias corridos entre a aplicação (hoje) e o resgate. Prazos em meses e anos são convertidos pelas datas do calendário. A taxa (CDI ou prefixada) é mantida constante durante todo o período — na prática o CDI varia diariamente. A LCA não atualizada por índice de preços tem prazo mínimo de 6 meses (Resolução CMN nº 5.215/2025), o que pode impedir resgate antecipado; verifique as condições do emissor. Isso não é recomendação de investimento.</p>
+    <p>4 - Simulação didática. Considera IR regressivo (22,5% a 15% conforme prazo) para RDC e para a Operação Compromissada, e isenção de IR para LCA (pessoa física). O IOF regressivo para resgates com menos de 30 dias se aplica à LCA e ao RDC, mas não incide sobre a Operação Compromissada — daí ela ser mais indicada para prazos curtos. A Operação Compromissada considerada é lastreada em título de crédito privado, o que garante a isenção de IOF. Garantia: LCA e RDC contam com o FGCoop até R$ 250 mil por CPF. O rendimento segue a convenção de mercado: capitalização composta em dias úteis, base 252 (fator = (1 + taxa)^(dias úteis/252)), descontando fins de semana e feriados nacionais; as faixas de IR e IOF usam dias corridos entre a aplicação (hoje) e o resgate. Prazos em meses e anos são convertidos pelas datas do calendário. A taxa (CDI ou prefixada) é mantida constante durante todo o período — na prática o CDI varia diariamente. A LCA não atualizada por índice de preços tem prazo mínimo de 6 meses (Resolução CMN nº 5.215/2025), o que pode impedir resgate antecipado; verifique as condições do emissor. Isso não é recomendação de investimento.</p>
     <p>5 - Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido.</p>
     <p>6 - CDI automático estimado a partir da série histórica da Meta Selic definida pelo Copom (Banco Central, SGS 432), descontando o spread padrão de 0,10 p.p. entre CDI e Selic — essa fonte reflete decisões do Copom no mesmo dia, sem a defasagem de publicação da série de CDI realizado. IPCA automático consultado na série de IPCA acumulado em 12 meses (SGS 13522), atualizada mensalmente pelo IBGE/Banco Central. Se a consulta falhar (rede bloqueada, CORS, etc.), ajuste os valores manualmente.</p>
   </footer>
@@ -1045,12 +1112,41 @@ function textoPrazo(valor, unidade){
   return v + (v===1 ? ' ano' : ' anos');
 }
 
+/* ---------------- TAXA CONSTANTE OU CURVA POR ANO ----------------
+   taxa = número (% a.a., constante)  ou  {curva: {ano: CDI % a.a.}, mult: % do CDI / 100, add: p.p. somados}
+   O fator de rendimento compõe ano a ano: Π (1 + taxa_ano)^(DU_ano/252). */
+function taxaNoAno(taxa, ano){
+  if(typeof taxa === 'number') return taxa;
+  const anos = Object.keys(taxa.curva).map(Number).sort((a,b)=>a-b);
+  let v = taxa.curva[anos[0]];
+  for(const a of anos){ if(a <= ano) v = taxa.curva[a]; }
+  return v * (taxa.mult == null ? 1 : taxa.mult) + (taxa.add || 0);
+}
+function fatorRend(taxa, ini, fim){
+  if(typeof taxa === 'number') return Math.pow(1 + taxa/100, diasUteisEntre(ini, fim)/252);
+  let f = 1, c = ini;
+  while(c < fim){
+    const d = new Date(HOJE0.getFullYear(), HOJE0.getMonth(), HOJE0.getDate() + c);
+    const ano = d.getFullYear();
+    const inicioProxAno = Math.round((new Date(ano + 1, 0, 1) - HOJE0) / 864e5);
+    const seg = Math.min(fim, inicioProxAno);
+    f *= Math.pow(1 + taxaNoAno(taxa, ano)/100, diasUteisEntre(c, seg)/252);
+    c = seg;
+  }
+  return f;
+}
+/** taxa anual equivalente (base 252) de uma taxa constante ou curva, num intervalo */
+function taxaEquivalente(taxa, dias, ini){
+  if(typeof taxa === 'number') return taxa;
+  const i = Math.round(ini || 0), du = diasUteisEntre(i, i + Math.round(dias));
+  return du > 0 ? (Math.pow(fatorRend(taxa, i, i + Math.round(dias)), 252/du) - 1) * 100 : taxaNoAno(taxa, HOJE0.getFullYear());
+}
+
 function simular(pv, taxaAnualPct, dias, isentoIR, isentoIOF, inicioOffset){
   // dias = dias corridos da aplicação ao resgate; inicioOffset = dias corridos entre hoje e a aplicação
-  const taxaAnual = taxaAnualPct/100;
   const ini = Math.round(inicioOffset || 0);
   const du = diasUteisEntre(ini, ini + Math.round(dias));
-  const fv = pv * Math.pow(1+taxaAnual, du/252);
+  const fv = pv * fatorRend(taxaAnualPct, ini, ini + Math.round(dias));
   const bruto = fv - pv;
 
   const aliqIOF = isentoIOF ? 0 : iofAliquota(dias);
@@ -1066,7 +1162,7 @@ function simular(pv, taxaAnualPct, dias, isentoIR, isentoIOF, inicioOffset){
   const taxaAnualLiquida = du > 0 ? (Math.pow(valorFinal/pv, 252/du) - 1) * 100 : 0;
   const pMensal = (Math.pow(1+taxaAnualLiquida/100, 1/12) - 1) * 100;
 
-  return {bruto, pBrutoAnual: taxaAnualPct, iofValor, aliqIOF, isentoIOF: !!isentoIOF, irValor, aliqIR, liquido, valorFinal, pPeriodo, panual: taxaAnualLiquida, pmensal: pMensal, du, dc: Math.round(dias)};
+  return {bruto, pBrutoAnual: taxaEquivalente(taxaAnualPct, dias, ini), iofValor, aliqIOF, isentoIOF: !!isentoIOF, irValor, aliqIR, liquido, valorFinal, pPeriodo, panual: taxaAnualLiquida, pmensal: pMensal, du, dc: Math.round(dias)};
 }
 
 function preencherCard(prefix, r, pv){
@@ -1431,7 +1527,7 @@ $('s_btnCompararCenarios').addEventListener('click', ()=>{
   const cores = ['#d7a84c', '#5db3a4'];
   const cenariosObj = cenariosSelecionados.map(id => cenariosSalvos.find(x=>String(x.id)===String(id)));
   const series = cenariosObj.map((c, i)=>{
-    const pontos = evolucaoMensal(c.valorInvestido, c.aporte || 0, c.taxa, c.prazoDias, c.isentoIR, c.isentoIOF);
+    const pontos = evolucaoMensal(c.valorInvestido, c.aporte || 0, c.taxaCalc != null ? c.taxaCalc : c.taxa, c.prazoDias, c.isentoIR, c.isentoIOF);
     return {pontos, cor: cores[i], nome: c.nome};
   });
   ultimoGraficoCenarios = series;
@@ -1452,7 +1548,7 @@ function gerarPdfCenario(c){
   $('pr_valorInicial').textContent = fmtBRL(c.valorInvestido);
   $('pr_aporte').textContent = c.aporte > 0 ? fmtBRL(c.aporte) + ' / mês' : 'Sem aporte mensal';
   $('pr_prazo').textContent = c.prazoTexto || formatarPrazo(c.prazoDias);
-  $('pr_taxa').textContent = fmtPct(c.taxa) + ' a.a.';
+  $('pr_taxa').textContent = fmtPct(c.taxa) + ' a.a.' + (c.cdiProjetado ? ' (equivalente, CDI projetado)' : '');
   $('pr_totalAportado').textContent = fmtBRL(c.totalCapital);
   $('pr_iof').textContent = c.valorIOF > 0 ? fmtBRL(c.valorIOF) : (c.isentoIOF ? 'Isenta de IOF' : 'Não incide (prazo ≥ 30 dias)');
   $('pr_ir').textContent = c.valorIR > 0 ? fmtBRL(c.valorIR) : (c.isentoIR ? 'Isento de IR' : fmtBRL(0));
@@ -1473,7 +1569,7 @@ function preencherColunaPdfComparativo(sufixo, c){
   $('prc_valorInicial'+sufixo).textContent = fmtBRL(c.valorInvestido);
   $('prc_aporte'+sufixo).textContent = c.aporte > 0 ? fmtBRL(c.aporte) + ' / mês' : 'Sem aporte';
   $('prc_prazo'+sufixo).textContent = c.prazoTexto || formatarPrazo(c.prazoDias);
-  $('prc_taxa'+sufixo).textContent = fmtPct(c.taxa) + ' a.a.';
+  $('prc_taxa'+sufixo).textContent = fmtPct(c.taxa) + ' a.a.' + (c.cdiProjetado ? ' (equivalente, CDI projetado)' : '');
   $('prc_total'+sufixo).textContent = fmtBRL(c.totalCapital);
   $('prc_iof'+sufixo).textContent = c.valorIOF > 0 ? fmtBRL(c.valorIOF) : (c.isentoIOF ? 'Isenta' : 'Não incide');
   $('prc_ir'+sufixo).textContent = c.valorIR > 0 ? fmtBRL(c.valorIR) : (c.isentoIR ? 'Isento' : fmtBRL(0));
@@ -1515,6 +1611,219 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
   });
 });
 
+/* ---------------- CDI PROJETADO (Boletim Focus) ----------------
+   Expectativa de mercado para a Selic no fim de cada ano (mediana do Focus, API do Banco Central),
+   descontado o spread de 0,10 p.p. entre CDI e Selic. Ano atual = CDI informado.
+   Depois do último ano do Focus, mantém o último valor. Todos os anos futuros são editáveis.
+   Se a consulta falhar, nada é inventado: os anos ficam com o CDI informado e o aviso é exibido. */
+const ANO_ATUAL = HOJE0.getFullYear();
+const SPREAD_CDI_SELIC_PP = 0.10;
+let modoCDI = 'constante';
+let curvaCDI = null;          // {ano: CDI % a.a.}
+let focusInfo = {estado: 'inicial', texto: ''};
+
+function taxaPosFixada(cdi, perc){
+  if(modoCDI !== 'projetado' || !curvaCDI) return cdi * perc/100;
+  const curva = Object.assign({}, curvaCDI, {[ANO_ATUAL]: cdi});   // ano atual acompanha o CDI informado
+  return {curva, mult: perc/100};
+}
+function anoFinalDoPrazo(prefixo){
+  const raw = parseFloat($(prefixo + '_prazo').value);
+  const dias = raw > 0 ? prazoEmDias(raw, $(prefixo + '_prazoUnidade').value) : 0;
+  return new Date(HOJE0.getFullYear(), HOJE0.getMonth(), HOJE0.getDate() + dias).getFullYear();
+}
+function montarCurvaPadrao(cdi){
+  const c = {};
+  for(let a = ANO_ATUAL; a <= ANO_ATUAL + 60; a++) c[a] = cdi;
+  return c;
+}
+async function buscarFocusSelic(){
+  const url = "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoAnuais" +
+    "?$top=60&$filter=Indicador%20eq%20'Selic'&$orderby=Data%20desc&$format=json&$select=Indicador,Data,DataReferencia,Mediana,baseCalculo";
+  const resp = await fetch(url);
+  if(!resp.ok) throw new Error('resposta não OK');
+  const json = await resp.json();
+  const linhas = ((json && json.value) || []).filter(l => l.baseCalculo == null || l.baseCalculo === 0);
+  if(!linhas.length) throw new Error('sem dados');
+  const dataMaisRecente = linhas[0].Data;
+  const porAno = {};
+  linhas.filter(l => l.Data === dataMaisRecente).forEach(l=>{
+    const ano = parseInt(l.DataReferencia, 10), v = parseFloat(l.Mediana);
+    if(ano >= ANO_ATUAL && v > 0 && v < 60) porAno[ano] = v;
+  });
+  if(!Object.keys(porAno).length) throw new Error('sem anos futuros');
+  return {data: dataMaisRecente, porAno};
+}
+async function ativarCurva(){
+  const cdi = parseFloat($('s_cdi').value) || 0;
+  if(!curvaCDI) curvaCDI = montarCurvaPadrao(cdi);
+  if(focusInfo.estado === 'ok' || focusInfo.estado === 'carregando') return;
+  focusInfo = {estado: 'carregando', texto: 'Consultando o Boletim Focus no Banco Central…'};
+  renderCurvas();
+  try{
+    const f = await buscarFocusSelic();
+    const anos = Object.keys(f.porAno).map(Number).sort((a,b)=>a-b);
+    let ultimo = null;
+    for(let a = ANO_ATUAL + 1; a <= ANO_ATUAL + 60; a++){
+      if(f.porAno[a] != null) ultimo = f.porAno[a] - SPREAD_CDI_SELIC_PP;
+      if(ultimo != null) curvaCDI[a] = Math.round(ultimo*100)/100;
+    }
+    const dt = String(f.data).split('-').reverse().join('/');
+    focusInfo = {estado: 'ok', texto: 'Selic esperada para o fim de cada ano: mediana do Boletim Focus de ' + dt +
+      ' (expectativa de mercado, não é previsão oficial), menos 0,10 p.p. Depois de ' + anos[anos.length-1] +
+      ' mantém o último valor. Ano atual = CDI informado. Você pode editar qualquer ano futuro.'};
+  }catch(e){
+    focusInfo = {estado: 'erro', texto: 'Não foi possível consultar o Boletim Focus agora. Os anos estão com o CDI informado — preencha a projeção de cada ano manualmente.'};
+  }
+  renderCurvas();
+  calcularSimulacao(); calcularComparacao();
+}
+function renderCurva(prefixo){
+  const box = $(prefixo + '_curvaBox');
+  box.classList.toggle('hidden', modoCDI !== 'projetado');
+  if(modoCDI !== 'projetado' || !curvaCDI) return;
+  const fim = Math.max(ANO_ATUAL + 1, anoFinalDoPrazo(prefixo));
+  const cdiAtual = parseFloat($(prefixo === 's' ? 's_cdi' : 'c_cdi').value) || 0;
+  let html = '<div class="curva-status' + (focusInfo.estado === 'erro' ? ' err' : '') + '">' + escHTML(focusInfo.texto) + '</div><div class="curva-grid">';
+  for(let a = ANO_ATUAL; a <= fim; a++){
+    const v = a === ANO_ATUAL ? cdiAtual : curvaCDI[a];
+    html += '<div class="field"><label for="' + prefixo + '_curva_' + a + '">' + a + (a === ANO_ATUAL ? ' (atual)' : '') + '</label>' +
+      '<div class="row-input"><input type="number" step="0.01" min="0" id="' + prefixo + '_curva_' + a + '" data-ano="' + a + '" value="' + (Math.round(v*100)/100).toFixed(2) + '"' +
+      (a === ANO_ATUAL ? ' disabled title="O ano atual usa o CDI informado acima"' : '') + '><span class="suffix">%</span></div></div>';
+  }
+  html += '</div><div class="curva-status">CDI médio considerado em cada ano, % a.a.</div>';
+  box.innerHTML = html;
+  box.querySelectorAll('input[data-ano]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const v = parseFloat(inp.value);
+      if(!(v >= 0 && v < 100)){ inp.value = curvaCDI[inp.dataset.ano]; return; }
+      curvaCDI[inp.dataset.ano] = v;
+      renderCurvas(); calcularSimulacao(); calcularComparacao();
+    });
+  });
+}
+function renderCurvas(){ renderCurva('s'); renderCurva('c'); }
+function selecionarModoCDI(modo){
+  modoCDI = modo;
+  ['s_cdiModo','c_cdiModo'].forEach(id=>$(id).querySelectorAll('.seg-opt').forEach(el=>el.classList.toggle('active', el.dataset.modo === modo)));
+  if(modo === 'projetado') ativarCurva();
+  renderCurvas();
+  calcularSimulacao(); calcularComparacao();
+}
+
+/* ---------------- REFERÊNCIAS DE MERCADO ----------------
+   Poupança: 0,5% a.m. + TR enquanto a Selic for maior que 8,5% a.a. (senão 70% da Selic + TR);
+             rende só a cada mês completo (aniversário); isenta de IR.
+   CDB:      % do CDI; IR regressivo e IOF (mesma regra do RDC).
+   Tesouro Selic: Selic ≈ CDI + 0,10 p.p.; IR regressivo e IOF; taxa de custódia B3 de 0,20% a.a.
+             sobre o valor que exceder R$ 10 mil por CPF (estimada mês a mês). */
+function mesesCompletos(dias){ let k = 0; while(diasAteMesesDepois(k + 1) <= dias) k++; return k; }
+function lotesAplicacao(pv, aporte, dias){
+  const lotes = [{off: 0, v: pv}];
+  if(aporte > 0) datasAportes(dias).forEach(o => lotes.push({off: o, v: aporte}));
+  return lotes;
+}
+function liquidoRendaFixa(lotes, taxa, dias, isentoIR, isentoIOF){
+  let liq = 0;
+  lotes.forEach(l=>{ if(dias - l.off > 0) liq += simular(l.v, taxa, dias - l.off, isentoIR, isentoIOF, l.off).liquido; });
+  return liq;
+}
+function calcularReferencias(pv, aporte, dias, cdi, valorFinalSim, capitalSim, duTotal){
+  const lotes = lotesAplicacao(pv, aporte, dias);
+  const capital = lotes.reduce((a,l)=>a + l.v, 0);
+  // taxa interna de retorno anual (base 252): considera o tempo que cada aporte ficou aplicado
+  const anual = vf => {
+    const fluxos = lotes.map(l => ({v: l.v, du: diasUteisEntre(l.off, dias)}));
+    const total = r => fluxos.reduce((a,f)=>a + f.v * Math.pow(1 + r, f.du/252), 0);
+    if(!(capital > 0) || !(duTotal > 0)) return 0;
+    let lo = -0.99, hi = 5;
+    for(let k = 0; k < 80; k++){ const m = (lo + hi)/2; if(total(m) > vf) hi = m; else lo = m; }
+    return ((lo + hi)/2) * 100;
+  };
+  const selic = cdi + SPREAD_CDI_SELIC_PP;
+  const linhas = [];
+
+  // Poupança
+  const tr = (parseFloat($('s_refTr').value) || 0) / 100;
+  const rBase = selic > 8.5 ? 0.005 : Math.pow(1 + 0.7*selic/100, 1/12) - 1;
+  const rMes = (1 + rBase) * (1 + tr) - 1;
+  const mTot = mesesCompletos(dias);
+  let vfPoup = 0;
+  lotes.forEach((l, i)=>{ const m = Math.max(0, mTot - i); vfPoup += l.v * Math.pow(1 + rMes, m); });
+  linhas.push({nome: 'Poupança', sub: fmtPct(rMes*100, 4) + ' a.m.', vf: vfPoup, garantia: 'FGC/FGCoop até R$ 250 mil'});
+
+  // CDB
+  const percCdb = parseFloat($('s_refCdb').value) || 0;
+  const taxaCdb = taxaPosFixada(cdi, percCdb);
+  const vfCdb = capital + liquidoRendaFixa(lotes, taxaCdb, dias, false, false);
+  linhas.push({nome: 'CDB', sub: fmtPct(percCdb, 0) + ' do CDI', vf: vfCdb, garantia: 'FGC até R$ 250 mil'});
+
+  // Tesouro Selic
+  const taxaSelic = typeof taxaCdb === 'number' ? selic : {curva: taxaCdb.curva, mult: 1, add: SPREAD_CDI_SELIC_PP};
+  let custodia = 0, ant = 0;
+  for(let k = 1; ant < dias; k++){
+    const o = Math.min(dias, diasAteMesesDepois(k));
+    let saldo = 0;
+    lotes.forEach(l=>{ if(l.off < o) saldo += l.v * fatorRend(taxaSelic, l.off, o); });
+    custodia += 0.002 * Math.max(0, saldo - 10000) * ((o - ant) / 365);
+    ant = o;
+  }
+  const vfSelic = capital + liquidoRendaFixa(lotes, taxaSelic, dias, false, false) - custodia;
+  linhas.push({nome: 'Tesouro Selic', sub: 'Selic ' + fmtPct(taxaEquivalente(taxaSelic, dias)) + ' a.a.' + (custodia > 0.005 ? ' · custódia ≈ ' + fmtBRL(custodia) : ''), vf: vfSelic, garantia: 'Tesouro Nacional'});
+
+  const nomeSim = produtoLabels[tipoSelecionado];
+  let html = '<tr><th>Investimento</th><th class="n">Valor final líquido</th><th class="n">Rent. líquida a.a.</th><th class="n">Diferença</th><th>Garantia</th></tr>';
+  html += '<tr class="atual"><td>' + escHTML(nomeSim) + '<small>sua simulação</small></td><td class="n">' + fmtBRL(valorFinalSim) + '</td><td class="n">' + fmtPct(anual(valorFinalSim)) + '</td><td class="n">—</td><td>' +
+    (tipoSelecionado === 'compromissada' ? 'Lastro em crédito privado' : 'FGCoop até R$ 250 mil') + '</td></tr>';
+  linhas.forEach(l=>{
+    const d = valorFinalSim - l.vf;
+    html += '<tr><td>' + l.nome + '<small>' + l.sub + '</small></td><td class="n">' + fmtBRL(l.vf) + '</td><td class="n">' + fmtPct(anual(l.vf)) + '</td>' +
+      '<td class="n ' + (d >= 0 ? 'pos' : 'neg') + '">' + (d >= 0 ? 'simulação +' : 'simulação −') + fmtBRL(Math.abs(d)) + '</td><td>' + l.garantia + '</td></tr>';
+  });
+  $('s_refTable').innerHTML = html;
+  $('s_refNote').textContent = 'Poupança: 0,5% a.m. + TR (Selic acima de 8,5% a.a.), rendimento só em meses completos, isenta de IR' +
+    (mTot === 0 ? ' — com prazo menor que 1 mês, não rende' : '') + '. CDB e Tesouro Selic: IR regressivo e IOF. Tesouro Selic: Selic considerada como CDI + 0,10 p.p.; taxa de custódia da B3 de 0,20% a.a. sobre o que exceder R$ 10 mil por CPF (estimativa). ' +
+    'TR de referência: 0,1690% a.m. (01/09 a 01/10/2026, Banco Central) — ajuste se necessário.' + (aporte > 0 ? ' Com aportes, a rentabilidade anual da tabela considera o tempo que cada aporte ficou aplicado (taxa interna de retorno).' : '') + (typeof taxaCdb !== 'number' ? ' CDB e Tesouro Selic usam o CDI projetado por ano.' : '');
+}
+
+/* ---------------- TEXTOS DOS PRODUTOS ---------------- */
+const DESC_PRODUTO = {
+  lca: 'Letra de Crédito do Agronegócio — isenta de IR para pessoa física',
+  rdc: 'Recibo de Depósito Cooperativo — tributado pela tabela regressiva de IR',
+  compromissada: 'A operação é lastreada em título de crédito privado, o que garante isenção de IOF, proporcionando maior eficiência tributária para aplicações de curto prazo'
+};
+const GARANTIA_PRODUTO = {
+  lca: '🛡️ <span>Garantia: <strong>FGCoop</strong>, até R$ 250 mil por CPF</span>',
+  rdc: '🛡️ <span>Garantia: <strong>FGCoop</strong>, até R$ 250 mil por CPF</span>',
+  compromissada: '🛡️ <span>Lastro: <strong>título de crédito privado</strong></span>'
+};
+
+/* ---------------- VALIDAÇÃO DO PRAZO ----------------
+   - prazo precisa ser maior que zero (senão o cálculo não roda e os resultados ficam esmaecidos)
+   - LCA: prazo mínimo de 6 meses (Resolução CMN nº 5.215/2025) — o prazo é travado em 6 meses, com aviso */
+function validarPrazo(prefixo, ehLCA){
+  const el = $(prefixo + '_prazo'), un = $(prefixo + '_prazoUnidade'), msg = $(prefixo + '_prazoMsg');
+  const caixa = el.closest('.row-input');
+  msg.className = 'cdi-status prazo-msg'; msg.textContent = '';
+  caixa.classList.remove('invalid');
+  const raw = parseFloat(el.value);
+  let dias = (Number.isFinite(raw) && raw > 0) ? prazoEmDias(raw, un.value) : 0;
+  if(!(dias >= 1)){
+    msg.textContent = 'Informe um prazo de pelo menos 1 dia (número maior que zero).';
+    msg.classList.add('err'); caixa.classList.add('invalid');
+    return null;
+  }
+  if(ehLCA){
+    const minimo = prazoEmDias(6, 'meses');
+    if(dias < minimo){
+      el.value = 6; un.value = 'meses'; dias = minimo;
+      msg.textContent = 'A LCA tem prazo mínimo de 6 meses (Resolução CMN nº 5.215/2025). O prazo foi ajustado para 6 meses.';
+      msg.classList.add('warn');
+    }
+  }
+  return {dias, raw: parseFloat(el.value), unidade: un.value};
+}
+
 /* ---------------- SIMULAÇÃO (aba principal) ---------------- */
 let tipoSelecionado = 'lca';
 let indexadorSim = 'pos';
@@ -1536,26 +1845,27 @@ function selecionarTipo(tipo){
 
   if(tipo === 'lca'){
     $('s_cardTitle').textContent = 'LCA';
-    $('s_cardDesc').textContent = 'Letra de Crédito do Agronegócio — isenta de IR para pessoa física';
+    $('s_cardDesc').textContent = DESC_PRODUTO.lca;
     $('s_percLabel').textContent = '% do CDI pago (LCA)';
     $('s_preLabel').textContent = 'Taxa fixa contratada (LCA)';
     $('s_equivLabel').textContent = 'Equivalente em RDC (taxa bruta)';
   } else if(tipo === 'rdc'){
     $('s_cardTitle').textContent = 'RDC';
-    $('s_cardDesc').textContent = 'Recibo de Depósito Cooperativo — tributado pela tabela regressiva de IR';
+    $('s_cardDesc').textContent = DESC_PRODUTO.rdc;
     $('s_percLabel').textContent = '% do CDI pago (RDC)';
     $('s_preLabel').textContent = 'Taxa fixa contratada (RDC)';
     $('s_equivLabel').textContent = 'Equivalente em LCA (taxa líquida)';
     btn.classList.add('teal');
   } else {
     $('s_cardTitle').textContent = 'Operação Compromissada';
-    $('s_cardDesc').textContent = 'Lastreada em títulos públicos, indicada para prazos curtos (até 30 dias) — não tem IOF, mas tem IR regressivo igual ao CDB';
+    $('s_cardDesc').textContent = DESC_PRODUTO.compromissada;
     $('s_percLabel').textContent = '% do CDI pago (Compromissada)';
     $('s_preLabel').textContent = 'Taxa fixa contratada (Compromissada)';
     $('s_equivLabel').textContent = 'Equivalente em LCA (taxa líquida)';
     btn.classList.add('blue');
     $('s_prazoUnidade').value = 'dias';
   }
+  $('s_garantia').innerHTML = GARANTIA_PRODUTO[tipo];
   calcularSimulacao();
 }
 $('optLCA').addEventListener('click', ()=>selecionarTipo('lca'));
@@ -1578,9 +1888,12 @@ $('s_idxSwitch').querySelectorAll('.seg-opt').forEach(el=>{
 function calcularSimulacao(){
   const pv = numeroDoCampo('s_valor');
   const aporte = numeroDoCampo('s_aporte');
-  const prazoRaw = parseFloat($('s_prazo').value) || 0;
-  const unidade = $('s_prazoUnidade').value;
-  const dias = Math.max(1, prazoEmDias(prazoRaw, unidade));
+  const prazoOk = validarPrazo('s', tipoSelecionado === 'lca');
+  $('s_resultsBlock').classList.toggle('stale', !prazoOk);
+  if(!prazoOk) return;
+  const prazoRaw = prazoOk.raw;
+  const unidade = prazoOk.unidade;
+  const dias = prazoOk.dias;
   const isentoIR = tipoSelecionado === 'lca';
   const isentoIOF = tipoSelecionado === 'compromissada';
 
@@ -1591,7 +1904,7 @@ function calcularSimulacao(){
   } else {
     cdiAtualSim = parseFloat($('s_cdi').value) || 0;
     const perc = parseFloat($('s_perc').value) || 0;
-    taxa = cdiAtualSim * perc/100;
+    taxa = taxaPosFixada(cdiAtualSim, perc);
   }
 
   const rInicial = simular(pv, taxa, dias, isentoIR, isentoIOF);
@@ -1624,6 +1937,8 @@ function calcularSimulacao(){
   const taxaAnualLiquida = duTotal > 0 && totalCapital > 0 ? (Math.pow(valorFinal/totalCapital, 252/duTotal) - 1) * 100 : 0;
   const pMensal = (Math.pow(1+taxaAnualLiquida/100, 1/12) - 1) * 100;
 
+  const taxaCalc = taxa;                     // constante ou curva — usada nos cálculos
+  taxa = taxaEquivalente(taxaCalc, dias);    // número equivalente — usado nos textos
   const r = {
     bruto: totalBruto,
     pBrutoAnual: taxa,
@@ -1660,7 +1975,7 @@ function calcularSimulacao(){
   }
 
   const corMap = {lca:'#d7a84c', rdc:'#5db3a4', compromissada:'#6f95c2'};
-  ultimoGrafico = {pontos: evolucaoMensal(pv, aporte, taxa, dias, isentoIR, isentoIOF), cor: corMap[tipoSelecionado]};
+  ultimoGrafico = {pontos: evolucaoMensal(pv, aporte, taxaCalc, dias, isentoIR, isentoIOF), cor: corMap[tipoSelecionado]};
   desenharGraficoLinha('s_chart', ultimoGrafico.pontos, ultimoGrafico.cor);
 
   const valorRealAtual = valorFinal / Math.pow(1 + ipcaAtual/100, dias/365);
@@ -1673,6 +1988,8 @@ function calcularSimulacao(){
     prazoDias: dias,
     prazoTexto: textoPrazo(prazoRaw, unidade),
     taxa: taxa,
+    taxaCalc: taxaCalc,
+    cdiProjetado: typeof taxaCalc !== 'number',
     isentoIR: isentoIR,
     isentoIOF: isentoIOF,
     ipca: ipcaAtual,
@@ -1699,7 +2016,7 @@ function calcularSimulacao(){
     nota = 'Uma LCA (isenta de IR) precisaria pagar essa taxa ao ano para render o mesmo líquido que ' + nomeProduto + ', que perde ' + fmtPct(aliqIR,1) + ' de IR nesse prazo.';
   }
 
-  if(indexadorSim === 'pos' && cdiAtualSim > 0){
+  if(indexadorSim === 'pos' && cdiAtualSim > 0 && typeof taxaCalc === 'number'){
     const percCDIequivalente = (equivalente / cdiAtualSim) * 100;
     $('s_equivValue').textContent = fmtPct(percCDIequivalente, 0) + ' do CDI';
     nota += ' Isso equivale a ' + fmtPct(percCDIequivalente, 0) + ' do CDI atual (' + fmtPct(cdiAtualSim) + ' a.a.), ou ' + fmtPct(equivalente) + ' a.a. em taxa fixa — a mesma referência (% do CDI) usada na sua simulação.';
@@ -1707,8 +2024,11 @@ function calcularSimulacao(){
     $('s_equivValue').textContent = fmtPct(equivalente) + ' a.a.';
   }
   $('s_equivNote').textContent = nota;
+  calcularReferencias(pv, aporte, dias, cdiAtualSim || (parseFloat($('s_cdi').value) || 0), valorFinal, totalCapital, duTotal);
 }
 $('s_btnCalc').addEventListener('click', calcularSimulacao);
+$('s_prazoUnidade').addEventListener('change', calcularSimulacao);
+$('s_prazo').addEventListener('change', calcularSimulacao);
 $('s_btnCdi').addEventListener('click', ()=>buscarCDI('s_cdi', true, 's_cdiStatus'));
 $('s_btnIpca').addEventListener('click', async ()=>{
   await buscarIPCA('s_ipca', 's_ipcaStatus');
@@ -1747,9 +2067,10 @@ $('c_rdc_idxSwitch').querySelectorAll('.seg-opt').forEach(el=>{
 
 function calcularComparacao(){
   const pv = numeroDoCampo('c_valor');
-  const prazoRaw = parseFloat($('c_prazo').value) || 0;
-  const unidade = $('c_prazoUnidade').value;
-  const dias = Math.max(1, prazoEmDias(prazoRaw, unidade));
+  const prazoOk = validarPrazo('c', parComparacao === 'lca');
+  $('c_resultsBlock').classList.toggle('stale', !prazoOk);
+  if(!prazoOk) return;
+  const dias = prazoOk.dias;
   const cdi = parseFloat($('c_cdi').value) || 0;
 
   let taxaLCA, taxaRDC;
@@ -1757,13 +2078,13 @@ function calcularComparacao(){
     taxaLCA = parseFloat($('c_lca_taxaPre').value) || 0;
   } else {
     const percLCA = parseFloat($('c_percLCA').value) || 0;
-    taxaLCA = cdi * percLCA/100;
+    taxaLCA = taxaPosFixada(cdi, percLCA);
   }
   if(indexadorRDC === 'pre'){
     taxaRDC = parseFloat($('c_rdc_taxaPre').value) || 0;
   } else {
     const percRDC = parseFloat($('c_percRDC').value) || 0;
-    taxaRDC = cdi * percRDC/100;
+    taxaRDC = taxaPosFixada(cdi, percRDC);
   }
 
   const isEsquerdaLCA = parComparacao === 'lca';
@@ -1808,14 +2129,14 @@ function calcularComparacao(){
   } else if(diff > 0){
     $('c_tagLCA').style.display = 'inline-block';
     $('c_cardLCA').classList.add('winner');
-    const descEsq = indexadorLCA === 'pre' ? fmtPct(taxaLCA) + ' a.a. fixos' : fmtPct(taxaLCA) + ' a.a. equivalentes';
+    const descEsq = indexadorLCA === 'pre' ? fmtPct(rLCA.pBrutoAnual) + ' a.a. fixos' : fmtPct(rLCA.pBrutoAnual) + ' a.a. equivalentes';
     const motivoEsq = isEsquerdaLCA ? 'Isenta de IR' : 'Isenta de IOF';
     headline = 'A <b>' + nomeEsq + '</b> rende mais no líquido';
     body = motivoEsq + ' e rendendo ' + descEsq + ', a ' + nomeEsq + ' supera o RDC por ' + fmtBRL(diff) + ' no valor final líquido, uma diferença de ' + fmtPct((diff/pv)*100) + ' sobre o valor investido.';
   } else {
     $('c_tagRDC').style.display = 'inline-block';
     $('c_cardRDC').classList.add('winner');
-    const descRDC = indexadorRDC === 'pre' ? fmtPct(taxaRDC) + ' a.a. fixos' : fmtPct(taxaRDC) + ' a.a. equivalentes';
+    const descRDC = indexadorRDC === 'pre' ? fmtPct(rRDC.pBrutoAnual) + ' a.a. fixos' : fmtPct(rRDC.pBrutoAnual) + ' a.a. equivalentes';
     headline = 'O <b>RDC</b> rende mais no líquido';
     body = 'Mesmo pagando ' + irAliquota(dias) + '% de IR sobre o rendimento, o RDC rendendo ' + descRDC + ' supera a ' + nomeEsq + ' por ' + fmtBRL(Math.abs(diff)) + ' no valor final líquido, uma diferença de ' + fmtPct((Math.abs(diff)/pv)*100) + ' sobre o valor investido.';
   }
@@ -1852,17 +2173,19 @@ function selecionarParComparacao(par){
   if(par === 'lca'){
     $('c_lca_blockTitle').textContent = 'LCA';
     $('c_lca_cardTitle').textContent = 'LCA';
-    $('c_lca_cardDesc').textContent = 'Letra de Crédito do Agronegócio — isenta de IR para pessoa física';
+    $('c_lca_cardDesc').textContent = DESC_PRODUTO.lca;
     $('c_barLCALabel').textContent = 'LCA';
     $('c_lca_realLabel').textContent = 'Rentabilidade Real de LCA (após IPCA)';
   } else {
     $('c_lca_blockTitle').textContent = 'Operação Compromissada';
     $('c_lca_cardTitle').textContent = 'Operação Compromissada';
-    $('c_lca_cardDesc').textContent = 'Lastreada em títulos públicos, indicada para prazos curtos (até 30 dias) — não tem IOF, mas tem IR regressivo igual ao CDB';
+    $('c_lca_cardDesc').textContent = DESC_PRODUTO.compromissada;
     $('c_barLCALabel').textContent = 'Compromissada';
     $('c_lca_realLabel').textContent = 'Rentabilidade Real da Compromissada (após IPCA)';
     $('c_prazoUnidade').value = 'dias';
   }
+  $('c_lca_garantia').innerHTML = GARANTIA_PRODUTO[par];
+  $('c_rdc_garantia').innerHTML = GARANTIA_PRODUTO.rdc;
   calcularComparacao();
 }
 $('c_parSwitch').querySelectorAll('.seg-opt').forEach(el=>{
@@ -1894,8 +2217,14 @@ aplicarMascaraMoeda('s_valor');
 aplicarMascaraMoeda('s_aporte');
 aplicarMascaraMoeda('c_valor');
 
+['s_refCdb','s_refTr'].forEach(id=>$(id).addEventListener('input', ()=>calcularSimulacao()));
+['s_cdiModo','c_cdiModo'].forEach(id=>$(id).querySelectorAll('.seg-opt').forEach(el=>el.addEventListener('click', ()=>selecionarModoCDI(el.dataset.modo))));
+['s_prazo','s_prazoUnidade','c_prazo','c_prazoUnidade','s_cdi','c_cdi'].forEach(id=>$(id).addEventListener('change', renderCurvas));
+
 /* primeira simulação automática */
-calcularSimulacao();
+$('c_prazo').addEventListener('change', calcularComparacao);
+$('c_prazoUnidade').addEventListener('change', calcularComparacao);
+selecionarTipo('lca');
 selecionarParComparacao('lca');
 </script>
 <div id="printArea">
