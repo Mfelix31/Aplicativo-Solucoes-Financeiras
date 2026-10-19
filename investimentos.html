@@ -233,7 +233,11 @@
   .prazo-msg.err{color:var(--red); font-weight:600;}
   .row-input.invalid{border-color:var(--red) !important;}
   .cdi-modo{margin:4px 0 16px;}
-  .cdi-modo .idx-switch{margin-bottom:8px;}
+  .cdi-opcao{display:flex; gap:10px; align-items:flex-start; cursor:pointer; border:1px solid var(--line); border-radius:5px; background:var(--panel-2); padding:10px 12px; margin-bottom:8px;}
+  .cdi-opcao:hover{border-color:var(--teal);}
+  .cdi-opcao input{margin-top:3px; width:16px; height:16px; accent-color:var(--teal); flex:0 0 auto; cursor:pointer;}
+  .cdi-opcao .t{font-size:13px; color:var(--ink); font-weight:600;}
+  .cdi-opcao .d{display:block; font-size:11.5px; color:var(--ink-faint); font-weight:400; margin-top:2px;}
   .curva{border:1px solid var(--line); border-radius:5px; background:var(--panel-2); padding:10px 12px;}
   .curva .curva-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(118px,1fr)); gap:8px; margin:8px 0 4px;}
   .curva label{display:block; font-size:11px; color:var(--ink-faint); margin-bottom:3px;}
@@ -653,10 +657,10 @@
         </div>
         <div class="cdi-status" id="s_cdiStatus">Valor de referência (16/09/2026, após corte do Copom para 13,75% de Meta Selic).</div>
         <div class="cdi-modo">
-          <div class="idx-switch" id="s_cdiModo" style="--accent: var(--teal);">
-            <div class="seg-opt active" data-modo="constante">CDI constante</div>
-            <div class="seg-opt" data-modo="projetado">CDI projetado por ano (Focus)</div>
-          </div>
+          <label class="cdi-opcao" for="s_cdiProj">
+            <input type="checkbox" id="s_cdiProj">
+            <span class="t">Usar CDI projetado por ano (Boletim Focus)<span class="d">Opcional. Padrão: CDI atual, constante durante todo o prazo.</span></span>
+          </label>
           <div class="curva hidden" id="s_curvaBox"></div>
         </div>
 
@@ -814,10 +818,10 @@
       </div>
       <div class="cdi-status" id="c_cdiStatus">Usado apenas pelas pontas configuradas como pós-fixado.</div>
       <div class="cdi-modo">
-        <div class="idx-switch" id="c_cdiModo" style="--accent: var(--teal);">
-          <div class="seg-opt active" data-modo="constante">CDI constante</div>
-          <div class="seg-opt" data-modo="projetado">CDI projetado por ano (Focus)</div>
-        </div>
+        <label class="cdi-opcao" for="c_cdiProj">
+          <input type="checkbox" id="c_cdiProj">
+          <span class="t">Usar CDI projetado por ano (Boletim Focus)<span class="d">Opcional. Padrão: CDI atual, constante durante todo o prazo.</span></span>
+        </label>
         <div class="curva hidden" id="c_curvaBox"></div>
       </div>
 
@@ -1705,7 +1709,7 @@ function renderCurva(prefixo){
 function renderCurvas(){ renderCurva('s'); renderCurva('c'); }
 function selecionarModoCDI(modo){
   modoCDI = modo;
-  ['s_cdiModo','c_cdiModo'].forEach(id=>$(id).querySelectorAll('.seg-opt').forEach(el=>el.classList.toggle('active', el.dataset.modo === modo)));
+  ['s_cdiProj','c_cdiProj'].forEach(id=>{ $(id).checked = modo === 'projetado'; });
   if(modo === 'projetado') ativarCurva();
   renderCurvas();
   calcularSimulacao(); calcularComparacao();
@@ -2218,7 +2222,7 @@ aplicarMascaraMoeda('s_aporte');
 aplicarMascaraMoeda('c_valor');
 
 ['s_refCdb','s_refTr'].forEach(id=>$(id).addEventListener('input', ()=>calcularSimulacao()));
-['s_cdiModo','c_cdiModo'].forEach(id=>$(id).querySelectorAll('.seg-opt').forEach(el=>el.addEventListener('click', ()=>selecionarModoCDI(el.dataset.modo))));
+['s_cdiProj','c_cdiProj'].forEach(id=>$(id).addEventListener('change', e=>selecionarModoCDI(e.target.checked ? 'projetado' : 'constante')));
 ['s_prazo','s_prazoUnidade','c_prazo','c_prazoUnidade','s_cdi','c_cdi'].forEach(id=>$(id).addEventListener('change', renderCurvas));
 
 /* primeira simulação automática */
