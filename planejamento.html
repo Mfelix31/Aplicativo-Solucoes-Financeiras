@@ -320,7 +320,7 @@
       <div class="kpi">
         <div class="k">Renda mensal desejada</div>
         <div class="v" id="k_renda">—</div>
-        <div class="s"><span class="lbl" id="k_rendaNomLbl">Equivalente nominal na data</span><span id="k_rendaNom">—</span></div>
+        <div class="s"><span class="lbl">O cálculo é feito para você ter essa renda em qualquer momento da vida, sempre corrigida pela inflação.</span></div>
       </div>
       <div class="kpi">
         <div class="k">Rentabilidade da carteira na renda</div>
@@ -620,8 +620,6 @@ function renderEtapa2(){
   const anoRenda = ANO + inp.anos;
   const rm = E.taxaMensal(inp.spread);
   $('k_renda').innerHTML = fmtBRL0(inp.renda) + '<span class="unit hoje">HOJE</span>';
-  $('k_rendaNomLbl').textContent = 'Equivalente nominal em ' + anoRenda + ' (inflação de ' + fmtPct(inp.inflacao,1) + ' a.a.)';
-  $('k_rendaNom').textContent = fmtBRL0(inp.renda*fN) + ' /mês';
   $('k_taxa').textContent = 'IPCA + ' + fmtPct(inp.spread);
   $('k_taxaNom').textContent = fmtPct(E.nominalDeReal(inp.spread, inp.inflacao)) + ' a.a. · real ' + fmtPct(rm, 4) + ' a.m.';
   $('k_meta').textContent = fmtCurto(meta);
