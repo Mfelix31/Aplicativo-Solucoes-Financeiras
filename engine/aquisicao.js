@@ -1,0 +1,421 @@
+/*
+ * Motor de cálculo — Estratégia de Aquisição
+ * (consórcio × financiamento × capital próprio)
+ * --------------------------------------------------------------
+ * Funções puras, sem acesso ao DOM. Funcionam no navegador
+ * (window.AquisicaoEngine) e no Node (require), para testes.
+ *
+ * PERGUNTA QUE O MOTOR RESPONDE
+ *   "Qual forma de comprar o bem preserva melhor o patrimônio do cliente,
+ *    considerando que o capital que continua investido gera renda para
+ *    pagar a parcela?"
+ *
+ * CONVENÇÕES (validadas com o usuário em 26/10/2026)
+ * - Base mensal, igual ao Planejamento: taxa mensal equivalente
+ *   i_m = (1 + i_a)^(1/12) − 1. Pagamentos no FIM de cada mês.
+ * - Rendimento do capital: taxa mensal LÍQUIDA (informada pelo chamador).
+ *   Para produtos tributados, a renda mensal bruta é reduzida pela alíquota
+ *   de IR do prazo médio da aplicação informado (ver taxaMensalLiquida).
+ * - Todo mês: capital ← capital × (1 + r) + aporte − parcela − seguro − custo de espera.
+ *   O que sobra da renda fica reinvestido; o que falta sai do capital
+ *   (descapitalização). Se o capital ficar NEGATIVO, o valor representa
+ *   dinheiro que precisaria vir de fora, corrigido pela mesma taxa
+ *   (custo de oportunidade) — a interface mostra o mês em que isso acontece.
+ * - Valor do bem: corrigido mês a mês pela valorização anual informada
+ *   (padrão = IPCA, decisão do usuário). Quem compra depois paga mais caro.
+ * - Patrimônio líquido = capital + valor do bem (se já comprado) − saldo devedor.
+ *   Em R$ de hoje: dividido por (1 + IPCA)^(meses/12).
+ * - Financiamento: parcela pela taxa do CET informado (o CET já inclui
+ *   seguros e tarifas), SAC ou Price. Entrada = valor do bem − valor financiado.
+ * - Consórcio (modelo em percentual da carta, como nas administradoras):
+ *     percentual total devido  P = 100% + taxa de administração + fundo de reserva
+ *     parcela antes da contemplação = P / prazo × valor atual da carta
+ *     valor da carta reajustado a cada 12 meses pelo índice informado
+ *     (o saldo devedor acompanha o reajuste)
+ *     seguro = % ao mês sobre o saldo devedor
+ *     no mês da contemplação: lance total abate o percentual devido;
+ *     a parte embutida sai do crédito; a parte livre sai do capital do cliente.
+ *     Crédito maior que o preço do bem → excedente abate o saldo devedor.
+ *     Crédito menor que o preço → a diferença sai do capital.
+ *     Depois do lance: "reduz parcela" divide o saldo pelos meses restantes;
+ *     "reduz prazo" mantém a parcela e encurta o plano.
+ * - Capital próprio: compra no primeiro mês em que o capital cobre o preço
+ *   do bem (já valorizado). Até lá, o capital continua rendendo.
+ * - Custo de espera (aluguel, por exemplo): opcional, pago todo mês enquanto
+ *   o cliente ainda não tem o bem, em qualquer caminho.
+ * - Arredondamento só na apresentação.
+ */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.AquisicaoEngine = api;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const MAX_MESES = 600;
+
+  /* ---------- taxas ---------- */
+  function taxaMensal(taxaAnual) { return Math.pow(1 + taxaAnual, 1 / 12) - 1; }
+  function taxaAnualDeMensal(taxaMes) { return Math.pow(1 + taxaMes, 12) - 1; }
+
+  /** IR regressivo de renda fixa por dias corridos (mesma tabela do Módulo 1). */
+  function aliquotaIR(dias) {
+    if (dias <= 180) return 0.225;
+    if (dias <= 360) return 0.20;
+    if (dias <= 720) return 0.175;
+    return 0.15;
+  }
+
+  /**
+   * Taxa mensal líquida do capital investido.
+   *  { modo: 'renda', rendaMensal, capital }            → renda líquida informada ÷ capital
+   *  { modo: 'produto', taxaBrutaAnual, isentoIR, prazoMedioDias }
+   *       → taxa bruta mensal equivalente × (1 − alíquota de IR do prazo médio)
+   */
+  function taxaMensalLiquida(cfg) {
+    if (cfg.modo === 'renda') return cfg.capital > 0 ? cfg.rendaMensal / cfg.capital : 0;
+    const bruta = taxaMensal(cfg.taxaBrutaAnual);
+    return cfg.isentoIR ? bruta : bruta * (1 - aliquotaIR(cfg.prazoMedioDias));
+  }
+
+  /** Parcela da Tabela Price. */
+  function pmt(pv, i, n) {
+    if (n <= 0) return pv;
+    if (i === 0) return pv / n;
+    return pv * i / (1 - Math.pow(1 + i, -n));
+  }
+
+  /** Taxa interna de retorno mensal de um fluxo (bissecção). null se não houver raiz. */
+  function tir(fluxos) {
+    const vpl = r => fluxos.reduce((s, f, k) => s + f / Math.pow(1 + r, k), 0);
+    let lo = -0.5, hi = 1;
+    let vlo = vpl(lo);
+    const vhi = vpl(hi);
+    if (!isFinite(vlo) || !isFinite(vhi) || vlo * vhi > 0) return null;
+    for (let k = 0; k < 300; k++) {
+      const mid = (lo + hi) / 2, vm = vpl(mid);
+      if (vm === 0) return mid;
+      if (vlo * vm < 0) hi = mid; else { lo = mid; vlo = vm; }
+    }
+    return (lo + hi) / 2;
+  }
+
+  /* ---------- validação ---------- */
+  function validar(e) {
+    const erros = [];
+    const pos = (v) => typeof v === 'number' && isFinite(v);
+    if (!(pos(e.capital) && e.capital >= 0)) erros.push('Capital investido inválido.');
+    if (!(pos(e.valorBem) && e.valorBem > 0)) erros.push('Informe o valor do bem.');
+    if (!(pos(e.horizonteMeses) && e.horizonteMeses >= 1)) erros.push('Horizonte inválido.');
+    const f = e.financiamento;
+    if (f && f.ativo) {
+      if (!(pos(f.valorFinanciado) && f.valorFinanciado > 0)) erros.push('Financiamento: informe o valor financiado.');
+      if (!(pos(f.cetAnual) && f.cetAnual >= 0)) erros.push('Financiamento: CET inválido.');
+      if (!(pos(f.prazoMeses) && f.prazoMeses >= 1 && f.prazoMeses <= MAX_MESES)) erros.push('Financiamento: prazo inválido.');
+    }
+    const c = e.consorcio;
+    if (c && c.ativo) {
+      if (!(pos(c.carta) && c.carta > 0)) erros.push('Consórcio: informe o valor da carta.');
+      if (!(pos(c.prazoMeses) && c.prazoMeses >= 1 && c.prazoMeses <= MAX_MESES)) erros.push('Consórcio: prazo inválido.');
+      ['taxaAdm', 'fundoReserva', 'seguroMensal', 'reajusteAnual'].forEach(k => {
+        if (!(pos(c[k]) && c[k] >= 0)) erros.push('Consórcio: ' + ({ taxaAdm: 'taxa de administração', fundoReserva: 'fundo de reserva', seguroMensal: 'seguro', reajusteAnual: 'reajuste' })[k] + ' inválido.');
+      });
+      if (!(pos(c.lanceTotal) && c.lanceTotal >= 0 && c.lanceTotal <= 1)) erros.push('Consórcio: lance total deve ficar entre 0% e 100%.');
+      if (!(pos(c.lanceEmbutido) && c.lanceEmbutido >= 0)) erros.push('Consórcio: lance embutido inválido.');
+      else if (c.lanceEmbutido > c.lanceTotal + 1e-12) erros.push('Consórcio: o lance embutido não pode ser maior que o lance total.');
+      if (!(pos(c.mesContemplacao) && c.mesContemplacao >= 1 && c.mesContemplacao <= c.prazoMeses)) erros.push('Consórcio: o mês de contemplação deve estar dentro do prazo.');
+    }
+    return erros;
+  }
+
+  /* ---------- núcleo da simulação ---------- */
+  function contexto(e, override) {
+    const ctx = Object.assign({
+      capital: e.capital,
+      aporteMensal: e.aporteMensal || 0,
+      valorBem: e.valorBem,
+      valorizacaoAnual: e.valorizacaoAnual || 0,
+      ipcaAnual: e.ipcaAnual || 0,
+      custoEsperaMensal: e.custoEsperaMensal || 0,
+      reservaMinima: e.reservaMinima || 0,
+      horizonteMeses: Math.round(e.horizonteMeses)
+    }, override || {});
+    // taxa do mês m (1..): função, lista ou número
+    const t = override && override.taxaMes !== undefined ? override.taxaMes : e.taxaMes;
+    ctx.taxa = typeof t === 'function' ? t : (Array.isArray(t) ? (m => t[Math.min(m - 1, t.length - 1)]) : (() => t || 0));
+    ctx.precoBem = m => ctx.valorBem * Math.pow(1 + ctx.valorizacaoAnual, m / 12);
+    ctx.deflator = m => Math.pow(1 + ctx.ipcaAnual, m / 12);
+    return ctx;
+  }
+
+  function novoRegistro(ctx, m, C, saldo, temBem, extra) {
+    const bem = temBem ? ctx.precoBem(m) : 0;
+    const pl = C + bem - saldo;
+    return Object.assign({ mes: m, capital: C, saldoDevedor: saldo, valorBem: bem, temBem, patrimonio: pl, patrimonioReal: pl / ctx.deflator(m) }, extra);
+  }
+
+  /** Métricas comuns, a partir da série mensal. */
+  function metricas(ctx, serie, base) {
+    const H = Math.min(ctx.horizonteMeses, serie.length - 1);
+    const pos = serie.filter(s => s.mes >= (base.mesCompra === null ? 0 : base.mesCompra));
+    let capMin = null;
+    pos.forEach(s => { if (capMin === null || s.capital < capMin.capital) capMin = s; });
+    const esgota = serie.find(s => s.capital < -0.005);
+    const furaReserva = ctx.reservaMinima > 0 && base.mesCompra !== null
+      ? serie.find(s => s.mes >= base.mesCompra && s.capital < ctx.reservaMinima - 0.005) : null;
+    const h = serie[H];
+    return Object.assign(base, {
+      capitalMinimo: capMin ? capMin.capital : null,
+      mesCapitalMinimo: capMin ? capMin.mes : null,
+      mesEsgota: esgota ? esgota.mes : null,
+      mesAbaixoReserva: furaReserva ? furaReserva.mes : null,
+      cobertura: base.parcelaInicial > 0 ? base.rendaInicial / base.parcelaInicial : null,
+      horizonte: { mes: H, patrimonio: h.patrimonio, patrimonioReal: h.patrimonioReal, capital: h.capital, saldoDevedor: h.saldoDevedor },
+      serie
+    });
+  }
+
+  /* ---------- financiamento ---------- */
+  function simularFinanciamento(f, ctx, Hsim) {
+    const i = taxaMensal(f.cetAnual);
+    const n = Math.round(f.prazoMeses);
+    let C = ctx.capital;
+    let saldo = f.valorFinanciado;
+    const entrada = ctx.valorBem - f.valorFinanciado; // negativo = sobra de crédito volta ao capital
+    C -= entrada;
+    const capitalAposCompra = C;
+    const serie = [novoRegistro(ctx, 0, C, saldo, true, { renda: 0, parcela: 0 })];
+    const pmtPrice = pmt(f.valorFinanciado, i, n);
+    const fluxos = [f.valorFinanciado];
+    let totalParcelas = 0, parcelaInicial = 0, juros = 0;
+    for (let m = 1; m <= Hsim; m++) {
+      const renda = C * ctx.taxa(m);
+      let parcela = 0;
+      if (m <= n && saldo > 1e-9) {
+        const j = saldo * i;
+        const amort = f.sistema === 'PRICE' ? Math.min(pmtPrice - j, saldo) : Math.min(f.valorFinanciado / n, saldo);
+        parcela = amort + j; saldo -= amort; juros += j;
+        if (m === n) { parcela += saldo; saldo = 0; }
+      }
+      if (m === 1) parcelaInicial = parcela;
+      totalParcelas += parcela;
+      if (m <= n) fluxos.push(-parcela);
+      C = C + renda + ctx.aporteMensal - parcela;
+      serie.push(novoRegistro(ctx, m, C, Math.max(0, saldo), true, { renda, parcela }));
+    }
+    const ti = tir(fluxos);
+    return metricas(ctx, serie, {
+      id: 'financiamento',
+      mesCompra: 0,
+      desembolsoCompra: Math.max(0, entrada),
+      capitalAposCompra,
+      rendaInicial: capitalAposCompra * ctx.taxa(1),
+      parcelaInicial,
+      parcelaFinal: serie[Math.min(n, Hsim)].parcela,
+      totalPago: totalParcelas + Math.max(0, entrada),
+      custoCredito: juros,
+      creditoUtil: f.valorFinanciado,
+      custoEfetivoAnual: ti === null ? null : taxaAnualDeMensal(ti),
+      fimContrato: n
+    });
+  }
+
+  /* ---------- consórcio ---------- */
+  /*
+   * Linha do tempo (t = meses a partir de hoje):
+   *   - a parcela nº p é paga no INÍCIO do mês, em t = p − 1 (a 1ª na adesão);
+   *   - a contemplação da assembleia nº k acontece em t = k − 1, logo depois
+   *     da parcela k: lance, liberação do crédito e compra do bem;
+   *   - durante o mês, o capital restante rende; no fim, aporte e custo de espera.
+   * Assim, contemplação na 1ª assembleia = compra hoje (t = 0), como no financiamento.
+   */
+  function simularConsorcio(c, ctx, Hsim) {
+    const n = Math.round(c.prazoMeses);
+    const k = Math.round(c.mesContemplacao);
+    const P = 1 + c.taxaAdm + c.fundoReserva;
+    // valor da carta na parcela nº p (reajuste a cada 12 parcelas)
+    const carta = p => c.carta * Math.pow(1 + c.reajusteAnual, Math.floor((Math.max(p, 1) - 1) / 12));
+    let pct = P;           // percentual da carta ainda devido
+    let pctMes = P / n;    // percentual pago por parcela
+    let C = ctx.capital;
+    let temBem = false;
+    let p = 0;             // última parcela paga
+    const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0 };
+    let totalPago = 0, mesFim = null, credito = 0, lanceProprio = 0, complemento = 0, excedente = 0;
+    const fluxos = [];
+    const serie = [];
+    let rendaMes = 0;
+
+    for (let t = 0; t <= Hsim; t++) {
+      if (t >= 1) {
+        rendaMes = C * ctx.taxa(t);
+        C = C + rendaMes + ctx.aporteMensal - (temBem ? 0 : ctx.custoEsperaMensal);
+      }
+      // início do mês t+1: parcela nº t+1
+      let pago = 0, fluxo = 0;
+      if (pct > 1e-12) {
+        p = t + 1;
+        const cartaP = carta(p);
+        const seguro = c.seguroMensal * pct * cartaP;
+        const amort = Math.min(pctMes, pct);
+        pct -= amort;
+        pago = amort * cartaP + seguro;
+        if (pct <= 1e-12) { pct = 0; mesFim = t; }
+        C -= pago; totalPago += pago; fluxo -= pago;
+      }
+      if (t + 1 === k) {
+        // contemplação: lance, crédito e compra do bem
+        const cartaP = carta(k);
+        const lanceT = Math.min(c.lanceTotal, pct);
+        const emb = Math.min(c.lanceEmbutido, lanceT);
+        lanceProprio = (lanceT - emb) * cartaP;
+        credito = cartaP * (1 - emb);
+        pct -= lanceT;
+        const preco = ctx.precoBem(t);
+        const dif = credito - preco;
+        if (dif >= 0) {
+          // crédito acima do preço: o excedente abate o saldo devedor; se sobrar, volta ao capital
+          const abate = Math.min(dif / cartaP, pct);
+          excedente = abate * cartaP;
+          pct -= abate;
+          C += dif - excedente;
+        } else {
+          complemento = -dif; C -= complemento;
+        }
+        C -= lanceProprio;
+        totalPago += lanceProprio;
+        fluxo += credito - lanceProprio;
+        if (pct <= 1e-12) { pct = 0; mesFim = t; }
+        const restantes = n - k;
+        if (pct > 0) {
+          if (restantes <= 0) pctMes = pct;
+          else if (c.lanceReduz === 'prazo') pctMes = P / n;
+          else pctMes = pct / restantes;
+        }
+        temBem = true;
+        info.mesCompra = t;
+        info.desembolsoCompra = lanceProprio + complemento;
+        info.capitalAposCompra = C;
+        info.rendaInicial = C * ctx.taxa(t + 1);
+        const cartaProx = carta(k + 1);
+        info.parcelaInicial = pct > 0 ? Math.min(pctMes, pct) * cartaProx + c.seguroMensal * pct * cartaProx : 0;
+      }
+      if (pago > 0 || t + 1 === k) fluxos[t] = fluxo;
+      serie.push(novoRegistro(ctx, t, C, pct * carta(Math.max(p, 1)), temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago }));
+    }
+    for (let t = 0; t < fluxos.length; t++) if (fluxos[t] === undefined) fluxos[t] = 0;
+    const ti = fluxos.some(f => f > 0) && fluxos.some(f => f < 0) ? tir(fluxos) : null;
+    return metricas(ctx, serie, Object.assign(info, {
+      id: 'consorcio',
+      parcelaOriginal: (P / n) * c.carta + c.seguroMensal * P * c.carta,
+      creditoRecebido: credito,
+      lanceProprio, complemento, excedenteAbatido: excedente,
+      totalPago,
+      custoCredito: totalPago - credito,
+      creditoUtil: credito,
+      custoEfetivoAnual: ti === null ? null : taxaAnualDeMensal(ti),
+      fimContrato: mesFim === null ? n - 1 : mesFim
+    }));
+  }
+
+  /* ---------- capital próprio ---------- */
+  function simularAVista(ctx, Hsim) {
+    let C = ctx.capital;
+    let temBem = false;
+    const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0 };
+    const comprar = m => {
+      const preco = ctx.precoBem(m);
+      if (!temBem && C >= preco - 1e-6) {
+        C -= preco; temBem = true;
+        info.mesCompra = m; info.desembolsoCompra = preco; info.capitalAposCompra = C;
+        info.rendaInicial = C * ctx.taxa(m + 1);
+      }
+    };
+    comprar(0);
+    const serie = [novoRegistro(ctx, 0, C, 0, temBem, { renda: 0, parcela: 0 })];
+    for (let m = 1; m <= Hsim; m++) {
+      const renda = C * ctx.taxa(m);
+      C = C + renda + ctx.aporteMensal - (temBem ? 0 : ctx.custoEsperaMensal);
+      comprar(m);
+      serie.push(novoRegistro(ctx, m, C, 0, temBem, { renda, parcela: 0 }));
+    }
+    return metricas(ctx, serie, Object.assign(info, {
+      id: 'avista',
+      totalPago: info.desembolsoCompra,
+      custoCredito: 0,
+      custoEfetivoAnual: null,
+      fimContrato: info.mesCompra || 0,
+      precoNaCompra: info.desembolsoCompra
+    }));
+  }
+
+  /* ---------- análise completa ---------- */
+  function horizonteSimulacao(e) {
+    let H = Math.round(e.horizonteMeses);
+    if (e.financiamento && e.financiamento.ativo) H = Math.max(H, Math.round(e.financiamento.prazoMeses));
+    if (e.consorcio && e.consorcio.ativo) H = Math.max(H, Math.round(e.consorcio.prazoMeses));
+    return Math.min(MAX_MESES, Math.max(1, H));
+  }
+
+  function analisar(e, override) {
+    const erros = validar(e);
+    if (erros.length) return { ok: false, erros };
+    const ctx = contexto(e, override);
+    const Hsim = horizonteSimulacao(e);
+    const cenarios = {};
+    if (e.financiamento && e.financiamento.ativo) cenarios.financiamento = simularFinanciamento(e.financiamento, ctx, Hsim);
+    if (e.consorcio && e.consorcio.ativo) cenarios.consorcio = simularConsorcio(e.consorcio, ctx, Hsim);
+    if (!e.avista || e.avista.ativo !== false) cenarios.avista = simularAVista(ctx, Hsim);
+    // maior patrimônio líquido no horizonte entre os caminhos que compram o bem dentro do horizonte
+    let melhor = null;
+    Object.keys(cenarios).forEach(id => {
+      const c = cenarios[id];
+      if (c.mesCompra === null || c.mesCompra > ctx.horizonteMeses) return;
+      if (!melhor || c.horizonte.patrimonio > cenarios[melhor].horizonte.patrimonio) melhor = id;
+    });
+    return { ok: true, erros: [], horizonteMeses: ctx.horizonteMeses, mesesSimulados: Hsim, cenarios, melhor };
+  }
+
+  /** Patrimônio líquido no horizonte com uma taxa anual líquida constante. */
+  function patrimonioComTaxa(e, taxaAnualLiquida, id, H) {
+    const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(taxaAnualLiquida) });
+    if (!r.ok || !r.cenarios[id]) return null;
+    return r.cenarios[id].horizonte.patrimonio;
+  }
+
+  /**
+   * Taxa anual líquida do capital em que os caminhos A e B empatam em patrimônio
+   * no horizonte. Acima dela, o caminho que mantém mais capital investido vence.
+   * Retorna null se não houver empate entre 0% e 40% a.a.
+   */
+  function taxaEquilibrio(e, idA, idB, H) {
+    const dif = t => patrimonioComTaxa(e, t, idA, H) - patrimonioComTaxa(e, t, idB, H);
+    let lo = 0, hi = 0.40;
+    let dlo = dif(lo), dhi = dif(hi);
+    if (!isFinite(dlo) || !isFinite(dhi) || dlo * dhi > 0) return null;
+    for (let k = 0; k < 80; k++) {
+      const mid = (lo + hi) / 2, dm = dif(mid);
+      if (dlo * dm <= 0) { hi = mid; dhi = dm; } else { lo = mid; dlo = dm; }
+    }
+    return (lo + hi) / 2;
+  }
+
+  /** Patrimônio líquido no horizonte para uma lista de taxas anuais líquidas constantes. */
+  function sensibilidade(e, taxasAnuais, H) {
+    return taxasAnuais.map(t => {
+      const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(t) });
+      const linha = { taxa: t };
+      if (r.ok) Object.keys(r.cenarios).forEach(id => {
+        const c = r.cenarios[id];
+        linha[id] = { patrimonio: c.horizonte.patrimonio, mesEsgota: c.mesEsgota, comprou: c.mesCompra !== null && c.mesCompra <= r.horizonteMeses };
+      });
+      return linha;
+    });
+  }
+
+  return {
+    MAX_MESES,
+    taxaMensal, taxaAnualDeMensal, aliquotaIR, taxaMensalLiquida, pmt, tir,
+    validar, analisar, taxaEquilibrio, sensibilidade, patrimonioComTaxa
+  };
+});

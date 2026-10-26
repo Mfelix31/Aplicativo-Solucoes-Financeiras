@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inteligência Financeira</title>
 <script src="assets/tema.js"></script>
-<meta name="description" content="Simule e compare investimentos e faça seu planejamento financeiro de longo prazo.">
+<meta name="description" content="Simule e compare investimentos, faça seu planejamento financeiro de longo prazo e compare consórcio, financiamento e capital próprio.">
 <style>
   :root{
     /* Paleta da marca — tema claro (padrão) */
@@ -44,8 +44,8 @@
   .hero h1{font-family:Arial, Helvetica, sans-serif; font-weight:600; font-size:clamp(28px, 4.4vw, 40px); line-height:1.15; margin:0 0 10px; max-width:20ch;}
   .hero p{margin:0; color:var(--ink-muted); font-size:15px; max-width:58ch;}
 
-  .modules{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
-  @media(max-width:720px){.modules{grid-template-columns:1fr;}}
+  .modules{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  @media(max-width:900px){.modules{grid-template-columns:1fr;}}
   .module{display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:24px 24px 20px; text-decoration:none; color:inherit; box-shadow:var(--shadow); position:relative; overflow:hidden; transition:border-color .15s ease, transform .15s ease;}
   .module::before{content:''; position:absolute; inset:0 0 auto 0; height:4px; background:var(--cb, var(--c));}
   .module:hover{border-color:var(--cb, var(--c)); transform:translateY(-2px);}
@@ -86,7 +86,7 @@
 
   <section class="hero">
     <h1>Decida com números claros, hoje e no longo prazo.</h1>
-    <p>Duas ferramentas na mesma plataforma: compare investimentos de renda fixa com impostos e prazos reais, ou planeje o patrimônio que você precisa para viver de renda.</p>
+    <p>Três ferramentas na mesma plataforma: compare investimentos de renda fixa com impostos e prazos reais, planeje o patrimônio que você precisa para viver de renda e escolha a melhor forma de comprar um bem sem desmontar esse plano.</p>
   </section>
 
   <main class="modules">
@@ -116,6 +116,19 @@
         <li>Compare cenários conservador, base e otimista</li>
       </ul>
       <span class="cta">Abrir planejamento <span class="arrow">→</span></span>
+    </a>
+    <a class="module" href="aquisicao.html" style="--c:var(--blue); --cb:var(--l-roxo)">
+      <span class="num">03</span>
+      <h2>Estratégia de Aquisição</h2>
+      <p class="lead">Consórcio, financiamento ou capital próprio</p>
+      <div class="tags"><span class="tag">Imóvel</span><span class="tag">Carro</span><span class="tag">Terreno</span></div>
+      <ul>
+        <li>Compare os três caminhos para comprar o mesmo bem</li>
+        <li>Veja se a renda do capital investido paga a parcela</li>
+        <li>Descubra o CDI em que cada caminho deixa de compensar</li>
+        <li>Acompanhe o patrimônio do cliente mês a mês, com PDF</li>
+      </ul>
+      <span class="cta">Abrir análise <span class="arrow">→</span></span>
     </a>
   </main>
 

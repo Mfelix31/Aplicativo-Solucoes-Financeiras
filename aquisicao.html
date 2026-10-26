@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estratégia de Aquisição</title>
+<script src="assets/tema.js"></script>
+<style>
+  :root{
+    /* Paleta da marca — tema claro (padrão) */
+    --bg:#F3F8F8; --panel:#FFFFFF; --panel-2:#EFF6F6; --line:#D3E0E1; --line-soft:#E6EFEF;
+    --ink:#003641; --ink-muted:#3E6169; --ink-faint:#4F7178;
+    --gold:#007A73; --gold-dim:#00AE9D; --teal:#437526; --teal-dim:#7DB61C; --blue:#49479D; --blue-dim:#8E8CD6; --red:#B93A34;
+    --ok:#437526; --acc:#007A73; --destaque:#007A73; --hl:#C9D200; --on-accent:#FFFFFF; --btn:#003641; --on-btn:#FFFFFF;
+    --l-roxo:#49479D; --l-turq:#00AE9D; --l-verde:#7DB61C; --l-red:#C2413B; --l-meta:#003641;
+    --grid:rgba(0,54,65,.10);
+  }
+  :root[data-theme="dark"]{
+    /* Tema escuro — base verde escuro #003641 */
+    --bg:#003641; --panel:#004750; --panel-2:#004F58; --line:#0C6168; --line-soft:#00535B;
+    --ink:#FFFFFF; --ink-muted:#C2D6D9; --ink-faint:#A3C2C6;
+    --gold:#40CDBD; --gold-dim:#00AE9D; --teal:#A3D24A; --teal-dim:#7DB61C; --blue:#B9B7F5; --blue-dim:#8E8CD6; --red:#FF9B8C;
+    --ok:#A3D24A; --acc:#40CDBD; --destaque:#C9D200; --hl:#C9D200; --on-accent:#003641; --btn:#00AE9D; --on-btn:#003641;
+    --l-roxo:#B9B7F5; --l-turq:#00AE9D; --l-verde:#C9D200; --l-red:#FF9B8C; --l-meta:#FFFFFF;
+    --grid:rgba(255,255,255,.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:Arial, Helvetica, sans-serif; line-height:1.5; padding:28px 16px 60px; font-variant-numeric:tabular-nums;}
+  .wrap{max-width:980px; margin:0 auto;}
+  .home-link{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); text-decoration:none; margin-bottom:10px; border:1px solid var(--line); border-radius:20px; padding:3px 11px;}
+  .home-link:hover{color:var(--ink); border-color:var(--teal);}
+
+  header{border-bottom:1px solid var(--line); padding-bottom:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px;}
+  header h1{font-weight:600; font-size:30px; margin:0 0 4px;}
+  header p{margin:0; color:var(--ink-muted); font-size:14px; max-width:60ch;}
+  .theme-toggle{background:var(--panel-2); border:1px solid var(--line); color:var(--ink); width:38px; height:38px; border-radius:50%; font-size:16px; cursor:pointer;}
+  .theme-toggle:hover{border-color:var(--teal);}
+
+  /* etapas */
+  .steps{display:flex; gap:4px; margin-bottom:22px; border-bottom:1px solid var(--line); overflow-x:auto;}
+  .step-btn{background:transparent; border:none; color:var(--ink-faint); font-family:inherit; font-size:16px; padding:10px 4px; margin-right:24px; cursor:pointer; position:relative; top:1px; white-space:nowrap; display:flex; align-items:center; gap:8px;}
+  .step-btn .n{font-size:11px; border:1px solid var(--line); padding:0 6px; border-radius:3px;}
+  .step-btn.active{color:var(--ink); border-bottom:2px solid var(--gold); padding-bottom:9px;}
+  .step-btn.active .n{border-color:var(--gold-dim); color:var(--gold);}
+  .step-panel{display:none;}
+  .step-panel.active{display:block;}
+
+  section.panel{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px 20px 8px; margin-bottom:18px;}
+  section.panel h2{font-size:17px; font-weight:600; margin:0 0 4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  section.panel .sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 16px;}
+  section.panel.path{border-top:3px solid var(--c);}
+  section.panel.path.off .path-body{display:none;}
+  section.panel.path.off{padding-bottom:12px;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px 18px; margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:6px;}
+  .row-input{display:flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--panel-2);}
+  .row-input:focus-within{border-color:var(--teal);}
+  .row-input.invalid{border-color:var(--red);}
+  .row-input input, .row-input select{flex:1; min-width:0; background:transparent; border:none; color:var(--ink); font-family:inherit; font-size:15px; padding:10px; width:100%; outline:none;}
+  .row-input select{font-size:13.5px;}
+  .row-input select option{background:var(--panel); color:var(--ink);}
+  .prefix,.suffix{display:flex; align-items:center; padding:0 10px; color:var(--ink-faint); font-size:12.5px; background:var(--line-soft); white-space:nowrap;}
+  .hint{font-size:11.5px; color:var(--ink-faint); margin-top:5px;}
+  .hint strong{color:var(--ink);}
+  .inline-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-muted); margin:2px 0 12px; cursor:pointer;}
+  .inline-check input{width:16px; height:16px; accent-color:var(--gold-dim);}
+  .fetch-row{display:flex; gap:8px; align-items:flex-end;}
+  .fetch-row .field{flex:1;}
+  .status-line{font-size:11.5px; color:var(--ink-faint); margin:-6px 0 14px;}
+
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; flex-wrap:wrap;}
+  .seg button{background:transparent; border:none; color:var(--ink-muted); font-size:12.5px; padding:8px 12px; cursor:pointer; font-family:inherit;}
+  .seg button.active{background:var(--btn); color:var(--on-btn); font-weight:600;}
+  .seg-wrap{margin-bottom:14px;}
+  .seg-wrap .lbl{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:6px;}
+
+  /* liga/desliga caminho */
+  .switch{margin-left:auto; display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:400; color:var(--ink-muted); cursor:pointer;}
+  .switch input{appearance:none; width:34px; height:20px; border-radius:20px; background:var(--line); position:relative; cursor:pointer; transition:background .15s ease; margin:0;}
+  .switch input::after{content:''; position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#fff; transition:left .15s ease;}
+  .switch input:checked{background:var(--c);}
+  .switch input:checked::after{left:17px;}
+  .dot{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--c);}
+
+  .mini{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; background:var(--panel-2); border:1px dashed var(--line); border-radius:5px; padding:10px 12px; margin-bottom:14px;}
+  .mini div{font-size:11.5px; color:var(--ink-faint);}
+  .mini b{display:block; font-size:14px; color:var(--ink); font-weight:600;}
+
+  .nav-row{display:flex; justify-content:flex-end; gap:10px; margin:4px 0 22px; flex-wrap:wrap;}
+  button.primary{background:var(--btn); color:var(--on-btn); border:none; font-family:inherit; font-weight:600; font-size:14.5px; padding:12px 20px; border-radius:4px; cursor:pointer;}
+  button.primary:hover{filter:brightness(1.08);}
+  button.primary:disabled{opacity:.45; cursor:default;}
+  button.ghost{background:transparent; border:1px solid var(--teal-dim); color:var(--teal); font-family:inherit; font-size:13px; padding:10px 14px; border-radius:4px; cursor:pointer; white-space:nowrap;}
+  button.ghost:hover{border-color:var(--teal);}
+  button.ghost:disabled{opacity:.5; cursor:default;}
+
+  /* resultados */
+  .verdict{background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--hl); border-radius:6px; padding:16px 20px; margin-bottom:18px;}
+  .verdict .headline{font-size:19px; font-weight:600; margin:0 0 6px;}
+  .verdict p{margin:0 0 6px; font-size:13.5px; color:var(--ink-muted);}
+  .verdict p:last-child{margin:0;}
+  .verdict b{color:var(--ink);}
+
+  .paths{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px;}
+  @media(max-width:860px){.paths{grid-template-columns:1fr;}}
+  .ledger{background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--cl); border-radius:6px; padding:16px 16px 12px; position:relative;}
+  .ledger.best{box-shadow:0 0 0 2px var(--hl) inset;}
+  .ledger h3{font-size:17px; margin:0; color:var(--ink); display:flex; align-items:center; gap:8px;}
+  .ledger .desc{font-size:11.5px; color:var(--ink-faint); margin-bottom:6px;}
+  .best-tag{position:absolute; top:-11px; right:12px; background:var(--hl); color:#003641; font-size:10.5px; font-weight:700; letter-spacing:.3px; padding:2px 9px; border-radius:20px;}
+  .badges{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px;}
+  .status{display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px;}
+  .status.ok{background:color-mix(in srgb, var(--ok) 12%, transparent); color:var(--ok); border:1px solid var(--ok);}
+  .status.no{background:color-mix(in srgb, var(--red) 10%, transparent); color:var(--red); border:1px solid var(--red);}
+  .status.neutral{color:var(--ink-muted); border:1px solid var(--line);}
+  .lrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 0; border-top:1px dashed var(--line); font-size:12.5px;}
+  .lrow .k{color:var(--ink-muted);}
+  .lrow .v{color:var(--ink); text-align:right; font-weight:600;}
+  .lrow .v small{display:block; color:var(--ink-faint); font-size:10.5px; font-weight:400;}
+  .lrow .v.no-t{color:var(--red);} .lrow .v.ok-t{color:var(--ok);}
+  .lrow.total{border-top:1px solid var(--line); margin-top:4px; padding-top:10px;}
+  .lrow.total .v{font-size:16px; color:var(--cl-t);}
+  .cover{margin:4px 0 2px;}
+  .cover .bar{height:8px; border-radius:4px; background:var(--line-soft); overflow:hidden; margin-top:4px;}
+  .cover .bar i{display:block; height:100%; border-radius:4px; background:var(--cl);}
+  .cover .t{display:flex; justify-content:space-between; font-size:11.5px; color:var(--ink-muted);}
+  .unit{font-size:10px; font-weight:600; letter-spacing:.3px; padding:1px 5px; border-radius:3px; margin-left:4px; vertical-align:middle;}
+  .unit.hoje{color:var(--teal); border:1px solid var(--teal-dim);}
+  .unit.nom{color:var(--ink-faint); border:1px solid var(--line);}
+
+  .block{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px 18px; margin-bottom:18px; position:relative;}
+  .block h3{font-size:15px; margin:0 0 4px;}
+  .block .sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 12px;}
+  .chart-head{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
+  .block canvas{display:block; width:100%; height:290px;}
+  .legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink-muted); margin-top:8px;}
+  .legend span::before{content:''; display:inline-block; width:14px; height:3px; border-radius:2px; background:var(--c); margin-right:6px; vertical-align:middle;}
+  .tooltip{position:absolute; pointer-events:none; background:var(--panel-2); border:1px solid var(--line); border-radius:5px; padding:8px 10px; font-size:11.5px; color:var(--ink); white-space:nowrap; display:none; z-index:2; box-shadow:0 4px 14px rgba(0,0,0,.18);}
+  .tooltip .t{color:var(--ink-faint); margin-bottom:3px;}
+
+  .eq{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-bottom:14px;}
+  .eq-card{background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:12px 14px;}
+  .eq-card .k{font-size:12px; color:var(--ink-muted);}
+  .eq-card .v{font-size:22px; font-weight:600; color:var(--destaque); line-height:1.25;}
+  .eq-card .s{font-size:12px; color:var(--ink-muted); margin-top:4px;}
+
+  .table-scroll{overflow-x:auto;}
+  table.t{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .t th{text-align:right; font-weight:600; color:var(--ink-faint); font-size:11.5px; padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  .t th:first-child, .t td:first-child{text-align:left;}
+  .t td{padding:7px 8px; border-top:1px dashed var(--line); text-align:right; white-space:nowrap;}
+  .t tr.now td{background:color-mix(in srgb, var(--hl) 16%, transparent); font-weight:600;}
+  .t td.win{color:var(--ok); font-weight:700;}
+  .t td small{display:block; color:var(--red); font-size:10.5px; font-weight:400;}
+  .t th .dot{margin-right:5px;}
+
+  details.flow summary{cursor:pointer; font-size:15px; font-weight:600; list-style:none; display:flex; align-items:center; gap:8px;}
+  details.flow summary::before{content:'▸'; color:var(--ink-faint); transition:transform .15s ease;}
+  details.flow[open] summary::before{transform:rotate(90deg);}
+  details.flow .flow-tools{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0;}
+  .flow-wrap{max-height:420px; overflow:auto; border:1px solid var(--line); border-radius:5px;}
+  .flow-wrap table.t th{position:sticky; top:0; background:var(--panel);}
+
+  .explain{background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--teal-dim); border-radius:5px; padding:12px 16px; font-size:12.5px; color:var(--ink-muted); margin-bottom:18px;}
+  .explain h3{font-size:13.5px; margin:0 0 6px; color:var(--ink);}
+  .explain ul{margin:0; padding-left:18px;}
+  .explain li{margin-bottom:4px;}
+  .warn-box{display:flex; gap:10px; align-items:flex-start; background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--gold-dim); border-radius:5px; padding:10px 14px; font-size:12px; color:var(--ink-muted); margin-bottom:18px;}
+  .err-banner{display:none; background:color-mix(in srgb, var(--red) 10%, transparent); border:1px solid var(--red); color:var(--ink); border-radius:5px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;}
+  .err-banner.show{display:block;}
+  .err-banner ul{margin:4px 0 0; padding-left:18px;}
+  .stale{opacity:.3; filter:grayscale(.6); pointer-events:none; user-select:none; transition:opacity .15s ease;}
+
+  footer{margin-top:28px; font-size:11.5px; color:var(--ink-faint); border-top:1px solid var(--line); padding-top:14px;}
+  footer p{margin:0 0 8px;}
+
+  /* ---------- relatório em PDF (impressão) ---------- */
+  #printArea{display:none;}
+  @media print{
+    @page{size:A4; margin:14mm 12mm;}
+    body{background:#fff !important; padding:0 !important;}
+    body > *:not(#printArea){display:none !important;}
+    #printArea{display:block !important; color:#003641; font-family:Arial, Helvetica, sans-serif; font-size:11px; line-height:1.45;}
+    #printArea *{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    #printArea .pr-badge{display:inline-block; background:#F4F7D9; color:#003641; border:1px solid #C9D200; font-size:9.5px; font-weight:700; letter-spacing:.3px; padding:3px 8px; border-radius:3px; margin-bottom:8px;}
+    #printArea h1{font-size:21px; margin:0; background:#003641; color:#fff; padding:12px 14px; border-radius:6px 6px 0 0; border-bottom:4px solid #00AE9D;}
+    #printArea .pr-sub{color:#3E6169; font-size:11px; margin:8px 0 14px;}
+    #printArea h2{font-size:14px; color:#003641; margin:16px 0 6px; padding-bottom:4px; border-bottom:2px solid #00AE9D; break-after:avoid;}
+    #printArea table{width:100%; border-collapse:collapse; break-inside:avoid;}
+    #printArea td, #printArea th{padding:5px 7px; border-bottom:1px solid #D3E0E1; vertical-align:top; text-align:left;}
+    #printArea tr:nth-child(even) td{background:#F3F8F8;}
+    #printArea th{font-size:10.5px; color:#003641; font-weight:700; background:#E3F3F1; border-bottom:1.5px solid #00AE9D;}
+    #printArea td.n, #printArea th.n{text-align:right;}
+    #printArea td.k{color:#3E6169; width:40%;}
+    #printArea td.v{font-weight:700;}
+    #printArea .ok{color:#437526; font-weight:700;} #printArea .no{color:#B93A34; font-weight:700;}
+    #printArea .pr-concl{border:1px solid #D3E0E1; border-left:4px solid #C9D200; border-radius:0 4px 4px 0; padding:8px 10px; font-size:11.5px; break-inside:avoid;}
+    #printArea .pr-concl p{margin:0 0 4px;}
+    #printArea .pr-chart{width:100%; border:1px solid #D3E0E1; border-radius:6px; margin-top:8px; break-inside:avoid;}
+    #printArea .pr-legend{font-size:10px; color:#3E6169; margin-top:4px;}
+    #printArea .pr-legend span{margin-right:14px;}
+    #printArea .pr-legend i{display:inline-block; width:12px; height:3px; vertical-align:middle; margin-right:4px;}
+    #printArea .pr-note{font-size:10px; color:#3E6169; margin:6px 0 0;}
+    #printArea .pr-aviso{border:1px solid #00AE9D; border-left:4px solid #00AE9D; background:#EEF8F7; border-radius:0 4px 4px 0; padding:8px 10px; margin-top:16px; font-size:10.5px; color:#003641; break-inside:avoid;}
+    #printArea .pr-footer{margin-top:10px; font-size:9.5px; color:#4F7178;}
+    #printArea .pr-footer p{margin:0 0 5px;}
+    #printArea .bloco{break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <a class="home-link" href="index.html">← Início</a>
+      <h1>Estratégia de Aquisição</h1>
+      <p>Consórcio, financiamento ou capital próprio: descubra qual caminho compra o bem preservando o patrimônio — considerando que o capital que continua investido gera renda para pagar a parcela.</p>
+    </div>
+    <button class="theme-toggle" id="btnTema" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema">🌙</button>
+  </header>
+
+  <nav class="steps" role="tablist">
+    <button class="step-btn active" data-step="1" role="tab"><span class="n">01</span>Cliente e bem</button>
+    <button class="step-btn" data-step="2" role="tab"><span class="n">02</span>Caminhos de compra</button>
+    <button class="step-btn" data-step="3" role="tab"><span class="n">03</span>Análise</button>
+  </nav>
+
+  <div class="err-banner" id="errBanner"></div>
+
+  <!-- ========================= ETAPA 1 ========================= -->
+  <div class="step-panel active" id="step-1">
+
+    <section class="panel">
+      <h2>O bem</h2>
+      <p class="sub">O valor de hoje. Quem compra mais tarde paga o bem já valorizado.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="tipoBem">Tipo de bem</label>
+          <div class="row-input"><select id="tipoBem">
+            <option value="imovel">Imóvel</option><option value="carro">Carro</option><option value="terreno">Terreno</option><option value="outro">Outro bem</option>
+          </select></div>
+        </div>
+        <div class="field">
+          <label for="valorBem">Valor do bem hoje</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="valorBem" class="money" value="700.000,00"></div>
+        </div>
+        <div class="field">
+          <label for="custoEspera">Custo de esperar pelo bem <span style="color:var(--ink-faint)">(opcional)</span></label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="custoEspera" class="money" value="0,00"><span class="suffix">/mês</span></div>
+          <div class="hint">Ex.: aluguel pago enquanto o cliente ainda não tem o imóvel. Vale para qualquer caminho.</div>
+        </div>
+      </div>
+      <label class="inline-check"><input type="checkbox" id="valIpca" checked> O bem valoriza pelo IPCA</label>
+      <div class="grid" id="valOutraBox" hidden>
+        <div class="field">
+          <label for="valOutra">Valorização anual do bem</label>
+          <div class="row-input"><input type="number" id="valOutra" value="0" step="0.1"><span class="suffix">% a.a.</span></div>
+          <div class="hint">Use valor negativo para desvalorização (veículos, por exemplo).</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>O cliente</h2>
+      <p class="sub">Só o necessário para o cálculo. Nada é enviado ou armazenado — tudo roda no seu navegador.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="capital">Capital investido hoje</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="capital" class="money" value="650.000,00"></div>
+        </div>
+        <div class="field">
+          <label for="aporte">Aporte mensal <span style="color:var(--ink-faint)">(opcional)</span></label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="aporte" class="money" value="0,00"></div>
+          <div class="hint">Entra igual em todos os caminhos, para a comparação ser justa.</div>
+        </div>
+        <div class="field">
+          <label for="reserva">Reserva mínima de liquidez</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="reserva" class="money" value="50.000,00"></div>
+          <div class="hint">Valor que o cliente não pode deixar de ter investido. Ajuste ao cliente.</div>
+        </div>
+      </div>
+
+      <div class="seg-wrap">
+        <span class="lbl">Como informar o rendimento do capital</span>
+        <div class="seg" id="segModo">
+          <button type="button" data-v="renda" class="active">Renda mensal líquida (R$)</button>
+          <button type="button" data-v="produto">Produto e taxa</button>
+        </div>
+      </div>
+
+      <div id="modoRenda">
+        <div class="grid">
+          <div class="field">
+            <label for="rendaMensal">Quanto o capital rende por mês, líquido de IR</label>
+            <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="rendaMensal" class="money" value="7.000,00"><span class="suffix">/mês</span></div>
+            <div class="hint" id="hintRenda"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="modoProduto" hidden>
+        <div class="grid">
+          <div class="field">
+            <label for="produto">Onde o capital está aplicado</label>
+            <div class="row-input"><select id="produto">
+              <option value="lca">LCA (isenta de IR)</option>
+              <option value="rdc">RDC</option>
+              <option value="cdb">CDB</option>
+              <option value="compromissada">Operação Compromissada</option>
+              <option value="outro">Outro tributado (IR regressivo)</option>
+            </select></div>
+          </div>
+          <div class="field">
+            <label for="percCdi">Rentabilidade</label>
+            <div class="row-input"><input type="number" id="percCdi" value="100" min="0" step="1"><span class="suffix">% do CDI</span></div>
+          </div>
+          <div class="field" id="prazoMedioBox" hidden>
+            <label for="prazoMedio">Prazo médio da aplicação</label>
+            <div class="row-input"><input type="number" id="prazoMedio" value="730" min="1" step="1"><span class="suffix">dias</span></div>
+            <div class="hint" id="hintIR"></div>
+          </div>
+        </div>
+        <div class="fetch-row">
+          <div class="field">
+            <label for="cdi">CDI atual</label>
+            <div class="row-input"><input type="number" id="cdi" value="13.65" min="0" step="0.01"><span class="suffix">% a.a.</span></div>
+          </div>
+          <button type="button" class="ghost" id="btnCdi">Buscar CDI atual</button>
+        </div>
+        <div class="hint" id="cdiStatus" style="margin-bottom:10px;">Valor de referência. "Buscar" estima o CDI pela Meta Selic do Copom (BCB, SGS 432) − 0,10 p.p.</div>
+        <label class="inline-check"><input type="checkbox" id="usarFocus"> Usar CDI projetado por ano (Boletim Focus)</label>
+        <div class="hint" id="focusStatus" hidden></div>
+        <div class="hint" id="hintProduto" style="margin-bottom:12px;"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Premissas da análise</h2>
+      <p class="sub">Inflação para valorizar o bem e trazer os resultados a valores de hoje; horizonte em que os caminhos são comparados.</p>
+      <div class="grid">
+        <div class="fetch-row" style="grid-column:span 1;">
+          <div class="field">
+            <label for="ipca">IPCA previsto</label>
+            <div class="row-input"><input type="number" id="ipca" value="4.00" step="0.01"><span class="suffix">% a.a.</span></div>
+          </div>
+          <button type="button" class="ghost" id="btnIpca">Buscar</button>
+        </div>
+        <div class="field">
+          <label for="horizonte">Comparar o patrimônio em</label>
+          <div class="row-input"><input type="number" id="horizonte" value="10" min="1" max="50" step="1"><span class="suffix">anos</span></div>
+          <div class="hint">Sugestão: 10 anos, para não depender de taxas por décadas.</div>
+        </div>
+      </div>
+      <div class="hint" id="ipcaStatus" style="margin:-4px 0 12px;">Padrão: 4% a.a., a mesma inflação média do Planejamento. "Buscar" traz o IPCA acumulado em 12 meses (BCB, SGS 13522).</div>
+    </section>
+
+    <div class="nav-row"><button class="primary" type="button" data-goto="2">Continuar: caminhos de compra →</button></div>
+  </div>
+
+  <!-- ========================= ETAPA 2 ========================= -->
+  <div class="step-panel" id="step-2">
+
+    <section class="panel path" id="pFin" style="--c:var(--l-turq)">
+      <h2><span class="dot"></span>Financiamento
+        <label class="switch"><input type="checkbox" id="onFin" checked> incluir</label></h2>
+      <div class="path-body">
+        <p class="sub">A entrada sai do capital; o restante é pago em parcelas pelo CET informado.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="finValor">Valor financiado</label>
+            <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="finValor" class="money" value="600.000,00"></div>
+            <div class="hint" id="hintEntrada"></div>
+          </div>
+          <div class="field">
+            <label for="finCet">CET (custo efetivo total)</label>
+            <div class="row-input"><input type="number" id="finCet" value="9.34" min="0" step="0.01"><span class="suffix">% a.a.</span></div>
+            <div class="hint">O CET já inclui juros, seguros e tarifas.</div>
+          </div>
+          <div class="field">
+            <label for="finPrazo">Prazo</label>
+            <div class="row-input"><input type="number" id="finPrazo" value="420" min="1" max="600" step="1"><span class="suffix">meses</span></div>
+          </div>
+        </div>
+        <div class="seg-wrap">
+          <span class="lbl">Sistema de amortização</span>
+          <div class="seg" id="segSistema">
+            <button type="button" data-v="SAC" class="active">SAC (parcela cai)</button>
+            <button type="button" data-v="PRICE">Price (parcela fixa)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel path" id="pCons" style="--c:var(--l-roxo)">
+      <h2><span class="dot"></span>Consórcio
+        <label class="switch"><input type="checkbox" id="onCons" checked> incluir</label></h2>
+      <div class="path-body">
+        <p class="sub">Preencha conforme a carta: taxas, seguro e reajuste mudam de grupo para grupo.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="consCarta">Valor da carta de crédito</label>
+            <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="consCarta" class="money" value="1.000.000,00"></div>
+          </div>
+          <div class="field">
+            <label for="consPrazo">Prazo do grupo</label>
+            <div class="row-input"><input type="number" id="consPrazo" value="240" min="1" max="600" step="1"><span class="suffix">meses</span></div>
+          </div>
+          <div class="field">
+            <label for="consAdm">Taxa de administração (total)</label>
+            <div class="row-input"><input type="number" id="consAdm" value="15" min="0" step="0.1"><span class="suffix">% da carta</span></div>
+          </div>
+          <div class="field">
+            <label for="consFr">Fundo de reserva (total)</label>
+            <div class="row-input"><input type="number" id="consFr" value="0" min="0" step="0.1"><span class="suffix">% da carta</span></div>
+          </div>
+          <div class="field">
+            <label for="consSeg">Seguro</label>
+            <div class="row-input"><input type="number" id="consSeg" value="0" min="0" step="0.001"><span class="suffix">% a.m. do saldo</span></div>
+          </div>
+          <div class="field">
+            <label for="consReaj">Reajuste anual da carta</label>
+            <div class="row-input"><input type="number" id="consReaj" value="0" min="0" step="0.1"><span class="suffix">% a.a.</span>
+              <select id="consIndice" style="flex:0 0 auto; width:auto; background:var(--line-soft); font-size:12.5px;"><option>INCC</option><option>IPCA</option><option>Outro</option></select></div>
+            <div class="hint">A parcela e o saldo devedor sobem a cada 12 meses.</div>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="consLance">Lance total</label>
+            <div class="row-input"><input type="number" id="consLance" value="80" min="0" max="100" step="1"><span class="suffix">% da carta</span></div>
+          </div>
+          <div class="field">
+            <label for="consEmb">… dos quais embutido</label>
+            <div class="row-input"><input type="number" id="consEmb" value="25" min="0" max="100" step="1"><span class="suffix">% da carta</span></div>
+            <div class="hint">Sai do próprio crédito: o cliente recebe menos, mas paga as taxas sobre a carta cheia.</div>
+          </div>
+          <div class="field">
+            <label for="consMes">Contemplação na assembleia nº</label>
+            <div class="row-input"><input type="number" id="consMes" value="1" min="1" step="1"></div>
+            <div class="hint">1 = primeira assembleia (compra imediata). Sem lance, a data é incerta.</div>
+          </div>
+        </div>
+        <div class="seg-wrap">
+          <span class="lbl">Depois do lance, o saldo restante…</span>
+          <div class="seg" id="segReduz">
+            <button type="button" data-v="parcela" class="active">reduz a parcela</button>
+            <button type="button" data-v="prazo">reduz o prazo</button>
+          </div>
+        </div>
+        <div class="mini" id="consResumo"></div>
+      </div>
+    </section>
+
+    <section class="panel path" id="pAv" style="--c:var(--l-verde)">
+      <h2><span class="dot"></span>Capital próprio
+        <label class="switch"><input type="checkbox" id="onAv" checked> incluir</label></h2>
+      <div class="path-body">
+        <p class="sub">Compra à vista no primeiro mês em que o capital (com rendimentos e aportes) alcança o preço do bem já valorizado. Não há parcela, mas o capital sai de uma vez.</p>
+        <div class="mini" id="avResumo"></div>
+      </div>
+    </section>
+
+    <div class="nav-row">
+      <button class="ghost" type="button" data-goto="1">← Cliente e bem</button>
+      <button class="primary" type="button" data-goto="3">Ver análise →</button>
+    </div>
+  </div>
+
+  <!-- ========================= ETAPA 3 ========================= -->
+  <div class="step-panel" id="step-3">
+    <div id="resultados">
+      <div class="warn-box"><span aria-hidden="true">⚠️</span><span>Esta é uma <strong>simulação</strong> com os parâmetros informados. Taxas, inflação e condições de crédito mudam ao longo do tempo; o resultado real pode ser diferente. Não é recomendação de investimento nem de crédito.</span></div>
+
+      <div class="verdict" id="verdict"></div>
+
+      <div class="paths" id="cards"></div>
+
+      <div class="block">
+        <div class="chart-head">
+          <h3>Evolução ao longo do tempo</h3>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div class="seg" id="segSerie"><button type="button" data-v="patrimonio" class="active">Patrimônio líquido</button><button type="button" data-v="capital">Capital investido</button></div>
+            <div class="seg" id="segJanela"><button type="button" data-v="h" class="active">Horizonte</button><button type="button" data-v="tudo">Contrato completo</button></div>
+          </div>
+        </div>
+        <p class="sub" id="chartSub"></p>
+        <canvas id="ch" height="290"></canvas>
+        <div class="tooltip" id="tt"></div>
+        <div class="legend" id="legenda"></div>
+      </div>
+
+      <div class="block">
+        <h3>Teste de estresse: até onde a vantagem aguenta</h3>
+        <p class="sub">O financiamento e o consórcio só compensam enquanto o capital que fica investido rende mais do que custa a dívida. Se o CDI cair, a vantagem diminui.</p>
+        <div class="eq" id="eqCards"></div>
+        <div class="table-scroll"><table class="t" id="tabSens"></table></div>
+        <div class="hint" id="sensNota" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="block">
+        <h3>Quanto custa cada caminho</h3>
+        <p class="sub">Custo efetivo = taxa interna de retorno do que o cliente recebe e paga ao credor. No consórcio, já considera o lance embutido e as taxas sobre a carta cheia.</p>
+        <div class="table-scroll"><table class="t" id="tabCusto"></table></div>
+      </div>
+
+      <div class="block">
+        <details class="flow" id="flow">
+          <summary>Fluxo mês a mês</summary>
+          <div class="flow-tools">
+            <div class="seg" id="segFluxo"></div>
+            <label class="inline-check" style="margin:0;"><input type="checkbox" id="fluxoMensal"> mostrar todos os meses</label>
+          </div>
+          <div class="flow-wrap"><table class="t" id="tabFluxo"></table></div>
+          <div class="hint" style="margin-top:8px;">Valores nominais (do mês). Renda = rendimento líquido do capital no mês. Capital negativo = dinheiro que precisaria vir de fora.</div>
+        </details>
+      </div>
+
+      <div class="explain">
+        <h3>Como o cálculo funciona</h3>
+        <ul>
+          <li><b>Todo mês</b>, o capital investido rende pela taxa líquida informada; a parcela sai desse capital. O que sobra da renda fica investido; o que falta é descapitalização.</li>
+          <li><b>Patrimônio líquido</b> = capital investido + valor do bem − saldo devedor. É o número que permite comparar caminhos diferentes de forma justa. Em "R$ de hoje", descontado o IPCA previsto.</li>
+          <li><b>Financiamento:</b> parcela pelo CET informado (SAC ou Price), paga no fim de cada mês. <b>Consórcio:</b> parcela = (100% + taxa de administração + fundo de reserva) ÷ prazo × carta, paga no início do mês; seguro sobre o saldo devedor; carta e saldo reajustados a cada 12 meses; crédito acima do preço do bem abate o saldo devedor. <b>Capital próprio:</b> compra quando o capital alcança o preço do bem já valorizado.</li>
+          <li><b>Base mensal</b> (taxa mensal equivalente), como no Planejamento. Para produtos tributados, a renda mensal é reduzida pela alíquota de IR do prazo médio informado.</li>
+          <li><b>Limitações:</b> a taxa do capital é constante (ou segue a curva Focus, se marcada); CET e reajustes são os informados, sem variação de TR/IPCA no financiamento; o lance de consórcio pode não ser vencedor na data simulada; não considera ITBI, escritura, IPVA ou manutenção do bem.</li>
+        </ul>
+      </div>
+
+      <div class="nav-row">
+        <button class="ghost" type="button" data-goto="2">← Caminhos de compra</button>
+        <button class="primary" type="button" id="btnPdf">Baixar PDF da análise</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Simulador educativo. Não coletamos, não armazenamos e não transmitimos dados pessoais; todo o processamento é feito no seu navegador.</p>
+    <p>As informações têm caráter meramente informativo e não constituem oferta, recomendação de investimento ou de crédito, nem promessa de rentabilidade. Condições de consórcio e financiamento dependem da proposta de cada instituição. Rentabilidade passada não garante rentabilidade futura. Consulte um profissional certificado antes de decidir.</p>
+  </footer>
+</div>
+
+<div id="printArea"></div>
+
+<script src="engine/aquisicao.js"></script>
+<script>
+(function(){
+'use strict';
+const E = window.AquisicaoEngine;
+const $ = id => document.getElementById(id);
+const HOJE = new Date();
+const ANO = HOJE.getFullYear();
+
+/* ---------- formatação ---------- */
+const fmtBRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const fmtBRL0 = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+const fmtPct = (v, c=2) => (v*100).toLocaleString('pt-BR', {minimumFractionDigits:c, maximumFractionDigits:c}) + '%';
+function fmtCurto(v){
+  const a = Math.abs(v), s = v < 0 ? '−' : '';
+  if(a >= 1e6) return s + 'R$ ' + (a/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' mi';
+  if(a >= 1e3) return s + 'R$ ' + (a/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' mil';
+  return s + fmtBRL0(a);
+}
+const fmtAnos = n => n === 1 ? '1 ano' : n + ' anos';
+function fmtPrazo(meses){
+  const a = Math.floor(meses/12), m = meses % 12;
+  if(a === 0) return m + (m===1?' mês':' meses');
+  return fmtAnos(a) + (m ? ' e ' + m + (m===1?' mês':' meses') : '');
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function mesAno(t){
+  const d = new Date(HOJE.getFullYear(), HOJE.getMonth() + t, 1);
+  return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][d.getMonth()] + '/' + d.getFullYear();
+}
+
+/* ---------- entrada de moeda (mesma máscara do simulador) ---------- */
+function lerMoeda(el){ const n = parseFloat(String(el.value||'0').replace(/\./g,'').replace(',','.')); return isNaN(n) ? 0 : n; }
+function mascara(el){
+  el.addEventListener('input', ()=>{
+    let d = el.value.replace(/\D/g,'') || '0';
+    d = d.replace(/^0+(?=\d)/,'');
+    while(d.length < 3) d = '0' + d;
+    const int = (d.slice(0,-2).replace(/^0+(?=\d)/,'') || '0').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    el.value = int + ',' + d.slice(-2);
+  });
+}
+const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? NaN : v; };
+const money = id => lerMoeda($(id));
+
+/* ---------- caminhos ---------- */
+const CAM = {
+  financiamento: {nome:'Financiamento', cor:'--l-turq', txt:'--gold', desc:'Entrada + parcelas pelo CET'},
+  consorcio:     {nome:'Consórcio', cor:'--l-roxo', txt:'--blue', desc:'Carta de crédito com lance'},
+  avista:        {nome:'Capital próprio', cor:'--l-verde', txt:'--teal', desc:'Compra à vista'}
+};
+const ORDEM = ['financiamento','consorcio','avista'];
+const BEM = {imovel:'imóvel', carro:'carro', terreno:'terreno', outro:'bem'};
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+/* ---------- estado de UI ---------- */
+const seg = {modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
+function ligarSeg(id, chave, cb){
+  $(id).querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+    seg[chave] = b.dataset.v;
+    $(id).querySelectorAll('button').forEach(x=>x.classList.toggle('active', x===b));
+    cb && cb();
+  }));
+}
+
+/* ---------- CDI projetado (Focus) ---------- */
+const SPREAD_CDI_SELIC = 0.10;
+let curvaFocus = null; // {ano: cdi%}
+async function buscarFocus(){
+  const st = $('focusStatus'); st.hidden = false;
+  st.textContent = 'Consultando o Boletim Focus no Banco Central…';
+  try{
+    const url = "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoAnuais" +
+      "?$top=60&$filter=Indicador%20eq%20'Selic'&$orderby=Data%20desc&$format=json&$select=Indicador,Data,DataReferencia,Mediana,baseCalculo";
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('resposta não OK');
+    const json = await resp.json();
+    const linhas = ((json && json.value) || []).filter(l => l.baseCalculo == null || l.baseCalculo === 0);
+    if(!linhas.length) throw new Error('sem dados');
+    const data = linhas[0].Data, porAno = {};
+    linhas.filter(l => l.Data === data).forEach(l=>{
+      const a = parseInt(l.DataReferencia,10), v = parseFloat(l.Mediana);
+      if(a > ANO && v > 0 && v < 60) porAno[a] = v - SPREAD_CDI_SELIC;
+    });
+    if(!Object.keys(porAno).length) throw new Error('sem anos futuros');
+    curvaFocus = porAno;
+    const anos = Object.keys(porAno).map(Number).sort((a,b)=>a-b);
+    st.textContent = 'CDI por ano = Selic de fim de ano esperada no Boletim Focus de ' + String(data).split('-').reverse().join('/') +
+      ' (expectativa de mercado, não é previsão oficial) − 0,10 p.p.: ' + anos.map(a => a + ' ' + fmtPct(porAno[a]/100)).join(' · ') +
+      '. Ano atual = CDI informado; depois de ' + anos[anos.length-1] + ' mantém o último valor.';
+  }catch(e){
+    curvaFocus = null;
+    st.textContent = 'Não foi possível consultar o Boletim Focus agora. A análise usa o CDI informado, constante.';
+  }
+  agendar();
+}
+function cdiDoMes(t, cdiAtual){
+  if(!($('usarFocus').checked && curvaFocus)) return cdiAtual;
+  const ano = new Date(HOJE.getFullYear(), HOJE.getMonth() + t - 1, 1).getFullYear();
+  if(ano <= ANO) return cdiAtual;
+  const anos = Object.keys(curvaFocus).map(Number).sort((a,b)=>a-b);
+  let v = cdiAtual;
+  anos.forEach(a => { if(a <= ano) v = curvaFocus[a]; });
+  return v;
+}
+
+/* ---------- leitura das entradas ---------- */
+const ISENTO = {lca:true};
+function lerEntradas(){
+  const capital = money('capital');
+  const valorBem = money('valorBem');
+  const ipca = num('ipca')/100;
+  const valorizacao = $('valIpca').checked ? ipca : num('valOutra')/100;
+  const prod = $('produto').value;
+  const isento = !!ISENTO[prod];
+  const perc = num('percCdi')/100;
+  const cdi = num('cdi')/100;
+  const prazoMedio = num('prazoMedio');
+  let taxaMes, taxaMesInicial, info;
+  if(seg.modo === 'renda'){
+    const renda = money('rendaMensal');
+    taxaMesInicial = E.taxaMensalLiquida({modo:'renda', rendaMensal:renda, capital});
+    taxaMes = taxaMesInicial;
+    info = {modo:'renda', renda};
+  } else {
+    const cfg = t => ({modo:'produto', taxaBrutaAnual: cdiDoMes(t, cdi*100)/100 * perc, isentoIR: isento, prazoMedioDias: prazoMedio});
+    taxaMesInicial = E.taxaMensalLiquida(cfg(1));
+    const focus = $('usarFocus').checked && curvaFocus;
+    taxaMes = focus ? (t => E.taxaMensalLiquida(cfg(t))) : taxaMesInicial;
+    info = {modo:'produto', prod, isento, perc, cdi, prazoMedio, focus: !!focus};
+  }
+  const e = {
+    capital, valorBem, aporteMensal: money('aporte'), reservaMinima: money('reserva'),
+    valorizacaoAnual: valorizacao, ipcaAnual: ipca, custoEsperaMensal: money('custoEspera'),
+    horizonteMeses: Math.round(num('horizonte')*12), taxaMes,
+    financiamento: {ativo: $('onFin').checked, valorFinanciado: money('finValor'), cetAnual: num('finCet')/100, prazoMeses: Math.round(num('finPrazo')), sistema: seg.sistema},
+    consorcio: {ativo: $('onCons').checked, carta: money('consCarta'), prazoMeses: Math.round(num('consPrazo')),
+      taxaAdm: num('consAdm')/100, fundoReserva: num('consFr')/100, seguroMensal: num('consSeg')/100, reajusteAnual: num('consReaj')/100,
+      lanceTotal: num('consLance')/100, lanceEmbutido: num('consEmb')/100, lanceReduz: seg.reduz, mesContemplacao: Math.round(num('consMes'))},
+    avista: {ativo: $('onAv').checked}
+  };
+  const extraErros = [];
+  if(!(capital > 0)) extraErros.push('Informe o capital investido.');
+  if(!(taxaMesInicial >= 0) || !isFinite(taxaMesInicial)) extraErros.push('Rendimento do capital inválido.');
+  if(!isFinite(ipca)) extraErros.push('IPCA previsto inválido.');
+  if(!$('valIpca').checked && !isFinite(valorizacao)) extraErros.push('Valorização do bem inválida.');
+  if(e.financiamento.ativo && e.financiamento.valorFinanciado > valorBem) extraErros.push('Financiamento: o valor financiado não pode passar do valor do bem.');
+  if(!(num('horizonte') >= 1 && num('horizonte') <= 50)) extraErros.push('Horizonte: de 1 a 50 anos.');
+  if(!e.financiamento.ativo && !e.consorcio.ativo && !e.avista.ativo) extraErros.push('Inclua pelo menos um caminho de compra.');
+  return {e, info, taxaMesInicial, extraErros, tipo: $('tipoBem').value};
+}
+
+/* ---------- dicas ao vivo ---------- */
+function renderDicas(inp){
+  const {e, info, taxaMesInicial} = inp;
+  const aa = E.taxaAnualDeMensal(taxaMesInicial);
+  if(info.modo === 'renda'){
+    $('hintRenda').innerHTML = 'Equivale a <strong>' + fmtPct(taxaMesInicial, 3) + ' a.m.</strong> = <strong>' + fmtPct(aa) + ' a.a. líquidos</strong>' +
+      (isFinite(num('cdi')) && num('cdi') > 0 ? ' (≈ ' + fmtPct(aa / (num('cdi')/100), 0) + ' do CDI de ' + fmtPct(num('cdi')/100) + ' se fosse isento)' : '') + '.';
+  } else {
+    $('prazoMedioBox').hidden = info.isento;
+    if(!info.isento) $('hintIR').innerHTML = 'Alíquota de IR aplicada à renda mensal: <strong>' + fmtPct(E.aliquotaIR(info.prazoMedio),1) + '</strong>.';
+    $('hintProduto').innerHTML = 'Rendimento líquido do capital: <strong>' + fmtPct(taxaMesInicial,3) + ' a.m.</strong> = <strong>' + fmtPct(aa) + ' a.a.</strong> · renda líquida hoje ≈ <strong>' + fmtBRL0(e.capital * taxaMesInicial) + '/mês</strong>' +
+      (info.focus ? ' (muda a cada ano pela curva Focus).' : '.');
+  }
+  const ent = e.valorBem - e.financiamento.valorFinanciado;
+  $('hintEntrada').innerHTML = 'Entrada (sai do capital): <strong>' + fmtBRL0(Math.max(0, ent)) + '</strong>';
+  // resumo do consórcio
+  const c = e.consorcio;
+  if(c.carta > 0 && c.prazoMeses > 0){
+    const P = 1 + (c.taxaAdm||0) + (c.fundoReserva||0);
+    const cred = c.carta * (1 - (c.lanceEmbutido||0));
+    const proprio = c.carta * Math.max(0, (c.lanceTotal||0) - (c.lanceEmbutido||0));
+    $('consResumo').innerHTML =
+      '<div>Parcela original<b>' + fmtBRL0(P / c.prazoMeses * c.carta) + '</b></div>' +
+      '<div>Crédito líquido (após embutido)<b>' + fmtBRL0(cred) + '</b></div>' +
+      '<div>Lance com recursos próprios<b>' + fmtBRL0(proprio) + '</b></div>' +
+      '<div>Total devido ao grupo<b>' + fmtBRL0(P * c.carta) + '</b></div>';
+  }
+  const avMeses = (() => { const r = ultimo && ultimo.r && ultimo.r.cenarios.avista; return r ? r.mesCompra : undefined; })();
+  $('avResumo').innerHTML =
+    '<div>Preço do bem hoje<b>' + fmtBRL0(e.valorBem) + '</b></div>' +
+    '<div>Capital hoje<b>' + fmtBRL0(e.capital) + '</b></div>' +
+    '<div>Quando consegue comprar<b>' + (avMeses === undefined ? '—' : avMeses === null ? 'não alcança' : (avMeses === 0 ? 'hoje' : 'em ' + fmtPrazo(avMeses))) + '</b></div>';
+}
+
+/* ---------- cálculo ---------- */
+let ultimo = null, timer;
+function agendar(){ clearTimeout(timer); timer = setTimeout(recalcular, 120); }
+function recalcular(){
+  const inp = lerEntradas();
+  const r = inp.extraErros.length ? {ok:false, erros:[]} : E.analisar(inp.e);
+  const erros = inp.extraErros.concat(r.erros || []);
+  const banner = $('errBanner');
+  if(erros.length){
+    banner.innerHTML = '<strong>Revise os dados:</strong><ul>' + erros.map(x=>'<li>'+esc(x)+'</li>').join('') + '</ul>';
+    banner.classList.add('show');
+    $('resultados').classList.add('stale'); $('btnPdf').disabled = true;
+    renderDicas(inp);
+    return;
+  }
+  banner.classList.remove('show');
+  $('resultados').classList.remove('stale'); $('btnPdf').disabled = false;
+  // estresse: só com taxa constante (independe da curva Focus)
+  const H = inp.e.horizonteMeses;
+  const eq = {};
+  const ativos = Object.keys(r.cenarios);
+  if(r.cenarios.financiamento && r.cenarios.avista) eq.finAv = E.taxaEquilibrio(inp.e, 'financiamento', 'avista', H);
+  if(r.cenarios.consorcio && r.cenarios.avista) eq.consAv = E.taxaEquilibrio(inp.e, 'consorcio', 'avista', H);
+  if(r.cenarios.financiamento && r.cenarios.consorcio) eq.finCons = E.taxaEquilibrio(inp.e, 'financiamento', 'consorcio', H);
+  const atualAA = E.taxaAnualDeMensal(inp.taxaMesInicial);
+  const base = [0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14];
+  const taxas = base.filter(t => Math.abs(t - atualAA) > 0.002).concat([atualAA]).sort((a,b)=>a-b);
+  const sens = E.sensibilidade(inp.e, taxas, H);
+  ultimo = {inp, r, eq, sens, atualAA, ativos};
+  renderDicas(inp);
+  renderTudo();
+}
+
+/* ---------- textos de status ---------- */
+function statusDe(id, c, inp){
+  const b = [];
+  const H = inp.e.horizonteMeses;
+  if(c.mesCompra === null || c.mesCompra > H) b.push({cls:'no', txt:'Não compra em ' + fmtAnos(Math.round(H/12))});
+  if(c.mesEsgota !== null && c.mesEsgota <= H) b.push({cls:'no', txt:'Consome o capital'});
+  else if(c.mesEsgota !== null) b.push({cls:'no', txt:'Capital zera após ' + fmtAnos(Math.floor(c.mesEsgota/12))});
+  if(id !== 'avista'){
+    if(c.cobertura !== null && c.cobertura >= 1 && c.mesEsgota === null) b.push({cls:'ok', txt:'A renda paga a parcela'});
+    else if(c.cobertura !== null && c.cobertura < 1 && c.mesEsgota === null) b.push({cls:'neutral', txt:'Descapitaliza no início'});
+  } else if(c.mesCompra !== null) b.push({cls:'neutral', txt:'Sem parcela'});
+  if(inp.e.reservaMinima > 0 && c.mesAbaixoReserva !== null && c.mesAbaixoReserva <= H) b.push({cls:'no', txt:'Abaixo da reserva'});
+  else if(inp.e.reservaMinima > 0 && c.mesCompra !== null && c.mesEsgota === null) b.push({cls:'ok', txt:'Mantém a reserva'});
+  return b;
+}
+function quando(c){
+  if(c.mesCompra === null) return 'não alcança';
+  if(c.mesCompra === 0) return 'hoje';
+  return 'em ' + fmtPrazo(c.mesCompra) + ' <small>' + mesAno(c.mesCompra) + '</small>';
+}
+
+/* ---------- cards ---------- */
+function renderCards(){
+  const {inp, r} = ultimo;
+  const H = inp.e.horizonteMeses, anos = Math.round(H/12);
+  $('cards').innerHTML = ORDEM.filter(id => r.cenarios[id]).map(id => {
+    const c = r.cenarios[id], k = CAM[id];
+    const best = r.melhor === id;
+    const st = statusDe(id, c, inp).map(s => '<span class="status ' + s.cls + '">' + s.txt + '</span>').join('');
+    const cob = c.cobertura;
+    const cobBar = id !== 'avista' && cob !== null ?
+      '<div class="cover"><div class="t"><span>Renda do capital ÷ parcela</span><b style="color:' + (cob >= 1 ? 'var(--ok)' : 'var(--red)') + '">' + fmtPct(cob, 0) + '</b></div><div class="bar"><i style="width:' + Math.min(100, cob*100).toFixed(1) + '%"></i></div></div>' : '';
+    const linhas = [];
+    linhas.push(['Compra do ' + BEM[inp.tipo], quando(c)]);
+    if(c.mesCompra !== null){
+      linhas.push(['Sai do capital na compra', fmtBRL0(c.desembolsoCompra) + (id === 'consorcio' && c.complemento > 0 ? '<small>inclui ' + fmtBRL0(c.complemento) + ' de complemento</small>' : '')]);
+      linhas.push(['Fica investido', '<span class="' + (c.capitalAposCompra < inp.e.reservaMinima ? 'no-t' : '') + '">' + fmtBRL0(c.capitalAposCompra) + '</span>']);
+      linhas.push(['Renda do capital no 1º mês', fmtBRL0(c.rendaInicial)]);
+    }
+    if(id !== 'avista' && c.mesCompra !== null){
+      linhas.push(['Parcela no 1º mês após a compra', fmtBRL0(c.parcelaInicial) + (id === 'financiamento' && seg.sistema === 'SAC' ? '<small>cai até ' + fmtBRL0(c.parcelaFinal) + '</small>' : '')]);
+    }
+    if(c.mesCompra !== null) linhas.push(['Menor capital no caminho', '<span class="' + (c.capitalMinimo < 0 ? 'no-t' : '') + '">' + fmtBRL0(Math.max(0, c.capitalMinimo)) + '</span><small>' + (c.capitalMinimo < 0 ? 'precisa de dinheiro de fora' : 'em ' + mesAno(c.mesCapitalMinimo)) + '</small>']);
+    if(c.mesEsgota !== null) linhas.push(['Capital zera', '<span class="no-t">em ' + fmtPrazo(c.mesEsgota) + '</span><small>' + mesAno(c.mesEsgota) + '</small>']);
+    const rows = linhas.map(l => '<div class="lrow"><span class="k">' + l[0] + '</span><span class="v">' + l[1] + '</span></div>').join('');
+    return '<div class="ledger' + (best ? ' best' : '') + '" style="--cl:var(' + k.cor + '); --cl-t:var(' + k.txt + ')">' +
+      (best ? '<span class="best-tag">MAIOR PATRIMÔNIO EM ' + anos + ' ' + (anos === 1 ? 'ANO' : 'ANOS') + '</span>' : '') +
+      '<h3>' + k.nome + '</h3><div class="desc">' + k.desc + '</div>' +
+      '<div class="badges">' + st + '</div>' + cobBar + rows +
+      '<div class="lrow total"><span class="k">Patrimônio líquido em ' + fmtAnos(anos) + '<span class="unit nom">NOMINAL</span></span><span class="v">' + fmtBRL0(c.horizonte.patrimonio) + '<small>' + fmtBRL0(c.horizonte.patrimonioReal) + ' em R$ de hoje</small></span></div>' +
+      '</div>';
+  }).join('');
+}
+
+/* ---------- conclusão em linguagem de conversa ---------- */
+function textoConclusao(){
+  const {inp, r, eq, atualAA} = ultimo;
+  const H = inp.e.horizonteMeses, anos = Math.round(H/12);
+  const C = r.cenarios, nome = id => CAM[id].nome.toLowerCase();
+  const p = [];
+  let head;
+  const sustenta = id => C[id] && C[id].mesCompra !== null && C[id].mesCompra <= H && (C[id].mesEsgota === null);
+  const viaveis = ORDEM.filter(sustenta);
+  if(r.melhor){
+    head = 'Em ' + fmtAnos(anos) + ', <b>' + CAM[r.melhor].nome + '</b> deixa o cliente com o maior patrimônio';
+    const outros = ORDEM.filter(id => C[id] && id !== r.melhor && C[id].mesCompra !== null);
+    if(outros.length){
+      const dif = outros.map(id => fmtBRL0(C[r.melhor].horizonte.patrimonio - C[id].horizonte.patrimonio) + ' a mais que ' + nome(id)).join(' e ');
+      head += ': ' + dif + '.';
+    } else head += '.';
+  } else head = 'Nenhum caminho compra o bem dentro de ' + fmtAnos(anos) + ' com esses dados.';
+  // por caminho
+  if(C.financiamento){
+    const f = C.financiamento;
+    if(f.mesEsgota === null && f.cobertura >= 1) p.push('<b>Financiamento:</b> mantém ' + fmtBRL0(f.capitalAposCompra) + ' investidos e a renda desse capital (' + fmtBRL0(f.rendaInicial) + ') já paga a primeira parcela (' + fmtBRL0(f.parcelaInicial) + ')' + (seg.sistema === 'SAC' ? '; no SAC a parcela cai e a folga cresce.' : '.'));
+    else if(f.mesEsgota === null) p.push('<b>Financiamento:</b> no início a renda paga ' + fmtPct(f.cobertura,0) + ' da parcela e o capital desce até ' + fmtBRL0(f.capitalMinimo) + ' (' + mesAno(f.mesCapitalMinimo) + '), mas não zera.');
+    else p.push('<b>Financiamento:</b> a renda não acompanha a parcela e o capital zera em ' + fmtPrazo(f.mesEsgota) + '.');
+  }
+  if(C.consorcio){
+    const c = C.consorcio;
+    const ini = c.mesCompra === 0 ? 'Com o lance, ' : (c.mesCompra !== null ? 'Contemplado em ' + fmtPrazo(c.mesCompra) + ', ' : '');
+    if(c.mesCompra === null) p.push('<b>Consórcio:</b> não chega à contemplação dentro do período simulado.');
+    else if(c.mesEsgota === null) p.push('<b>Consórcio:</b> ' + ini.toLowerCase() + 'ficam ' + fmtBRL0(c.capitalAposCompra) + ' investidos e a renda cobre ' + fmtPct(c.cobertura || 0,0) + ' da parcela; o capital não zera.');
+    else p.push('<b>Consórcio:</b> ' + ini.toLowerCase() + 'sobram só ' + fmtBRL0(c.capitalAposCompra) + ' investidos; a renda (' + fmtBRL0(c.rendaInicial) + ') não paga a parcela (' + fmtBRL0(c.parcelaInicial) + ') e o capital zera em ' + fmtPrazo(c.mesEsgota) + '. O custo do crédito (' + (c.custoEfetivoAnual !== null ? fmtPct(c.custoEfetivoAnual) + ' a.a.' : '—') + ') não é o problema: o problema é a descapitalização do lance.');
+  }
+  if(C.avista){
+    const a = C.avista;
+    if(a.mesCompra === null) p.push('<b>Capital próprio:</b> o capital não alcança o preço do bem no período simulado.');
+    else p.push('<b>Capital próprio:</b> ' + (a.mesCompra === 0 ? 'compra hoje' : 'compra em ' + fmtPrazo(a.mesCompra) + ', pagando ' + fmtBRL0(a.desembolsoCompra) + ' pelo bem já valorizado') + ', sem parcela, mas fica com ' + fmtBRL0(a.capitalAposCompra) + ' investidos' + (inp.e.reservaMinima > 0 && a.capitalAposCompra < inp.e.reservaMinima ? ' — abaixo da reserva mínima de ' + fmtBRL0(inp.e.reservaMinima) + '.' : '.'));
+  }
+  if(eq.finAv != null) p.push('<b>Atenção ao CDI:</b> o financiamento só vence a compra à vista enquanto o capital render mais de <b>' + fmtPct(eq.finAv) + ' a.a. líquidos</b>' + cdiEq(eq.finAv) + '. Hoje rende ' + fmtPct(atualAA) + '.');
+  return {head, p, viaveis};
+}
+function cdiEq(t){
+  const {info} = ultimo.inp;
+  if(info.modo !== 'produto' || !(info.perc > 0)) return '';
+  const g = Math.pow(1 + t, 1/12) - 1;
+  const bm = info.isento ? g : g / (1 - E.aliquotaIR(info.prazoMedio));
+  const cdi = (Math.pow(1 + bm, 12) - 1) / info.perc;
+  return ' (CDI de ' + fmtPct(cdi) + ' com ' + fmtPct(info.perc,0) + ' do CDI' + (info.isento ? '' : ' e IR de ' + fmtPct(E.aliquotaIR(info.prazoMedio),1)) + ')';
+}
+function renderConclusao(){
+  const t = textoConclusao();
+  $('verdict').innerHTML = '<p class="headline">' + t.head + '</p>' + t.p.map(x => '<p>' + x + '</p>').join('');
+}
+
+/* ---------- estresse ---------- */
+function renderEstresse(){
+  const {r, eq, sens, atualAA, inp} = ultimo;
+  const H = inp.e.horizonteMeses, anos = Math.round(H/12);
+  const cards = [];
+  const card = (k, v, s) => '<div class="eq-card"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>';
+  if('finAv' in eq) cards.push(card('Financiamento × capital próprio', eq.finAv == null ? 'sem empate' : fmtPct(eq.finAv) + ' a.a.',
+    eq.finAv == null ? 'Um caminho vence o outro em qualquer taxa entre 0% e 40% a.a.' : 'Rendimento líquido em que os dois empatam em ' + fmtAnos(anos) + cdiEq(eq.finAv) + '. Acima disso, financiar e manter investido compensa.'));
+  if('consAv' in eq) cards.push(card('Consórcio × capital próprio', eq.consAv == null ? 'sem empate' : fmtPct(eq.consAv) + ' a.a.',
+    eq.consAv == null ? 'Com essas condições, um caminho vence o outro em qualquer taxa entre 0% e 40% a.a.' : 'Rendimento líquido em que os dois empatam em ' + fmtAnos(anos) + cdiEq(eq.consAv) + '.'));
+  if('finCons' in eq) cards.push(card('Financiamento × consórcio', eq.finCons == null ? 'sem empate' : fmtPct(eq.finCons) + ' a.a.',
+    eq.finCons == null ? 'Um caminho vence o outro em qualquer taxa entre 0% e 40% a.a.' : 'Rendimento líquido em que os dois empatam em ' + fmtAnos(anos) + cdiEq(eq.finCons) + '.'));
+  cards.push(card('Rendimento líquido usado hoje', fmtPct(atualAA) + ' a.a.', inp.info.focus ? 'No 1º ano. Com a curva Focus marcada, os cards seguem a curva; esta tabela usa taxas constantes.' : 'Constante durante todo o período simulado.'));
+  $('eqCards').innerHTML = cards.join('');
+
+  const ids = ORDEM.filter(id => r.cenarios[id]);
+  let h = '<tr><th>Rendimento líquido do capital</th>' + ids.map(id => '<th><span class="dot" style="--c:var(' + CAM[id].cor + ')"></span>' + CAM[id].nome + '</th>').join('') + '</tr>';
+  sens.forEach(l => {
+    const vals = ids.map(id => l[id]);
+    let melhor = null;
+    ids.forEach((id, i) => { const v = vals[i]; if(v && v.comprou && (melhor === null || v.patrimonio > vals[melhor].patrimonio)) melhor = i; });
+    const now = Math.abs(l.taxa - atualAA) < 1e-9;
+    h += '<tr class="' + (now ? 'now' : '') + '"><td>' + fmtPct(l.taxa) + ' a.a.' + (now ? ' (hoje)' : '') + '</td>' + vals.map((v, i) =>
+      '<td class="' + (i === melhor ? 'win' : '') + '">' + (v ? (v.comprou ? fmtBRL0(v.patrimonio) : 'não compra') + (v.mesEsgota !== null && v.mesEsgota <= H ? '<small>capital zera em ' + fmtPrazo(v.mesEsgota) + '</small>' : '') : '—') + '</td>').join('') + '</tr>';
+  });
+  $('tabSens').innerHTML = h;
+  $('sensNota').textContent = 'Patrimônio líquido nominal em ' + fmtAnos(anos) + ', com o rendimento líquido do capital constante em cada linha. Em verde, o maior de cada linha.';
+}
+
+/* ---------- custos ---------- */
+function renderCusto(){
+  const {r} = ultimo;
+  const ids = ORDEM.filter(id => r.cenarios[id]);
+  const C = r.cenarios;
+  const linha = (k, f) => '<tr><td>' + k + '</td>' + ids.map(id => '<td>' + f(C[id], id) + '</td>').join('') + '</tr>';
+  let h = '<tr><th></th>' + ids.map(id => '<th><span class="dot" style="--c:var(' + CAM[id].cor + ')"></span>' + CAM[id].nome + '</th>').join('') + '</tr>';
+  h += linha('Crédito usado', (c, id) => id === 'avista' ? '—' : fmtBRL0(c.creditoUtil));
+  h += linha('Total pago ao credor', (c, id) => id === 'avista' ? '—' : fmtBRL0(id === 'financiamento' ? c.totalPago - c.desembolsoCompra : c.totalPago));
+  h += linha('Custo do crédito (juros e taxas)', (c, id) => id === 'avista' ? '—' : fmtBRL0(c.custoCredito));
+  h += linha('Custo efetivo', (c, id) => id === 'avista' ? 'custo de oportunidade' : (c.custoEfetivoAnual === null ? '—' : fmtPct(c.custoEfetivoAnual) + ' a.a.'));
+  h += linha('Fim do contrato', (c, id) => id === 'avista' ? '—' : fmtPrazo(c.fimContrato + (id === 'consorcio' ? 1 : 0)) + ' <small style="color:var(--ink-faint)">' + mesAno(c.fimContrato) + '</small>');
+  $('tabCusto').innerHTML = h;
+}
+
+/* ---------- fluxo mês a mês ---------- */
+function renderFluxo(){
+  const {r} = ultimo;
+  const ids = ORDEM.filter(id => r.cenarios[id]);
+  if(!ids.includes(seg.fluxo)) seg.fluxo = ids[0];
+  $('segFluxo').innerHTML = ids.map(id => '<button type="button" data-v="' + id + '" class="' + (id === seg.fluxo ? 'active' : '') + '">' + CAM[id].nome + '</button>').join('');
+  $('segFluxo').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { seg.fluxo = b.dataset.v; renderFluxo(); }));
+  const c = r.cenarios[seg.fluxo];
+  const todos = $('fluxoMensal').checked;
+  let h = '<tr><th>Mês</th><th>Renda</th><th>Parcela</th><th>Capital</th><th>Saldo devedor</th><th>Valor do bem</th><th>Patrimônio</th></tr>';
+  c.serie.forEach(s => {
+    if(!todos && s.mes % 12 !== 0 && s.mes !== c.mesCompra && s.mes !== c.mesEsgota) return;
+    h += '<tr><td>' + s.mes + ' <small style="color:var(--ink-faint); display:inline">' + mesAno(s.mes) + '</small></td><td>' + fmtBRL0(s.renda) + '</td><td>' + fmtBRL0(s.parcela) + '</td><td style="' + (s.capital < 0 ? 'color:var(--red)' : '') + '">' + fmtBRL0(s.capital) +
+      '</td><td>' + fmtBRL0(s.saldoDevedor) + '</td><td>' + (s.temBem ? fmtBRL0(s.valorBem) : '—') + '</td><td>' + fmtBRL0(s.patrimonio) + '</td></tr>';
+  });
+  $('tabFluxo').innerHTML = h;
+}
+
+/* ---------- gráfico (canvas, sem bibliotecas) ---------- */
+let geo = null;
+function desenharGrafico(){
+  if(!ultimo) return;
+  const canvas = $('ch');
+  const W = canvas.parentElement.clientWidth - 36;
+  if(W <= 0) return; // aba oculta: desenha ao abrir
+  const {r, inp} = ultimo;
+  const H = inp.e.horizonteMeses;
+  const fim = seg.janela === 'h' ? H : r.mesesSimulados;
+  const campo = seg.serie;
+  const series = ORDEM.filter(id => r.cenarios[id]).map(id => ({
+    id, nome: CAM[id].nome, cor: cssVar(CAM[id].cor),
+    pontos: r.cenarios[id].serie.filter(s => s.mes <= fim).map(s => ({x: s.mes/12, y: s[campo]}))
+  }));
+  const reserva = inp.e.reservaMinima;
+  const HH = 290, dpr = window.devicePixelRatio || 1;
+  canvas.style.width = W + 'px'; canvas.style.height = HH + 'px';
+  canvas.width = W*dpr; canvas.height = HH*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,HH);
+  ctx.font = '10.5px Arial, Helvetica, sans-serif';
+  const all = series.flatMap(s => s.pontos);
+  if(!all.length) return;
+  let yMax = Math.max(...all.map(p => p.y), campo === 'capital' ? reserva : 0, 1);
+  let yMin = Math.min(...all.map(p => p.y), 0);
+  const span = (yMax - yMin) || 1;
+  yMax += span*0.06; if(yMin < 0) yMin -= span*0.04;
+  const pad = {t:14, r:14, b:28, l: Math.ceil(Math.max(ctx.measureText(fmtCurto(yMax)).width, ctx.measureText(fmtCurto(yMin)).width)) + 16};
+  const pw = W - pad.l - pad.r, ph = HH - pad.t - pad.b;
+  const xMin = 0, xMax = fim/12;
+  const X = x => pad.l + (xMax === xMin ? 0 : (x - xMin)/(xMax - xMin)*pw);
+  const Y = y => pad.t + ph - (y - yMin)/(yMax - yMin)*ph;
+  const grid = cssVar('--grid'), faint = cssVar('--ink-faint');
+  ctx.fillStyle = faint; ctx.strokeStyle = grid; ctx.lineWidth = 1;
+  for(let g=0; g<=4; g++){
+    const v = yMin + (yMax-yMin)*g/4, y = Y(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
+    ctx.textAlign = 'right'; ctx.fillText(fmtCurto(v), pad.l - 8, y + 3);
+  }
+  if(yMin < 0){ ctx.save(); ctx.strokeStyle = faint; ctx.beginPath(); ctx.moveTo(pad.l, Y(0)); ctx.lineTo(W-pad.r, Y(0)); ctx.stroke(); ctx.restore(); }
+  ctx.textAlign = 'center';
+  const spanX = xMax - xMin;
+  const stepX = spanX > 30 ? 5 : (spanX > 12 ? 2 : 1);
+  for(let x = 0; x <= xMax + 1e-9; x += stepX) ctx.fillText(Math.round(x) + '', X(x), HH - 10);
+  ctx.textAlign = 'left'; ctx.fillText('anos', pad.l, HH - 0.5);
+  if(campo === 'capital' && reserva > 0){
+    ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = cssVar('--l-red');
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(reserva)); ctx.lineTo(W-pad.r, Y(reserva)); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = cssVar('--red'); ctx.textAlign = 'right'; ctx.fillText('reserva mínima', W - pad.r - 4, Y(reserva) - 5);
+  }
+  if(seg.janela === 'tudo' && H < fim){
+    const vx = X(H/12);
+    ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = faint;
+    ctx.beginPath(); ctx.moveTo(vx, pad.t); ctx.lineTo(vx, pad.t+ph); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = faint; ctx.textAlign = 'left'; ctx.fillText('horizonte', vx + 5, pad.t + 10);
+  }
+  series.forEach(s => {
+    ctx.save(); ctx.strokeStyle = s.cor; ctx.lineWidth = 2.2; ctx.beginPath();
+    s.pontos.forEach((p,i) => { const x = X(p.x), y = Y(p.y); i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
+    ctx.stroke(); ctx.restore();
+    // marca da compra
+    const c = r.cenarios[s.id];
+    if(c.mesCompra !== null && c.mesCompra <= fim){
+      const p = c.serie[c.mesCompra];
+      ctx.beginPath(); ctx.arc(X(p.mes/12), Y(p[campo]), 3.5, 0, Math.PI*2); ctx.fillStyle = s.cor; ctx.fill();
+    }
+  });
+  geo = {X, Y, xMin, xMax, pad, pw, W, series};
+  $('legenda').innerHTML = series.map(s => '<span style="--c:var(' + CAM[s.id].cor + ')">' + s.nome + '</span>').join('') +
+    (campo === 'capital' && reserva > 0 ? '<span style="--c:var(--l-red)">Reserva mínima</span>' : '');
+  $('chartSub').textContent = campo === 'patrimonio'
+    ? 'Capital investido + valor do bem − saldo devedor, em valores nominais. O ponto marca a compra do bem.'
+    : 'Quanto continua investido rendendo. Abaixo de zero = dinheiro que precisaria vir de fora.';
+}
+function ligarTooltip(){
+  const canvas = $('ch');
+  const mover = ev => {
+    if(!geo) return;
+    const tt = $('tt');
+    const rc = canvas.getBoundingClientRect();
+    const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rc.left;
+    const {xMin, xMax, pad, pw, W, series} = geo;
+    if(px < pad.l || px > pad.l + pw){ tt.style.display = 'none'; return; }
+    const xv = xMin + (px - pad.l)/pw*(xMax - xMin);
+    const t = Math.round(xv*12);
+    tt.innerHTML = '<div class="t">Mês ' + t + ' · ' + mesAno(t) + '</div>' + series.map(s => {
+      const p = s.pontos[Math.min(t, s.pontos.length-1)];
+      return '<div><span style="color:' + s.cor + '">●</span> ' + esc(s.nome) + ': ' + fmtCurto(p.y) + '</div>';
+    }).join('');
+    tt.style.display = 'block';
+    tt.style.left = Math.max(10, Math.min(px + 30, W - tt.offsetWidth + 10)) + 'px';
+    tt.style.top = '70px';
+  };
+  canvas.addEventListener('mousemove', mover);
+  canvas.addEventListener('touchmove', mover, {passive:true});
+  canvas.addEventListener('mouseleave', () => { $('tt').style.display = 'none'; });
+}
+
+function renderTudo(){
+  if(!ultimo) return;
+  renderConclusao(); renderCards(); renderEstresse(); renderCusto(); renderFluxo(); desenharGrafico();
+}
+
+/* ---------- navegação ---------- */
+function irPara(n){
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.toggle('active', b.dataset.step == String(n)));
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.toggle('active', p.id === 'step-' + n));
+  desenharGrafico();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.querySelectorAll('.step-btn').forEach(b => b.addEventListener('click', () => irPara(parseInt(b.dataset.step,10))));
+document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => irPara(parseInt(b.dataset.goto,10))));
+
+/* ---------- busca de CDI e IPCA (BCB) ---------- */
+$('btnCdi').addEventListener('click', async () => {
+  const st = $('cdiStatus'); st.textContent = 'Consultando o Banco Central…';
+  try{
+    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json');
+    if(!resp.ok) throw new Error();
+    const d = await resp.json();
+    const selic = parseFloat(String(d[0].valor).replace(',','.'));
+    if(!(selic > 0)) throw new Error();
+    $('cdi').value = (selic - SPREAD_CDI_SELIC).toFixed(2);
+    st.textContent = 'CDI estimado pela Meta Selic do Copom (' + fmtPct(selic/100) + ', vigente desde ' + d[0].data + ') − 0,10 p.p. Fonte: BCB, SGS 432.';
+  }catch(e){ st.textContent = 'Não foi possível consultar o Banco Central agora. Use o valor manual.'; }
+  agendar();
+});
+$('btnIpca').addEventListener('click', async () => {
+  const st = $('ipcaStatus'); st.textContent = 'Consultando o Banco Central…';
+  try{
+    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json');
+    if(!resp.ok) throw new Error();
+    const d = await resp.json();
+    const v = parseFloat(String(d[0].valor).replace(',','.'));
+    if(!isFinite(v)) throw new Error();
+    $('ipca').value = v.toFixed(2);
+    const p = String(d[0].data).split('/');
+    st.textContent = 'IPCA acumulado em 12 meses até ' + (p.length === 3 ? p[1] + '/' + p[2] : d[0].data) + ': ' + fmtPct(v/100) + ' (BCB, SGS 13522). É inflação passada usada como premissa para o futuro — ajuste se quiser.';
+  }catch(e){ st.textContent = 'Não foi possível consultar o Banco Central agora. Use o valor manual.'; }
+  agendar();
+});
+
+/* ---------- PDF ---------- */
+function graficoParaImpressao(){
+  const tema = document.documentElement.dataset.theme;
+  const serieAnt = seg.serie;
+  document.documentElement.dataset.theme = 'light';
+  seg.serie = 'patrimonio';
+  const step3 = $('step-3'), ativo = step3.classList.contains('active');
+  if(!ativo){ step3.classList.add('active'); }
+  desenharGrafico();
+  const img = $('ch').toDataURL('image/png');
+  if(!ativo) step3.classList.remove('active');
+  seg.serie = serieAnt;
+  document.documentElement.dataset.theme = tema || 'light';
+  desenharGrafico();
+  return img;
+}
+function gerarPdf(){
+  recalcular();
+  if(!ultimo) return;
+  const {inp, r, sens, atualAA} = ultimo;
+  const e = inp.e, H = e.horizonteMeses, anos = Math.round(H/12);
+  const ids = ORDEM.filter(id => r.cenarios[id]), C = r.cenarios;
+  const semHtml = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent; };
+  const linha = (k, v) => '<tr><td class="k">' + k + '</td><td class="v">' + v + '</td></tr>';
+  const col = f => ids.map(id => '<td class="n">' + f(C[id], id) + '</td>').join('');
+  const head = '<tr><th></th>' + ids.map(id => '<th class="n">' + CAM[id].nome + '</th>').join('') + '</tr>';
+
+  const dados = linha('Bem', BEM[inp.tipo].replace(/^./, c => c.toUpperCase()) + ' · ' + fmtBRL(e.valorBem) + ' hoje · valoriza ' + ($('valIpca').checked ? 'pelo IPCA (' + fmtPct(e.valorizacaoAnual) + ' a.a.)' : fmtPct(e.valorizacaoAnual) + ' a.a.')) +
+    linha('Capital investido', fmtBRL(e.capital)) +
+    linha('Rendimento do capital', inp.info.modo === 'renda' ? fmtBRL(inp.info.renda) + ' por mês, líquido (' + fmtPct(atualAA) + ' a.a.)' :
+      ({lca:'LCA',rdc:'RDC',cdb:'CDB',compromissada:'Operação Compromissada',outro:'Produto tributado'})[inp.info.prod] + ' a ' + fmtPct(inp.info.perc,0) + ' do CDI (' + fmtPct(inp.info.cdi) + ')' + (inp.info.isento ? '' : ', IR ' + fmtPct(E.aliquotaIR(inp.info.prazoMedio),1)) + ' → ' + fmtPct(atualAA) + ' a.a. líquidos' + (inp.info.focus ? ' no 1º ano (curva Focus)' : '')) +
+    (e.aporteMensal > 0 ? linha('Aporte mensal', fmtBRL(e.aporteMensal)) : '') +
+    (e.reservaMinima > 0 ? linha('Reserva mínima de liquidez', fmtBRL(e.reservaMinima)) : '') +
+    (e.custoEsperaMensal > 0 ? linha('Custo de esperar pelo bem', fmtBRL(e.custoEsperaMensal) + '/mês') : '') +
+    linha('IPCA previsto', fmtPct(e.ipcaAnual) + ' a.a.') +
+    linha('Horizonte da comparação', fmtAnos(anos));
+  const f = e.financiamento, c = e.consorcio;
+  const cond = (f.ativo ? linha('Financiamento', fmtBRL0(f.valorFinanciado) + ' · CET ' + fmtPct(f.cetAnual) + ' a.a. · ' + f.prazoMeses + ' meses · ' + (f.sistema === 'SAC' ? 'SAC' : 'Price')) : '') +
+    (c.ativo ? linha('Consórcio', 'Carta ' + fmtBRL0(c.carta) + ' · ' + c.prazoMeses + ' meses · adm ' + fmtPct(c.taxaAdm,1) + ' · fundo de reserva ' + fmtPct(c.fundoReserva,1) + ' · seguro ' + fmtPct(c.seguroMensal,3) + ' a.m. · reajuste ' + fmtPct(c.reajusteAnual,1) + ' a.a. (' + $('consIndice').value + ') · lance ' + fmtPct(c.lanceTotal,0) + ' (' + fmtPct(c.lanceEmbutido,0) + ' embutido), ' + (c.lanceReduz === 'prazo' ? 'reduz o prazo' : 'reduz a parcela') + ' · contemplação na assembleia ' + c.mesContemplacao) : '');
+
+  const statusTxt = (id, x) => statusDe(id, x, inp).map(s => '<span class="' + (s.cls === 'no' ? 'no' : s.cls === 'ok' ? 'ok' : '') + '">' + s.txt + '</span>').join('<br>');
+  const tab = '<table>' + head +
+    '<tr><td>Situação</td>' + col((x, id) => statusTxt(id, x)) + '</tr>' +
+    '<tr><td>Compra do bem</td>' + col(x => semHtml(quando(x))) + '</tr>' +
+    '<tr><td>Sai do capital na compra</td>' + col(x => x.mesCompra === null ? '—' : fmtBRL0(x.desembolsoCompra)) + '</tr>' +
+    '<tr><td>Fica investido</td>' + col(x => x.mesCompra === null ? '—' : fmtBRL0(x.capitalAposCompra)) + '</tr>' +
+    '<tr><td>Renda do capital no 1º mês</td>' + col(x => x.mesCompra === null ? '—' : fmtBRL0(x.rendaInicial)) + '</tr>' +
+    '<tr><td>Parcela no 1º mês após a compra</td>' + col((x, id) => id === 'avista' ? '—' : fmtBRL0(x.parcelaInicial)) + '</tr>' +
+    '<tr><td>Renda ÷ parcela</td>' + col((x, id) => id === 'avista' || x.cobertura === null ? '—' : '<span class="' + (x.cobertura >= 1 ? 'ok' : 'no') + '">' + fmtPct(x.cobertura,0) + '</span>') + '</tr>' +
+    '<tr><td>Capital zera</td>' + col(x => x.mesEsgota === null ? 'não zera' : '<span class="no">em ' + fmtPrazo(x.mesEsgota) + '</span>') + '</tr>' +
+    '<tr><td>Custo efetivo do crédito</td>' + col((x, id) => id === 'avista' ? '—' : (x.custoEfetivoAnual === null ? '—' : fmtPct(x.custoEfetivoAnual) + ' a.a.')) + '</tr>' +
+    '<tr><td><strong>Patrimônio líquido em ' + fmtAnos(anos) + '</strong></td>' + col((x, id) => '<strong class="' + (r.melhor === id ? 'ok' : '') + '">' + fmtBRL0(x.horizonte.patrimonio) + '</strong>') + '</tr>' +
+    '<tr><td>… em R$ de hoje</td>' + col(x => fmtBRL0(x.horizonte.patrimonioReal)) + '</tr>' +
+    '</table>';
+
+  const sTab = '<table><tr><th>Rendimento líquido</th>' + ids.map(id => '<th class="n">' + CAM[id].nome + '</th>').join('') + '</tr>' +
+    sens.map(l => {
+      const now = Math.abs(l.taxa - atualAA) < 1e-9;
+      return '<tr><td>' + fmtPct(l.taxa) + ' a.a.' + (now ? ' (hoje)' : '') + '</td>' + ids.map(id => { const v = l[id]; return '<td class="n">' + (v ? (v.comprou ? fmtBRL0(v.patrimonio) : 'não compra') : '—') + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</table>';
+
+  const t = textoConclusao();
+  const img = graficoParaImpressao();
+  const hex = {financiamento:'#00AE9D', consorcio:'#49479D', avista:'#7DB61C'};
+  const legenda = ids.map(id => '<span><i style="background:' + hex[id] + '"></i>' + CAM[id].nome + '</span>').join('');
+
+  $('printArea').innerHTML =
+    '<div class="pr-badge">SIMULAÇÃO — NÃO É PROPOSTA DE CRÉDITO NEM PROMESSA DE RENTABILIDADE</div>' +
+    '<h1>Estratégia de Aquisição</h1><div class="pr-sub">Simulação gerada em ' + HOJE.toLocaleDateString('pt-BR') + ' · consórcio × financiamento × capital próprio</div>' +
+    '<div class="bloco"><h2>Conclusão</h2><div class="pr-concl"><p><strong>' + semHtml(t.head) + '</strong></p>' + t.p.map(x => '<p>' + x + '</p>').join('') + '</div></div>' +
+    '<div class="bloco"><h2>Dados informados</h2><table>' + dados + cond + '</table></div>' +
+    '<div class="bloco"><h2>Resultado por caminho</h2>' + tab + '</div>' +
+    '<div class="bloco"><h2>Evolução do patrimônio líquido</h2><img class="pr-chart" src="' + img + '" alt="Gráfico da evolução do patrimônio líquido por caminho"><div class="pr-legend">' + legenda + '</div></div>' +
+    '<div class="bloco"><h2>Teste de estresse: patrimônio em ' + fmtAnos(anos) + ' conforme o rendimento do capital</h2>' + sTab +
+      '<p class="pr-note">Patrimônio líquido = capital investido + valor do bem − saldo devedor (nominal). Rendimento líquido constante em cada linha.</p></div>' +
+    '<div class="pr-aviso"><strong>Aviso:</strong> este documento é uma <strong>simulação</strong> com base nos parâmetros informados. Taxas de juros, inflação, reajustes e condições de crédito variam ao longo do tempo; o lance do consórcio pode não ser vencedor na data simulada; e o resultado efetivo pode ser diferente do projetado. ' +
+      'Não constitui proposta de crédito, oferta ou recomendação de investimento. Rentabilidade passada não representa garantia de rentabilidade futura.</div>' +
+    '<div class="pr-footer">' + [...document.querySelectorAll('footer p')].map(p => '<p>' + esc(p.textContent) + '</p>').join('') + '</div>';
+  setTimeout(() => window.print(), 120);
+}
+$('btnPdf').addEventListener('click', gerarPdf);
+
+/* ---------- tema ---------- */
+function atualizarBotaoTema(){ $('btnTema').textContent = Tema.icone(); $('btnTema').title = Tema.rotulo(); $('btnTema').setAttribute('aria-label', Tema.rotulo()); }
+atualizarBotaoTema();
+$('btnTema').addEventListener('click', () => { Tema.alternar(); atualizarBotaoTema(); setTimeout(desenharGrafico, 30); });
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(desenharGrafico, 150); });
+
+/* ---------- ligações ---------- */
+document.querySelectorAll('.money').forEach(mascara);
+document.querySelectorAll('#step-1 input, #step-1 select, #step-2 input, #step-2 select').forEach(el => {
+  el.addEventListener('input', agendar); el.addEventListener('change', agendar);
+});
+ligarSeg('segModo', 'modo', () => { $('modoRenda').hidden = seg.modo !== 'renda'; $('modoProduto').hidden = seg.modo !== 'produto'; agendar(); });
+ligarSeg('segSistema', 'sistema', agendar);
+ligarSeg('segReduz', 'reduz', agendar);
+ligarSeg('segSerie', 'serie', desenharGrafico);
+ligarSeg('segJanela', 'janela', desenharGrafico);
+$('valIpca').addEventListener('change', () => { $('valOutraBox').hidden = $('valIpca').checked; });
+$('tipoBem').addEventListener('change', () => {
+  if($('tipoBem').value === 'carro' && $('valIpca').checked){ $('valIpca').checked = false; $('valOutraBox').hidden = false; }
+});
+['onFin','onCons','onAv'].forEach(id => $(id).addEventListener('change', () => {
+  $(id).closest('section').classList.toggle('off', !$(id).checked);
+}));
+$('usarFocus').addEventListener('change', () => {
+  if($('usarFocus').checked && !curvaFocus) buscarFocus();
+  else { $('focusStatus').hidden = !$('usarFocus').checked; agendar(); }
+});
+$('fluxoMensal').addEventListener('change', renderFluxo);
+ligarTooltip();
+recalcular();
+})();
+</script>
+</body>
+</html>
