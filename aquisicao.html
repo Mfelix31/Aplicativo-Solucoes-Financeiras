@@ -477,8 +477,9 @@
             <div class="hint" id="hintCarta"></div>
           </div>
           <div class="field">
-            <label for="consPrazo">Prazo do grupo</label>
-            <div class="row-input"><input type="number" id="consPrazo" value="240" min="1" max="600" step="1"><span class="suffix">meses</span></div>
+            <label for="consPrazo">Número de parcelas (prazo de rateio)</label>
+            <div class="row-input"><input type="number" id="consPrazo" value="240" min="1" max="600" step="1"><span class="suffix">parcelas</span></div>
+            <div class="hint">Quantas parcelas o cooperado vai pagar. Na simulação do Sicoob, é o "prazo rateio".</div>
           </div>
           <div class="field">
             <label for="consAdm">Taxa de administração (total)</label>
@@ -489,8 +490,9 @@
             <div class="row-input"><input type="number" id="consFr" value="0" min="0" step="0.1"><span class="suffix">% da carta</span></div>
           </div>
           <div class="field">
-            <label for="consSeg">Seguro</label>
-            <div class="row-input"><input type="number" id="consSeg" value="0" min="0" step="0.001"><span class="suffix">% a.m. do saldo</span></div>
+            <label for="consSeg">Seguro na 1ª parcela</label>
+            <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="consSeg" class="money" value="0,00"><span class="suffix">/mês</span></div>
+            <div class="hint">Valor da simulação. Cai na mesma proporção da parcela depois do lance.</div>
           </div>
           <div class="field">
             <label for="consReaj">Reajuste anual da carta</label>
@@ -499,15 +501,28 @@
             <div class="hint">A parcela e o saldo devedor sobem a cada 12 meses.</div>
           </div>
         </div>
+        <div class="seg-wrap">
+          <span class="lbl">Lance informado em</span>
+          <div class="seg" id="segLance">
+            <button type="button" data-v="pct" class="active">% da carta</button>
+            <button type="button" data-v="parcelas">nº de parcelas</button>
+          </div>
+        </div>
         <div class="grid">
           <div class="field">
             <label for="consLance" id="lblLance">Lance total</label>
-            <div class="row-input"><input type="number" id="consLance" value="80" min="0" max="100" step="1"><span class="suffix">% da carta</span></div>
+            <div class="row-input"><input type="number" id="consLance" value="80" min="0" step="1"><span class="suffix" id="sufLance">% da carta</span></div>
+            <div class="hint" id="hintLance"></div>
           </div>
           <div class="field" id="embBox">
             <label for="consEmb">… dos quais embutido</label>
             <div class="row-input"><input type="number" id="consEmb" value="25" min="0" max="100" step="1"><span class="suffix">% da carta</span></div>
             <div class="hint">Sai do próprio crédito: o cliente recebe menos, mas paga as taxas sobre a carta cheia.</div>
+          </div>
+          <div class="field">
+            <label for="consMedia">Média de lance do grupo <span style="color:var(--ink-faint)">(opcional)</span></label>
+            <div class="row-input"><input type="number" id="consMedia" value="" min="0" step="1" placeholder="ex.: 43"><span class="suffix">parcelas</span></div>
+            <div class="hint">Da simulação do Sicoob. Lance abaixo da média tem menos chance de ser contemplado.</div>
           </div>
           <div class="field">
             <label for="consMes">Contemplação prevista</label>
@@ -599,9 +614,9 @@
         <ul>
           <li><b>Todo mês</b>, o capital investido rende pela taxa líquida informada; a parcela sai desse capital. O que sobra da renda fica investido; o que falta é descapitalização.</li>
           <li><b>Patrimônio líquido</b> = capital investido + valor do bem − saldo devedor. É o número que permite comparar caminhos diferentes de forma justa. Em "R$ de hoje", descontado o IPCA previsto.</li>
-          <li><b>Financiamento:</b> como na proposta do Sicoob: saldo corrigido pela TR projetada, juros nominais ÷ 12, amortização SAC ou Price, seguros MIP (por idade) e DFI, tarifa mensal; parcela no fim de cada mês, a partir do mês seguinte à contratação. Conferido contra a proposta de 23/10/2026: diferença de centavos por parcela. <b>Consórcio:</b> parcela = (100% + taxa de administração + fundo de reserva) ÷ prazo × carta, paga no início do mês; seguro sobre o saldo devedor; carta e saldo reajustados a cada 12 meses; crédito acima do preço do bem abate o saldo devedor. <b>Capital próprio:</b> compra quando o capital alcança o preço do bem já valorizado.</li>
-          <li><b>Base mensal</b> (taxa mensal equivalente), como no Planejamento. Para produtos tributados, a renda mensal é reduzida pela alíquota de IR do prazo médio informado.</li>
-          <li><b>Limitações:</b> a taxa do capital é constante (ou segue a curva Focus, se marcada); a TR do financiamento e o reajuste do consórcio ficam constantes nos valores informados; o IR de produtos tributados é aplicado mês a mês sobre a renda (simplificação); o lance de consórcio pode não ser vencedor na data simulada; não considera ITBI, escritura, IPVA ou manutenção do bem.</li>
+          <li><b>Financiamento:</b> como na proposta do Sicoob: saldo corrigido pela TR projetada, juros nominais ÷ 12, amortização SAC ou Price, seguros MIP (por idade) e DFI, tarifa mensal; parcela no fim de cada mês, a partir do mês seguinte à contratação. Conferido contra a proposta de 23/10/2026: diferença de centavos por parcela. <b>Consórcio:</b> como na simulação de lance do Sicoob: parcela = (100% + taxa de administração + fundo de reserva) ÷ nº de parcelas × carta, paga no início do mês; na assembleia da contemplação o lance abate o saldo antes da parcela; seguro em R$ proporcional à parcela; carta e saldo reajustados a cada 12 parcelas; crédito acima do preço do bem abate o saldo devedor. <b>Capital próprio:</b> compra quando o capital alcança o preço do bem já valorizado.</li>
+          <li><b>Base mensal</b> (taxa mensal equivalente), como no Planejamento. Para produtos tributados, o IR é cobrado só nos resgates (para pagar parcela, entrada ou lance), sobre a parte de ganho do valor resgatado; o capital exibido já é líquido do IR que seria devido.</li>
+          <li><b>Limitações:</b> a taxa do capital é constante (ou segue a curva Focus, se marcada); a TR do financiamento e o reajuste do consórcio ficam constantes nos valores informados; a alíquota de IR é a do prazo médio informado; o capital de hoje entra sem ganho anterior a tributar; o lance de consórcio pode não ser vencedor na data simulada; não considera ITBI, escritura, IPVA ou manutenção do bem.</li>
         </ul>
       </div>
 
@@ -701,7 +716,7 @@ const BEM = {imovel:'imóvel', carro:'carro', terreno:'terreno', outro:'bem'};
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
 /* ---------- estado de UI ---------- */
-const seg = {finModo:'proposta', modal:'embutido', modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
+const seg = {lanceEm:'pct', finModo:'proposta', modal:'embutido', modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
 function ligarSeg(id, chave, cb){
   $(id).querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
     seg[chave] = b.dataset.v;
@@ -763,7 +778,7 @@ function lerEntradas(){
   const perc = num('percCdi')/100;
   const cdi = num('cdi')/100;
   const prazoMedio = num('prazoMedio');
-  let taxaMes, taxaMesInicial, info;
+  let taxaMes, taxaMesInicial, info, aliquotaIRResgate = 0;
   if(seg.modo === 'renda'){
     const renda = money('rendaMensal');
     taxaMesInicial = E.taxaMensalLiquida({modo:'renda', rendaMensal:renda, capital});
@@ -771,15 +786,18 @@ function lerEntradas(){
     info = {modo:'renda', renda};
   } else {
     const cfg = t => ({modo:'produto', taxaBrutaAnual: cdiDoMes(t, cdi*100)/100 * perc, isentoIR: isento, prazoMedioDias: prazoMedio});
+    // exibição: taxa líquida equivalente; cálculo: taxa bruta com o IR cobrado em cada resgate
     taxaMesInicial = E.taxaMensalLiquida(cfg(1));
+    const bruta = t => E.taxaMensalLiquida(Object.assign(cfg(t), {isentoIR: true}));
     const focus = $('usarFocus').checked && curvaFocus;
-    taxaMes = focus ? (t => E.taxaMensalLiquida(cfg(t))) : taxaMesInicial;
+    taxaMes = focus ? bruta : bruta(1);
+    aliquotaIRResgate = isento ? 0 : E.aliquotaIR(prazoMedio);
     info = {modo:'produto', prod, isento, perc, cdi, prazoMedio, focus: !!focus};
   }
   const e = {
     capital, valorBem, aporteMensal: money('aporte'), reservaMinima: money('reserva'),
     valorizacaoAnual: valorizacao, ipcaAnual: ipca, custoEsperaMensal: money('custoEspera'),
-    horizonteMeses: Math.round(num('horizonte')*12), taxaMes,
+    horizonteMeses: Math.round(num('horizonte')*12), taxaMes, aliquotaIRResgate,
     mesCompra: Math.max(0, mesesAte($('dataCompra').value) || 0),
     financiamento: Object.assign({ativo: $('onFin').checked, modo: seg.finModo, valorFinanciado: money('finValor'), cetAnual: num('finCet')/100,
       prazoMeses: Math.round(num('finPrazo')), sistema: seg.sistema, mesInicio: Math.max(0, mesesAte($('dataCompra').value) || 0)},
@@ -787,8 +805,10 @@ function lerEntradas(){
         idadeMesesHoje: idadeMeses($('finNasc').value), dfiMensal: num('finDfi')/100, tacMensal: money('finTac'), despesasIniciais: money('finDesp'),
         dataProposta: $('finData').value} : {}),
     consorcio: {ativo: $('onCons').checked, modalidade: seg.modal, carta: seg.modal === 'bem' ? valorBem : money('consCarta'), prazoMeses: Math.round(num('consPrazo')),
-      taxaAdm: num('consAdm')/100, fundoReserva: num('consFr')/100, seguroMensal: num('consSeg')/100, reajusteAnual: num('consReaj')/100,
-      lanceTotal: num('consLance')/100, lanceEmbutido: seg.modal === 'bem' ? 0 : num('consEmb')/100, lanceReduz: seg.reduz, mesContemplacao: mesesAte($('consMes').value) + 1},
+      taxaAdm: num('consAdm')/100, fundoReserva: num('consFr')/100, seguroValor: money('consSeg'), reajusteAnual: num('consReaj')/100,
+      lanceTotal: seg.lanceEm === 'parcelas' ? E.lanceDeParcelas(num('consLance'), num('consPrazo'), num('consAdm')/100, num('consFr')/100) : num('consLance')/100,
+      lanceParcelas: seg.lanceEm === 'parcelas' ? num('consLance') : num('consLance')/100 / ((1 + num('consAdm')/100 + num('consFr')/100) / num('consPrazo')),
+      mediaLanceParcelas: num('consMedia'), lanceEmbutido: seg.modal === 'bem' ? 0 : num('consEmb')/100, lanceReduz: seg.reduz, mesContemplacao: mesesAte($('consMes').value) + 1},
     avista: {ativo: $('onAv').checked}
   };
   const extraErros = [];
@@ -824,7 +844,7 @@ function renderDicas(inp){
       (isFinite(num('cdi')) && num('cdi') > 0 ? ' (≈ ' + fmtPct(aa / (num('cdi')/100), 0) + ' do CDI de ' + fmtPct(num('cdi')/100) + ' se fosse isento)' : '') + '.';
   } else {
     $('prazoMedioBox').hidden = info.isento;
-    if(!info.isento) $('hintIR').innerHTML = 'Alíquota de IR aplicada à renda mensal: <strong>' + fmtPct(E.aliquotaIR(info.prazoMedio),1) + '</strong>.';
+    if(!info.isento) $('hintIR').innerHTML = 'IR cobrado só nos resgates, sobre a parte de ganho, à alíquota de <strong>' + fmtPct(E.aliquotaIR(info.prazoMedio),1) + '</strong>.';
     $('hintProduto').innerHTML = 'Rendimento líquido do capital: <strong>' + fmtPct(taxaMesInicial,3) + ' a.m.</strong> = <strong>' + fmtPct(aa) + ' a.a.</strong> · renda líquida hoje ≈ <strong>' + fmtBRL0(e.capital * taxaMesInicial) + '/mês</strong>' +
       (info.focus ? ' (muda a cada ano pela curva Focus).' : '.');
   }
@@ -850,6 +870,13 @@ function renderDicas(inp){
       (Math.abs(sobra) >= 1 ? '<div style="grid-column:1/-1">' + (sobra > 0
         ? 'Sobra de crédito frente ao bem de hoje<b>' + fmtBRL0(sobra) + ' → abate o saldo devedor</b>'
         : 'Crédito abaixo do bem de hoje<b>' + fmtBRL0(-sobra) + ' → sai do capital na compra</b>') + '</div>' : '');
+  }
+  // lance
+  $('sufLance').textContent = seg.lanceEm === 'parcelas' ? 'parcelas' : '% da carta';
+  if(c.carta > 0 && c.prazoMeses > 0){
+    const parc = c.lanceParcelas, pctL = c.lanceTotal;
+    $('hintLance').innerHTML = isFinite(parc) && isFinite(pctL) ? '= <strong>' + fmtPct(pctL,1) + ' da carta</strong> · ' + parc.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' parcelas · ' + fmtBRL0(pctL * c.carta) +
+      (c.mediaLanceParcelas > 0 ? (parc + 1e-9 < c.mediaLanceParcelas ? ' · <span style="color:var(--red)">abaixo da média do grupo (' + c.mediaLanceParcelas + ')</span>' : ' · acima da média do grupo (' + c.mediaLanceParcelas + ')') : '') : '';
   }
   // modalidade
   const modoBem = seg.modal === 'bem';
@@ -1033,6 +1060,8 @@ function textoConclusao(){
   }
   if(C.consorcio && C.consorcio.mesCompra !== null){
     const cc = inp.e.consorcio;
+    if(cc.mediaLanceParcelas > 0 && cc.lanceTotal > 0) p.push('<b>Lance × média do grupo:</b> o lance simulado equivale a ' + cc.lanceParcelas.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' parcelas; a média de lance do grupo é ' + cc.mediaLanceParcelas + ' parcelas' +
+      (cc.lanceParcelas + 1e-9 < cc.mediaLanceParcelas ? ', então a chance de contemplação na data simulada é menor.' : '.'));
     p.push('<b>Atenção à contemplação:</b> o consórcio foi simulado com contemplação em ' + mesAno(cc.mesContemplacao - 1) + (cc.lanceTotal > 0 ? ' com lance de ' + fmtPct(cc.lanceTotal,0) + ' da carta' : ' sem lance') + '. Isso é uma hipótese, não uma garantia: confira o histórico de lances vencedores do grupo e simule também uma contemplação mais tarde.');
   }
   const parEq = {financiamento: eq.finAv, consorcio: eq.consAv};
@@ -1309,7 +1338,7 @@ function gerarPdf(){
     (f.ativo ? linha('Financiamento', fmtBRL0(f.valorFinanciado) + ' · ' + f.prazoMeses + ' meses · ' + (f.sistema === 'SAC' ? 'SAC' : 'Price') +
       (f.modo === 'proposta' ? ' · juros ' + fmtPct(f.jurosNominalAnual) + ' a.a. nominais · TR projetada ' + fmtPct(f.trMensal,4) + ' a.m. · DFI ' + fmtPct(f.dfiMensal,5) + ' a.m. · TAC ' + fmtBRL(f.tacMensal) + '/mês · despesas ' + fmtBRL0(f.despesasIniciais) + ' · CET ' + fmtPct(f.cetAnual) + ' a.a. (sem TR) · condições conforme proposta Sicoob de ' + dataBR(f.dataProposta)
         : ' · CET ' + fmtPct(f.cetAnual) + ' a.a. usado como taxa (sem a proposta detalhada)')) : '') +
-    (c.ativo ? linha('Consórcio', (c.modalidade === 'bem' ? 'Carta no valor do bem' : 'Carta com lance embutido') + ' · ' + fmtBRL0(c.carta) + ' · ' + c.prazoMeses + ' meses · adm ' + fmtPct(c.taxaAdm,1) + ' · fundo de reserva ' + fmtPct(c.fundoReserva,1) + ' · seguro ' + fmtPct(c.seguroMensal,3) + ' a.m. · reajuste ' + fmtPct(c.reajusteAnual,1) + ' a.a. (' + $('consIndice').value + ') · lance ' + fmtPct(c.lanceTotal,0) + ' (' + fmtPct(c.lanceEmbutido,0) + ' embutido), ' + (c.lanceReduz === 'prazo' ? 'reduz o prazo' : 'reduz a parcela') + ' · contemplação prevista em ' + mesAno(c.mesContemplacao - 1)) : '');
+    (c.ativo ? linha('Consórcio', (c.modalidade === 'bem' ? 'Carta no valor do bem' : 'Carta com lance embutido') + ' · ' + fmtBRL0(c.carta) + ' · ' + c.prazoMeses + ' parcelas · adm ' + fmtPct(c.taxaAdm,1) + ' · fundo de reserva ' + fmtPct(c.fundoReserva,1) + ' · seguro ' + fmtBRL(c.seguroValor) + ' na 1ª parcela · reajuste ' + fmtPct(c.reajusteAnual,1) + ' a.a. (' + $('consIndice').value + ') · lance ' + fmtPct(c.lanceTotal,1) + ' da carta (' + c.lanceParcelas.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' parcelas; ' + fmtPct(c.lanceEmbutido,0) + ' embutido)' + (c.mediaLanceParcelas > 0 ? ' · média de lance do grupo ' + c.mediaLanceParcelas + ' parcelas' : '') + ', ' + (c.lanceReduz === 'prazo' ? 'reduz o prazo' : 'reduz a parcela') + ' · contemplação prevista em ' + mesAno(c.mesContemplacao - 1)) : '');
 
   const statusTxt = (id, x) => statusDe(id, x, inp).map(s => '<span class="' + (s.cls === 'no' ? 'no' : s.cls === 'ok' ? 'ok' : '') + '">' + s.txt + '</span>').join('<br>');
   const tab = '<table>' + head +
@@ -1375,6 +1404,13 @@ ligarSeg('segSistema', 'sistema', agendar);
 ligarSeg('segReduz', 'reduz', agendar);
 ligarSeg('segModal', 'modal', agendar);
 ligarSeg('segFinModo', 'finModo', agendar);
+ligarSeg('segLance', 'lanceEm', () => {
+  // converte o valor digitado para a nova unidade, mantendo o mesmo lance
+  const P = (1 + num('consAdm')/100 + num('consFr')/100) / num('consPrazo');
+  const v = num('consLance');
+  if(isFinite(v) && P > 0) $('consLance').value = seg.lanceEm === 'parcelas' ? +(v/100/P).toFixed(1) : +(v*P*100).toFixed(2);
+  agendar();
+});
 ligarSeg('segSerie', 'serie', desenharGrafico);
 ligarSeg('segJanela', 'janela', desenharGrafico);
 $('valIpca').addEventListener('change', () => { $('valOutraBox').hidden = $('valIpca').checked; });

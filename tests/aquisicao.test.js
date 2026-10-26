@@ -79,42 +79,10 @@ test('Price: saldo zera no fim do prazo', () => {
 });
 
 /* ---------- consórcio ---------- */
-test('Consórcio do cooperado: lance de 80% com 25% embutido', () => {
-  const c = E.analisar(caso()).cenarios.consorcio;
-  assert.equal(c.mesCompra, 0); // 1ª assembleia = compra hoje
-  perto(c.parcelaOriginal, 1150000 / 240, 1e-9);
-  perto(c.lanceProprio, 550000, 1e-6);
-  perto(c.creditoRecebido, 750000, 1e-6);
-  perto(c.excedenteAbatido, 50000, 1e-6);   // crédito 750 mil − bem 700 mil abate o saldo
-  // saldo após lance e excedente: 115% − 115%/240 − 80% − 5% = 29,5208% da carta, dividido em 239 meses
-  perto(c.parcelaInicial, (1.15 - 1.15 / 240 - 0.80 - 0.05) * 1e6 / 239, 1e-6);
-  assert.ok(c.cobertura < 1, 'a renda não paga a parcela');
-  assert.ok(c.mesEsgota !== null, 'o capital acaba');
-});
-
-test('Consórcio sem excedente (bem = crédito): capital acaba na parcela 117 (reduz parcela) e 24 (reduz prazo)', () => {
-  // mesma referência da simulação independente em Python, que conta pelo nº da parcela;
-  // o motor conta meses a partir de hoje (parcela nº p é paga em t = p − 1)
-  const p = E.analisar(caso({ valorBem: 750000 })).cenarios.consorcio;
-  perto(p.parcelaInicial, 345208.3333 / 239, 1e-3);
-  assert.equal(p.mesEsgota, 116);
-  const q = E.analisar(caso({ valorBem: 750000, consorcio: { lanceReduz: 'prazo' } })).cenarios.consorcio;
-  perto(q.parcelaInicial, 1150000 / 240, 1e-6);
-  assert.equal(q.mesEsgota, 23);
-  // reduz prazo: o plano termina antes dos 240 meses
-  assert.ok(q.fimContrato < 240);
-  perto(q.fimContrato, Math.ceil((1.15 - 1.15 / 240 - 0.80) / (1.15 / 240)), 0);
-});
-
 test('Consórcio: reajuste anual da carta aumenta a parcela no 13º mês', () => {
   const c = E.analisar(caso({ consorcio: { lanceTotal: 0, lanceEmbutido: 0, mesContemplacao: 240, reajusteAnual: 0.05 } })).cenarios.consorcio;
   perto(c.serie[12].parcela / c.serie[11].parcela, 1.05, 1e-9); // 13ª parcela / 12ª
   perto(c.serie[11].parcela, 1150000 / 240, 1e-6);
-});
-
-test('Consórcio: seguro mensal incide sobre o saldo devedor', () => {
-  const c = E.analisar(caso({ consorcio: { lanceTotal: 0, lanceEmbutido: 0, mesContemplacao: 240, seguroMensal: 0.0005 } })).cenarios.consorcio;
-  perto(c.serie[0].parcela, 1150000 / 240 + 0.0005 * 1150000, 1e-6); // 1ª parcela, na adesão
 });
 
 test('Consórcio: fundo de reserva entra no percentual devido', () => {
@@ -278,4 +246,87 @@ test('Cobertura no período: quanto das parcelas a renda pagou e quanto saiu do 
   const c = r.cenarios.consorcio.periodo;
   assert.ok(c.cobertura < 1 && c.retiradoDoCapital > 0);
   perto(c.rendaUsada + c.retiradoDoCapital, c.somaParcelas, 1e-6);
+});
+
+/* ---------- consórcio no padrão da simulação de lance do Sicoob ---------- */
+test('Consórcio do cooperado: lance de 80% (25% embutido) abate o saldo antes da 1ª parcela', () => {
+  const c = E.analisar(caso()).cenarios.consorcio;
+  assert.equal(c.mesCompra, 0); // 1ª assembleia = compra hoje
+  perto(c.lanceProprio, 550000, 1e-6);
+  perto(c.creditoRecebido, 750000, 1e-6);
+  perto(c.excedenteAbatido, 50000, 1e-6);   // crédito 750 mil − bem 700 mil abate o saldo
+  // 115% − 80% − 5% = 30% da carta, dividido pelas 240 parcelas (inclusive a 1ª)
+  perto(c.parcelaInicial, 0.30 * 1e6 / 240, 1e-6);
+  assert.ok(c.cobertura < 1, 'a renda não paga a parcela');
+  assert.ok(c.mesEsgota !== null, 'o capital acaba');
+});
+
+test('Consórcio: "reduzir prazo" mantém a parcela e termina antes; "reduzir parcela" esgota o capital mais tarde', () => {
+  const p = E.analisar(caso({ valorBem: 750000 })).cenarios.consorcio;
+  const q = E.analisar(caso({ valorBem: 750000, consorcio: { lanceReduz: 'prazo' } })).cenarios.consorcio;
+  perto(p.parcelaInicial, 0.35 * 1e6 / 240, 1e-6);
+  perto(q.parcelaInicial, 1150000 / 240, 1e-6);
+  perto(q.fimContrato, Math.ceil(0.35 / (1.15 / 240)) - 1, 0); // última parcela em t = nº de parcelas − 1
+  assert.ok(q.mesEsgota < p.mesEsgota);
+});
+
+test('Consórcio: seguro informado em R$ acompanha o valor da parcela', () => {
+  const sem = E.analisar(caso({ consorcio: { lanceTotal: 0, lanceEmbutido: 0, mesContemplacao: 240, seguroValor: 100 } })).cenarios.consorcio;
+  perto(sem.serie[0].parcela, 1150000 / 240 + 100, 1e-6);
+  const com = E.analisar(caso({ valorBem: 750000, consorcio: { seguroValor: 100 } })).cenarios.consorcio;
+  perto(com.parcelaInicial, 0.35 * 1e6 / 240 + 100 * (0.35 / 1.15), 1e-6);
+});
+
+// Simulação de lance Sisbr 3.0 — Sicoob Primavera, 26/10/2026: Strada R$ 134.897, prazo de rateio 71,
+// taxa adm 7%, fundo de reserva 2%, seguro R$ 72,78, lance de 43 parcelas, reduzir parcela, sem embutido.
+const SICOOB_CONS = { carta: 134897, prazoMeses: 71, taxaAdm: 0.07, fundoReserva: 0.02, seguroValor: 72.78, reajusteAnual: 0,
+  lanceTotal: E.lanceDeParcelas(43, 71, 0.07, 0.02), lanceEmbutido: 0, lanceReduz: 'parcela', mesContemplacao: 1 };
+
+test('Consórcio reproduz a simulação de lance do Sicoob (lance, parcela e total)', () => {
+  const r = E.analisar(caso({ valorBem: 134897, capital: 300000, horizonteMeses: 72, consorcio: SICOOB_CONS }));
+  const c = r.cenarios.consorcio;
+  perto(c.lanceValor, 89051.50, 1, 'valor nominal do lance');
+  perto(c.parcelaInicial, 845.50, 0.15, 'parcela após o lance');
+  perto(c.totalSeguro, 2038.14, 1, 'seguro após o lance');
+  const totalParcelas = c.serie.slice(0, 71).reduce((a, s) => a + s.parcela, 0);
+  perto(totalParcelas, 60030.51, 10, 'total com seguro após o lance');
+  perto(c.fimContrato, 70, 0);
+});
+
+test('Consórcio do Sicoob antes do lance: parcela de R$ 2.143,72', () => {
+  const c = E.analisar(caso({ valorBem: 134897, capital: 300000, consorcio: Object.assign({}, SICOOB_CONS, { mesContemplacao: 2 }) })).cenarios.consorcio;
+  perto(c.serie[0].parcela, 2143.72, 0.05);
+});
+
+/* ---------- IR no resgate ---------- */
+test('IR no resgate: sem resgates, o imposto só incide sobre o ganho no fim', () => {
+  const ctx = { capital: 100000, aliquotaIR: 0.15, taxa: () => 0.01 };
+  const conta = E.novaConta(ctx);
+  for (let t = 1; t <= 12; t++) conta.render(t);
+  const bruto = 100000 * Math.pow(1.01, 12);
+  perto(conta.liquido(), bruto - 0.15 * (bruto - 100000), 1e-6);
+});
+
+test('IR no resgate: o resgate paga IR só sobre a parte de ganho', () => {
+  const conta = E.novaConta({ capital: 100000, aliquotaIR: 0.15, taxa: () => 0.10 });
+  conta.render(1);                 // saldo 110.000, custo 100.000 → ganho = 1/11 do saldo
+  conta.sacar(10000);              // líquido de R$ 10 mil
+  const f = 10000 / 110000;
+  const bruto = 10000 / (1 - 0.15 * f);
+  perto(conta.B, 110000 - bruto, 1e-6);
+  perto(conta.irPago, bruto - 10000, 1e-6);
+  perto(conta.liquido(), (110000 - bruto) - 0.15 * ((110000 - bruto) - conta.K), 1e-9);
+});
+
+test('IR no resgate rende mais que o IR mês a mês (diferimento)', () => {
+  const g = E.taxaMensal(0.1365);
+  const base = caso({ consorcio: { ativo: false }, financiamento: { ativo: false }, valorBem: 1e9, horizonteMeses: 120, capital: 100000 });
+  const resgate = E.analisar(Object.assign({}, base, { taxaMes: g, aliquotaIRResgate: 0.15 })).cenarios.avista.horizonte.capital;
+  const mensal = E.analisar(Object.assign({}, base, { taxaMes: g * 0.85 })).cenarios.avista.horizonte.capital;
+  assert.ok(resgate > mensal * 1.05, `${resgate} > ${mensal}`);
+  perto(resgate, 100000 + (100000 * Math.pow(1 + g, 120) - 100000) * 0.85, 1e-3);
+});
+
+test('Lance em parcelas: 43 parcelas de 1,5352% = 66% da carta', () => {
+  perto(E.lanceDeParcelas(43, 71, 0.07, 0.02), 43 * 1.09 / 71, 1e-12);
 });

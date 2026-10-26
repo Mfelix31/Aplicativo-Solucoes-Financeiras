@@ -72,6 +72,11 @@
    *  { modo: 'produto', taxaBrutaAnual, isentoIR, prazoMedioDias }
    *       → taxa bruta mensal equivalente × (1 − alíquota de IR do prazo médio)
    */
+  /** Lance oferecido em número de parcelas → fração da carta (cada parcela = P ÷ n). */
+  function lanceDeParcelas(nParcelas, prazoMeses, taxaAdm, fundoReserva) {
+    return nParcelas * (1 + taxaAdm + fundoReserva) / prazoMeses;
+  }
+
   function taxaMensalLiquida(cfg) {
     if (cfg.modo === 'renda') return cfg.capital > 0 ? cfg.rendaMensal / cfg.capital : 0;
     const bruta = taxaMensal(cfg.taxaBrutaAnual);
@@ -124,8 +129,8 @@
     if (c && c.ativo) {
       if (!(pos(c.carta) && c.carta > 0)) erros.push('Consórcio: informe o valor da carta.');
       if (!(pos(c.prazoMeses) && c.prazoMeses >= 1 && c.prazoMeses <= MAX_MESES)) erros.push('Consórcio: prazo inválido.');
-      ['taxaAdm', 'fundoReserva', 'seguroMensal', 'reajusteAnual'].forEach(k => {
-        if (!(pos(c[k]) && c[k] >= 0)) erros.push('Consórcio: ' + ({ taxaAdm: 'taxa de administração', fundoReserva: 'fundo de reserva', seguroMensal: 'seguro', reajusteAnual: 'reajuste' })[k] + ' inválido.');
+      ['taxaAdm', 'fundoReserva', 'seguroValor', 'reajusteAnual'].forEach(k => {
+        if (!(pos(c[k] || 0) && (c[k] || 0) >= 0)) erros.push('Consórcio: ' + ({ taxaAdm: 'taxa de administração', fundoReserva: 'fundo de reserva', seguroValor: 'seguro', reajusteAnual: 'reajuste' })[k] + ' inválido.');
       });
       if (!(pos(c.lanceTotal) && c.lanceTotal >= 0 && c.lanceTotal <= 1)) erros.push('Consórcio: lance total deve ficar entre 0% e 100%.');
       if (!(pos(c.lanceEmbutido) && c.lanceEmbutido >= 0)) erros.push('Consórcio: lance embutido inválido.');
@@ -146,6 +151,7 @@
       custoEsperaMensal: e.custoEsperaMensal || 0,
       reservaMinima: e.reservaMinima || 0,
       mesCompraAlvo: Math.max(0, Math.round(e.mesCompra || 0)),
+      aliquotaIR: e.aliquotaIRResgate || 0,
       horizonteMeses: Math.round(e.horizonteMeses)
     }, override || {});
     // taxa do mês m (1..): função, lista ou número
@@ -154,6 +160,53 @@
     ctx.precoBem = m => ctx.valorBem * Math.pow(1 + ctx.valorizacaoAnual, m / 12);
     ctx.deflator = m => Math.pow(1 + ctx.ipcaAnual, m / 12);
     return ctx;
+  }
+
+  /*
+   * Conta do capital investido.
+   * - Isento (LCA) ou renda já líquida: alíquota 0, a conta é só um saldo que rende.
+   * - Tributado (RDC, CDB, compromissada): a conta guarda o saldo BRUTO e o custo
+   *   (quanto foi aplicado). O IR só é cobrado no resgate, sobre a parte de ganho do
+   *   valor resgatado: ganho = resgate × (saldo − custo) ÷ saldo. Enquanto não há
+   *   resgate, o imposto continua rendendo. Capital exibido = saldo líquido de IR.
+   *   Premissa: o capital de hoje entra com custo = saldo (sem ganho anterior a tributar).
+   * - Saldo negativo = dinheiro que precisaria vir de fora, corrigido pela mesma taxa.
+   */
+  function novaConta(ctx) {
+    const a = ctx.aliquotaIR || 0;
+    return {
+      B: ctx.capital, K: ctx.capital, irPago: 0,
+      liquido() { return this.B > 0 ? this.B - a * Math.max(0, this.B - this.K) : this.B; },
+      /** rende o mês t; devolve a renda líquida do mês (ganho bruto menos o IR que ele vai gerar) */
+      render(t) {
+        const ganho = this.B * ctx.taxa(t);
+        this.B += ganho;
+        return this.B - ganho > 0 ? ganho * (1 - a) : ganho;
+      },
+      rendaPrevista(t) { const g = this.B * ctx.taxa(t); return this.B > 0 ? g * (1 - a) : g; },
+      depositar(v) {
+        if (!(v > 0)) { if (v < 0) this.sacar(-v); return; }
+        if (this.B < 0) { this.B += v; if (this.B > 0) this.K = this.B; }
+        else { this.B += v; this.K += v; }
+      },
+      /** retira v líquidos (já descontado o IR do resgate) */
+      sacar(v) {
+        if (!(v > 0)) { if (v < 0) this.depositar(-v); return; }
+        if (this.B <= 0) { this.B -= v; return; }
+        const f = Math.max(0, (this.B - this.K) / this.B);
+        const bruto = v / (1 - a * f);
+        if (bruto <= this.B + 1e-9) {
+          this.irPago += bruto - v;
+          this.K -= bruto * this.K / this.B;
+          this.B -= bruto;
+          if (this.B < 1e-9) { this.B = 0; this.K = 0; }
+        } else {
+          const disp = this.liquido();
+          this.irPago += this.B - disp;
+          this.B = -(v - disp); this.K = 0;
+        }
+      }
+    };
   }
 
   function novoRegistro(ctx, m, C, saldo, temBem, extra) {
@@ -228,7 +281,8 @@
     const tabMIP = proposta ? (f.tabelaMIP || []) : [];
     const idade0 = proposta && f.idadeMesesHoje >= 0 ? f.idadeMesesHoje : null;
 
-    let C = ctx.capital, saldo = 0, temBem = false, p = 0;
+    const conta = novaConta(ctx);
+    let saldo = 0, temBem = false, p = 0;
     let rendaMes = 0, entrada = 0, valorImovel = 0;
     const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0 };
     const fluxos = [];
@@ -237,8 +291,9 @@
     for (let t = 0; t <= Hsim; t++) {
       let pago = 0, det = null;
       if (t >= 1) {
-        rendaMes = C * ctx.taxa(t);
-        C = C + rendaMes + ctx.aporteMensal - (temBem ? 0 : ctx.custoEsperaMensal);
+        rendaMes = conta.render(t);
+        conta.depositar(ctx.aporteMensal);
+        if (!temBem) conta.sacar(ctx.custoEsperaMensal);
       }
       if (t > D && p < n && saldo > 1e-9) {
         p += 1;
@@ -258,7 +313,7 @@
         det = { correcao: cm, amortizacao: amort, juros: j, mip, dfi: dfiV, tac };
         juros += j; seguros += mip + dfiV; tarifas += tac; correcao += cm;
         totalParcelas += pago; parcelaFinal = pago;
-        C -= pago;
+        conta.sacar(pago);
         fluxos[t] = (fluxos[t] || 0) - pago;
         if (p === 1) info.parcelaInicial = pago;
       }
@@ -266,15 +321,15 @@
         valorImovel = ctx.precoBem(t);
         entrada = valorImovel - f.valorFinanciado; // negativo = sobra de crédito volta ao capital
         saldo = f.valorFinanciado;
-        C -= entrada + despesas;
+        conta.sacar(entrada + despesas);
         temBem = true;
         fluxos[t] = (fluxos[t] || 0) + f.valorFinanciado - despesas;
         info.mesCompra = t;
         info.desembolsoCompra = Math.max(0, entrada) + despesas;
-        info.capitalAposCompra = C;
-        info.rendaInicial = C * ctx.taxa(t + 1);
+        info.capitalAposCompra = conta.liquido();
+        info.rendaInicial = conta.rendaPrevista(t + 1);
       }
-      serie.push(novoRegistro(ctx, t, C, saldo, temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago, detalhe: det }));
+      serie.push(novoRegistro(ctx, t, conta.liquido(), saldo, temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago, detalhe: det }));
     }
     for (let t = 0; t < fluxos.length; t++) if (fluxos[t] === undefined) fluxos[t] = 0;
     const ti = fluxos.length > 1 ? tir(fluxos) : null;
@@ -282,6 +337,7 @@
     return metricas(ctx, serie, Object.assign(info, {
       id: 'financiamento',
       modo: proposta ? 'proposta' : 'cet',
+      irPagoNoPeriodo: conta.irPago,
       parcelaFinal,
       totalPago: totalParcelas + info.desembolsoCompra,
       totalParcelas,
@@ -295,98 +351,100 @@
 
   /* ---------- consórcio ---------- */
   /*
-   * Linha do tempo (t = meses a partir de hoje):
-   *   - a parcela nº p é paga no INÍCIO do mês, em t = p − 1 (a 1ª na adesão);
-   *   - a contemplação da assembleia nº k acontece em t = k − 1, logo depois
-   *     da parcela k: lance, liberação do crédito e compra do bem;
-   *   - durante o mês, o capital restante rende; no fim, aporte e custo de espera.
-   * Assim, contemplação na 1ª assembleia = compra hoje (t = 0), como no financiamento.
+   * Padrão da simulação de lance do Sicoob (Sisbr, 26/10/2026):
+   *   - n = número de parcelas que o cooperado paga (prazo de rateio);
+   *   - percentual devido P = 100% (fundo comum) + taxa de administração + fundo de reserva,
+   *     dividido igualmente pelas n parcelas;
+   *   - a parcela nº p vence no início do mês, em t = p − 1 (a 1ª na adesão);
+   *   - na assembleia da contemplação (parcela nº k), o lance abate o saldo ANTES da
+   *     parcela daquele mês: "reduzir parcela" divide o saldo pelas parcelas k..n;
+   *     "reduzir prazo" mantém a parcela e encurta o plano;
+   *   - lance embutido sai do crédito; o restante do lance sai do capital;
+   *   - seguro: valor da 1ª parcela informado em R$, proporcional ao valor da parcela
+   *     (cai junto com ela depois do lance) e reajustado com a carta;
+   *   - carta, parcelas e saldo reajustados a cada 12 parcelas pelo índice informado;
+   *   - crédito acima do preço do bem abate o saldo devedor; abaixo, a diferença sai do capital.
    */
   function simularConsorcio(c, ctx, Hsim) {
     const n = Math.round(c.prazoMeses);
     const k = Math.round(c.mesContemplacao);
     const P = 1 + c.taxaAdm + c.fundoReserva;
-    // valor da carta na parcela nº p (reajuste a cada 12 parcelas)
-    const carta = p => c.carta * Math.pow(1 + c.reajusteAnual, Math.floor((Math.max(p, 1) - 1) / 12));
-    let pct = P;           // percentual da carta ainda devido
-    let pctMes = P / n;    // percentual pago por parcela
-    let C = ctx.capital;
-    let temBem = false;
-    let p = 0;             // última parcela paga
+    const fator = p => Math.pow(1 + c.reajusteAnual, Math.floor((Math.max(p, 1) - 1) / 12));
+    const carta = p => c.carta * fator(p);
+    const pctOrig = P / n;
+    const seguroBase = c.seguroValor || 0;
+    let pct = P, pctMes = pctOrig;
+    const conta = novaConta(ctx);
+    let temBem = false, p = 0, rendaMes = 0;
     const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0 };
-    let totalPago = 0, mesFim = null, credito = 0, lanceProprio = 0, complemento = 0, excedente = 0;
-    const fluxos = [];
-    const serie = [];
-    let rendaMes = 0;
-
+    let totalPago = 0, totalSeguro = 0, mesFim = null, credito = 0, lanceProprio = 0, lanceValor = 0, complemento = 0, excedente = 0;
+    const fluxos = [], serie = [];
     for (let t = 0; t <= Hsim; t++) {
       if (t >= 1) {
-        rendaMes = C * ctx.taxa(t);
-        C = C + rendaMes + ctx.aporteMensal - (temBem ? 0 : ctx.custoEsperaMensal);
+        rendaMes = conta.render(t);
+        conta.depositar(ctx.aporteMensal);
+        if (!temBem) conta.sacar(ctx.custoEsperaMensal);
       }
-      // início do mês t+1: parcela nº t+1
-      let pago = 0, fluxo = 0;
-      if (pct > 1e-12) {
-        p = t + 1;
-        const cartaP = carta(p);
-        const seguro = c.seguroMensal * pct * cartaP;
-        const amort = Math.min(pctMes, pct);
-        pct -= amort;
-        pago = amort * cartaP + seguro;
-        if (pct <= 1e-12) { pct = 0; mesFim = t; }
-        C -= pago; totalPago += pago; fluxo -= pago;
-      }
+      let pago = 0, fluxo = 0, compraAgora = false;
       if (t + 1 === k) {
-        // contemplação: lance, crédito e compra do bem
+        // contemplação: o lance abate o saldo antes da parcela desta assembleia
         const cartaP = carta(k);
         const lanceT = Math.min(c.lanceTotal, pct);
         const emb = Math.min(c.lanceEmbutido, lanceT);
+        lanceValor = lanceT * cartaP;
         lanceProprio = (lanceT - emb) * cartaP;
         credito = cartaP * (1 - emb);
         pct -= lanceT;
         const preco = ctx.precoBem(t);
         const dif = credito - preco;
         if (dif >= 0) {
-          // crédito acima do preço: o excedente abate o saldo devedor; se sobrar, volta ao capital
           const abate = Math.min(dif / cartaP, pct);
           excedente = abate * cartaP;
           pct -= abate;
-          C += dif - excedente;
+          conta.depositar(dif - excedente);
         } else {
-          complemento = -dif; C -= complemento;
+          complemento = -dif; conta.sacar(complemento);
         }
-        C -= lanceProprio;
+        conta.sacar(lanceProprio);
         totalPago += lanceProprio;
         fluxo += credito - lanceProprio;
         if (pct <= 1e-12) { pct = 0; mesFim = t; }
-        const restantes = n - k;
-        if (pct > 0) {
-          if (restantes <= 0) pctMes = pct;
-          else if (c.lanceReduz === 'prazo') pctMes = P / n;
-          else pctMes = pct / restantes;
-        }
-        temBem = true;
+        if (pct > 0) pctMes = c.lanceReduz === 'prazo' ? pctOrig : pct / (n - k + 1);
+        temBem = true; compraAgora = true;
+      }
+      if (pct > 1e-12) {
+        p = t + 1;
+        const cartaP = carta(p);
+        const amort = Math.min(pctMes, pct);
+        const seguro = seguroBase * (amort / pctOrig) * fator(p);
+        pct -= amort;
+        pago = amort * cartaP + seguro;
+        totalSeguro += seguro;
+        if (pct <= 1e-12) { pct = 0; mesFim = t; }
+        conta.sacar(pago); totalPago += pago; fluxo -= pago;
+      }
+      if (compraAgora) {
         info.mesCompra = t;
         info.desembolsoCompra = lanceProprio + complemento;
-        info.capitalAposCompra = C;
-        info.rendaInicial = C * ctx.taxa(t + 1);
-        const cartaProx = carta(k + 1);
-        info.parcelaInicial = pct > 0 ? Math.min(pctMes, pct) * cartaProx + c.seguroMensal * pct * cartaProx : 0;
+        info.parcelaInicial = pago;
+        info.capitalAposCompra = conta.liquido();
+        info.rendaInicial = conta.rendaPrevista(t + 1);
       }
-      if (pago > 0 || t + 1 === k) fluxos[t] = fluxo;
-      serie.push(novoRegistro(ctx, t, C, pct * carta(Math.max(p, 1)), temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago }));
+      if (pago > 0 || compraAgora) fluxos[t] = fluxo;
+      serie.push(novoRegistro(ctx, t, conta.liquido(), pct * carta(Math.max(p, 1)), temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago }));
     }
     for (let t = 0; t < fluxos.length; t++) if (fluxos[t] === undefined) fluxos[t] = 0;
     const ti = fluxos.some(f => f > 0) && fluxos.some(f => f < 0) ? tir(fluxos) : null;
     return metricas(ctx, serie, Object.assign(info, {
       id: 'consorcio',
       pagamentoAntecipado: true,
-      parcelaOriginal: (P / n) * c.carta + c.seguroMensal * P * c.carta,
+      parcelaOriginal: pctOrig * c.carta + seguroBase,
       creditoRecebido: credito,
-      lanceProprio, complemento, excedenteAbatido: excedente,
-      totalPago,
+      lanceValor, lanceProprio, complemento, excedenteAbatido: excedente,
+      totalPago, totalSeguro,
       custoCredito: totalPago - credito,
       creditoUtil: credito,
+      irPagoNoPeriodo: conta.irPago,
       custoEfetivoAnual: ti === null ? null : taxaAnualDeMensal(ti),
       fimContrato: mesFim === null ? n - 1 : mesFim
     }));
@@ -394,30 +452,33 @@
 
   /* ---------- capital próprio ---------- */
   function simularAVista(ctx, Hsim) {
-    let C = ctx.capital;
-    let temBem = false;
-    const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0 };
+    const conta = novaConta(ctx);
+    let temBem = false, rendaMes = 0;
+    const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0, rendaAntesCompra: 0 };
     const comprar = m => {
       const preco = ctx.precoBem(m);
-      if (!temBem && m >= ctx.mesCompraAlvo && C >= preco - 1e-6) {
-        C -= preco; temBem = true;
-        info.mesCompra = m; info.desembolsoCompra = preco; info.capitalAposCompra = C;
-        info.rendaInicial = C * ctx.taxa(m + 1);
+      if (!temBem && m >= ctx.mesCompraAlvo && conta.liquido() >= preco - 1e-6) {
+        info.rendaAntesCompra = conta.rendaPrevista(m + 1);
+        conta.sacar(preco); temBem = true;
+        info.mesCompra = m; info.desembolsoCompra = preco; info.capitalAposCompra = conta.liquido();
+        info.rendaInicial = conta.rendaPrevista(m + 1);
       }
     };
     comprar(0);
-    const serie = [novoRegistro(ctx, 0, C, 0, temBem, { renda: 0, parcela: 0 })];
+    const serie = [novoRegistro(ctx, 0, conta.liquido(), 0, temBem, { renda: 0, parcela: 0 })];
     for (let m = 1; m <= Hsim; m++) {
-      const renda = C * ctx.taxa(m);
-      C = C + renda + ctx.aporteMensal - (temBem ? 0 : ctx.custoEsperaMensal);
+      rendaMes = conta.render(m);
+      conta.depositar(ctx.aporteMensal);
+      if (!temBem) conta.sacar(ctx.custoEsperaMensal);
       comprar(m);
-      serie.push(novoRegistro(ctx, m, C, 0, temBem, { renda, parcela: 0 }));
+      serie.push(novoRegistro(ctx, m, conta.liquido(), 0, temBem, { renda: rendaMes, parcela: 0 }));
     }
     return metricas(ctx, serie, Object.assign(info, {
       id: 'avista',
       totalPago: info.desembolsoCompra,
       custoCredito: 0,
       custoEfetivoAnual: null,
+      irPagoNoPeriodo: conta.irPago,
       fimContrato: info.mesCompra || 0,
       precoNaCompra: info.desembolsoCompra
     }));
@@ -452,7 +513,7 @@
 
   /** Patrimônio líquido no horizonte com uma taxa anual líquida constante. */
   function patrimonioComTaxa(e, taxaAnualLiquida, id, H) {
-    const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(taxaAnualLiquida) });
+    const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(taxaAnualLiquida), aliquotaIR: 0 });
     if (!r.ok || !r.cenarios[id]) return null;
     return r.cenarios[id].horizonte.patrimonio;
   }
@@ -477,7 +538,7 @@
   /** Patrimônio líquido no horizonte para uma lista de taxas anuais líquidas constantes. */
   function sensibilidade(e, taxasAnuais, H) {
     return taxasAnuais.map(t => {
-      const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(t) });
+      const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(t), aliquotaIR: 0 });
       const linha = { taxa: t };
       if (r.ok) Object.keys(r.cenarios).forEach(id => {
         const c = r.cenarios[id];
@@ -488,7 +549,7 @@
   }
 
   return {
-    MAX_MESES,
+    MAX_MESES, lanceDeParcelas, novaConta,
     taxaMensal, taxaAnualDeMensal, aliquotaIR, taxaMensalLiquida, pmt, tir,
     validar, analisar, taxaEquilibrio, sensibilidade, patrimonioComTaxa
   };
