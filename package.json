@@ -1,0 +1,9 @@
+{
+  "name": "inteligencia-financeira",
+  "private": true,
+  "description": "Plataforma estática de simulação de investimentos, planejamento financeiro e estratégia de aquisição.",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": { "node": ">=18" }
+}

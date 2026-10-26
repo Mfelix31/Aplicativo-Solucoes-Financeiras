@@ -10,40 +10,30 @@
  *    considerando que o capital que continua investido gera renda para
  *    pagar a parcela?"
  *
+ * ENTRADA (objeto `e`, montado pela página)
+ *   capital, aporteMensal, valorBem, valorizacaoAnual, ipcaAnual, horizonteMeses,
+ *   mesCompra, custoEsperaMensal, reservaMinima,
+ *   taxaMes (número, lista ou função t → taxa do mês t), aliquotaIRResgate,
+ *   financiamento {...}, consorcio {...}, avista {ativo}
+ *   (detalhes de cada caminho no comentário da função correspondente)
+ *
  * CONVENÇÕES (validadas com o usuário em 26/10/2026)
- * - Base mensal, igual ao Planejamento: taxa mensal equivalente
- *   i_m = (1 + i_a)^(1/12) − 1. Pagamentos no FIM de cada mês.
- * - Rendimento do capital: taxa mensal LÍQUIDA (informada pelo chamador).
- *   Para produtos tributados, a renda mensal bruta é reduzida pela alíquota
- *   de IR do prazo médio da aplicação informado (ver taxaMensalLiquida).
- * - Todo mês: capital ← capital × (1 + r) + aporte − parcela − seguro − custo de espera.
- *   O que sobra da renda fica reinvestido; o que falta sai do capital
- *   (descapitalização). Se o capital ficar NEGATIVO, o valor representa
- *   dinheiro que precisaria vir de fora, corrigido pela mesma taxa
- *   (custo de oportunidade) — a interface mostra o mês em que isso acontece.
- * - Valor do bem: corrigido mês a mês pela valorização anual informada
- *   (padrão = IPCA, decisão do usuário). Quem compra depois paga mais caro.
- * - Patrimônio líquido = capital + valor do bem (se já comprado) − saldo devedor.
- *   Em R$ de hoje: dividido por (1 + IPCA)^(meses/12).
- * - Financiamento: parcela pela taxa do CET informado (o CET já inclui
- *   seguros e tarifas), SAC ou Price. Entrada = valor do bem − valor financiado.
- * - Consórcio (modelo em percentual da carta, como nas administradoras):
- *     percentual total devido  P = 100% + taxa de administração + fundo de reserva
- *     parcela antes da contemplação = P / prazo × valor atual da carta
- *     valor da carta reajustado a cada 12 meses pelo índice informado
- *     (o saldo devedor acompanha o reajuste)
- *     seguro = % ao mês sobre o saldo devedor
- *     no mês da contemplação: lance total abate o percentual devido;
- *     a parte embutida sai do crédito; a parte livre sai do capital do cliente.
- *     Crédito maior que o preço do bem → excedente abate o saldo devedor.
- *     Crédito menor que o preço → a diferença sai do capital.
- *     Depois do lance: "reduz parcela" divide o saldo pelos meses restantes;
- *     "reduz prazo" mantém a parcela e encurta o plano.
- * - Capital próprio: compra no primeiro mês em que o capital cobre o preço
- *   do bem (já valorizado). Até lá, o capital continua rendendo.
- * - Custo de espera (aluguel, por exemplo): opcional, pago todo mês enquanto
- *   o cliente ainda não tem o bem, em qualquer caminho.
- * - Arredondamento só na apresentação.
+ * - Base mensal, igual ao Planejamento: i_m = (1 + i_a)^(1/12) − 1.
+ * - O capital fica numa "conta" (novaConta): rende todo mês; aportes entram;
+ *   parcelas, entradas, lances e custo de espera saem. O que sobra da renda fica
+ *   reinvestido; o que falta é descapitalização. Capital negativo = dinheiro que
+ *   precisaria vir de fora, corrigido pela mesma taxa (custo de oportunidade).
+ * - IR: isento (LCA) ou renda já líquida → alíquota 0. Tributado → o IR é cobrado
+ *   só nos resgates, sobre a parte de ganho (ver novaConta).
+ * - Valor do bem corrigido pela valorização informada (padrão = IPCA).
+ * - Patrimônio líquido = capital + valor do bem (se já comprado) − saldo devedor;
+ *   em R$ de hoje, dividido por (1 + IPCA)^(meses/12).
+ * - Financiamento: padrão da proposta do Sicoob (ou só o CET) — simularFinanciamento.
+ * - Consórcio: padrão da simulação de lance do Sicoob — simularConsorcio.
+ * - Capital próprio: compra quando o capital cobre o preço do bem, a partir
+ *   do mês previsto para a compra — simularAVista.
+ * - Arredondamento só na apresentação (exceto o modo proposta do financiamento,
+ *   que arredonda a centavos como o contrato).
  */
 (function (root, factory) {
   const api = factory();
@@ -263,6 +253,10 @@
    *  - 'cet': só o CET informado como taxa de juros, sem TR, seguros ou tarifas à parte.
    * A contratação acontece no mês f.mesInicio (0 = hoje); até lá o capital rende.
    * A 1ª parcela vence um mês depois da contratação.
+   * Campos de f: ativo, modo ('proposta' | 'cet'), valorFinanciado, prazoMeses,
+   *   sistema ('SAC' | 'PRICE'), mesInicio, cetAnual;
+   *   no modo proposta: jurosNominalAnual, trMensal, tabelaMIP [{idadeAte, taxa}],
+   *   idadeMesesHoje, dfiMensal, tacMensal, despesasIniciais.
    */
   function faixaMIP(tabela, idadeAnos) {
     for (let k = 0; k < tabela.length; k++) if (idadeAnos <= tabela[k].idadeAte) return tabela[k].taxa;
@@ -364,6 +358,10 @@
    *     (cai junto com ela depois do lance) e reajustado com a carta;
    *   - carta, parcelas e saldo reajustados a cada 12 parcelas pelo índice informado;
    *   - crédito acima do preço do bem abate o saldo devedor; abaixo, a diferença sai do capital.
+   * Campos de c: ativo, carta, prazoMeses (nº de parcelas), taxaAdm, fundoReserva,
+   *   seguroValor (R$ na 1ª parcela), reajusteAnual, lanceTotal (fração da carta),
+   *   lanceEmbutido (fração da carta), lanceReduz ('parcela' | 'prazo'),
+   *   mesContemplacao (nº da assembleia, 1 = a primeira).
    */
   function simularConsorcio(c, ctx, Hsim) {
     const n = Math.round(c.prazoMeses);
@@ -511,9 +509,14 @@
     return { ok: true, erros: [], horizonteMeses: ctx.horizonteMeses, mesesSimulados: Hsim, cenarios, melhor };
   }
 
+  /** Análise com uma taxa anual LÍQUIDA constante (usada no teste de estresse). */
+  function analisarComTaxa(e, taxaAnualLiquida, H) {
+    return analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(taxaAnualLiquida), aliquotaIR: 0 });
+  }
+
   /** Patrimônio líquido no horizonte com uma taxa anual líquida constante. */
   function patrimonioComTaxa(e, taxaAnualLiquida, id, H) {
-    const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(taxaAnualLiquida), aliquotaIR: 0 });
+    const r = analisarComTaxa(e, taxaAnualLiquida, H);
     if (!r.ok || !r.cenarios[id]) return null;
     return r.cenarios[id].horizonte.patrimonio;
   }
@@ -538,7 +541,7 @@
   /** Patrimônio líquido no horizonte para uma lista de taxas anuais líquidas constantes. */
   function sensibilidade(e, taxasAnuais, H) {
     return taxasAnuais.map(t => {
-      const r = analisar(Object.assign({}, e, { horizonteMeses: H || e.horizonteMeses }), { taxaMes: taxaMensal(t), aliquotaIR: 0 });
+      const r = analisarComTaxa(e, t, H);
       const linha = { taxa: t };
       if (r.ok) Object.keys(r.cenarios).forEach(id => {
         const c = r.cenarios[id];

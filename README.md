@@ -11,18 +11,41 @@ Plataforma estática (HTML/CSS/JS, sem build) com três módulos:
 
 ## Estrutura
 
-- `assets/base.css` — paleta da marca (tema claro e escuro) e regras globais; carregado por todas as páginas.
-- `assets/componentes.css` — etapas, painéis, campos, indicadores, gráfico e avisos do Planejamento e da Aquisição.
+Cada página tem três partes, cada uma no seu lugar:
+
+| Onde | O que fica ali |
+|---|---|
+| `<página>.html` | Só a marcação (campos, seções, textos fixos). Sem estilos em linha. |
+| `paginas/<página>.css` | Estilos próprios da página. |
+| `paginas/<página>.js` | Lógica da página: lê os campos, chama o motor e desenha os resultados. |
+
+Compartilhado entre as páginas:
+
+- `assets/base.css` — paleta da marca (tema claro e escuro) e regras globais.
+- `assets/componentes.css` — etapas, painéis, campos, indicadores, gráfico e avisos (Planejamento e Aquisição).
 - `assets/tema.js` — tema claro (padrão) / escuro, lembrado entre as páginas, e o botão de troca.
 - `assets/formato.js` — moeda, porcentagem, prazos e máscara de valores.
-- `assets/grafico.js` — gráfico de linhas em canvas com tooltip (Planejamento e Aquisição).
+- `assets/grafico.js` — gráfico de linhas em canvas com tooltip.
 - `assets/bcb.js` — consultas ao Banco Central: Meta Selic (SGS 432), IPCA 12 meses (SGS 13522) e Boletim Focus.
-- `engine/planejamento.js` — motor do planejamento (funções puras, sem DOM).
-- `engine/aquisicao.js` — motor da Estratégia de Aquisição (financiamento no padrão Sicoob, consórcio, IR no resgate).
-- `engine/propostas.js` — leitura das simulações do Sicoob em PDF (financiamento e consórcio).
-- `tests/` — testes dos motores. Rodar com `node --test tests/*.test.js` (Node 18+).
 
-Cada página carrega os arquivos compartilhados e mantém no próprio `<style>`/`<script>` só o que é dela.
+Motores de cálculo (funções puras, sem tela, testadas):
+
+- `engine/planejamento.js` — planejamento financeiro.
+- `engine/aquisicao.js` — estratégia de aquisição (financiamento no padrão Sicoob, consórcio, IR no resgate).
+- `engine/propostas.js` — leitura das simulações do Sicoob em PDF.
+
+Ordem de carregamento em cada página: `assets/tema.js` → `assets/base.css` → (`assets/componentes.css`) → `paginas/<página>.css` → … → `assets/*.js` → `engine/*.js` → `paginas/<página>.js`.
+
+## Como mexer com segurança
+
+1. **Antes e depois de qualquer mudança, rode os testes:** `npm test` (ou `node --test tests/*.test.js`, Node 18+). Eles também rodam sozinhos no GitHub a cada envio.
+2. **Regra de cálculo** (taxa, imposto, parcela) muda no motor (`engine/`), nunca na página. Acrescente um teste em `tests/` com um exemplo conferido (proposta real, planilha ou conta independente).
+3. **Campo novo:** crie o elemento com um `id` no HTML → leia o campo em `paginas/<página>.js` (seção "Entradas") → valide → passe ao motor → teste. O teste de estrutura avisa se algum `id` usado no JavaScript não existir no HTML.
+4. **Cor ou espaçamento:** use os tokens de `assets/base.css` (`--ink`, `--line`, `--red`…). Não escreva cores fixas nem `style="..."` no HTML.
+5. **Textos ao usuário** ficam na página (`paginas/<página>.js`). Sempre indicar que é simulação e não recomendação.
+6. **Dados pessoais:** o app não coleta, não guarda e não envia dados pessoais. Não acrescente nome, CPF, data de nascimento ou contato, nem em arquivos de teste.
+
+O que os testes cobrem: cálculos dos motores (conferidos com a planilha e com as propostas do Sicoob), leitura dos PDFs, e a estrutura das páginas (arquivos referenciados existem, `id`s usados existem e não se repetem, sintaxe de todos os scripts, ausência de estilos em linha).
 
 ## Convenções de cálculo
 
