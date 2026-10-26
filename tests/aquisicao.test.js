@@ -191,7 +191,7 @@ test('Consórcio com carta no valor do bem (sem embutido): lance livre sai todo 
 /* ---------- financiamento no padrão da proposta Sicoob ---------- */
 // Proposta "Relatório da Simulação de Financiamento" do Banco Sicoob, 23/10/2026:
 // R$ 600 mil, imóvel R$ 700 mil, Funding FGTS Pró-Cotista, SAC, 420 meses, juros 7,99% a.a. nominais,
-// TR projetada 0,1661% a.m., MIP Tokio Marine por faixa de idade (nascimento ),
+// TR projetada 0,1661% a.m., MIP Tokio Marine por faixa de idade (proponente com 45 anos na data da proposta),
 // DFI 0,00608% a.m. do imóvel, TAC R$ 25/mês, tarifa Pró-Cotista R$ 2.140 não incorporada.
 const MIP_PROPOSTA = [
   { idadeAte: 45, taxa: 0.000244 }, { idadeAte: 50, taxa: 0.000424 }, { idadeAte: 55, taxa: 0.000655 },

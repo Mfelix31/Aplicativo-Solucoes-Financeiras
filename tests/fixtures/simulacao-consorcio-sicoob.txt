@@ -1,0 +1,36 @@
+Data de Emissão
+Sisbr 3.0 - Plataforma Sicoob Consórcio
+26/10/2026
+Simulação de lance   Hora de Emissão
+4345 - SICOOB PRIMAVERA
+16:55
+Informações do lance
+Bem:   Tipo de Bem:   Valor do Bem:
+STRADA VOLCANO 1.3 FLEX 8V CD
+AUTOMOVEIS NACIONAIS   R$ 134.897,00
+100%
+Detalhes do Grupo
+Prazo   Oferta Máxima Lance   Vencimento   Participantes   Prazo rateio   Taxa antecipada   Média de lance
+75 meses   70   10/11/2026   2500   71 meses   NÃO   43
+Parcela   Fundo comum   Taxa Adm.   Fundo Reserva   Seguro   Total
+1-70   1.4085% R$ 1.900,02   0.0986% R$ 133,01   0.0281% R$ 37,91   R$ 72,78   R$ 2.143,72
+71-71   1.405% R$ 1.895,30   0.098% R$ 132,20   0.033% R$ 44,52   R$ 72,78   R$ 2.144,80
+Total   100% R$ 134.896,70   7% R$ 9.442,90   2% R$ 2.698,22   -   R$ 147.037,82
+Total com
+100% R$ 134.896,70   7% R$ 9.442,90   2% R$ 2.698,22   R$ 5.167,38   R$ 152.205,20
+Seguro
+Resultado da Simulação
+Tipo redução   Tipo de oferta   Valor do lance   Lance embutido   Valor do lance embutido   Valor do crédito
+Reduzir parcela   Parcelas   43   Valor   R$ 0,00   R$ 134.897,00
+Valor nominal do lance
+R$ 89.051,50
+Parcela   Fundo comum   Taxa Adm.   Fundo Reserva   Seguro   Total
+1-70   0.5555% R$ 749,35   0.0389% R$ 52,47   0.0111% R$ 14,97   R$ 28,71   R$ 845,50
+71-71   0.5541% R$ 747,46   0.0386% R$ 52,07   0.013% R$ 17,54   R$ 28,71   R$ 845,78
+Total   39.439% R$ 53.201,96   2.762% R$ 3.724,97   0.79% R$ 1.065,44   -   R$ 57.992,37
+Total com
+R$ 60.030,51   2.762% R$ 3.724,97   0.79% R$ 1.065,44   R$ 2.038,14   R$ 60.030,51
+Seguro
+*Os valores apresentados são aproximados e podem sofrer alterações. A disponibilidade está condicionada às vagas no
+grupo.
+Simulação de lance   Pág.: 1
