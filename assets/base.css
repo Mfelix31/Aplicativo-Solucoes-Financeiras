@@ -1,0 +1,34 @@
+/*
+ * Base visual da plataforma — carregada por todas as páginas, antes do <style> de cada uma.
+ * Paleta da marca (tema claro padrão e escuro) e regras globais idênticas em todas as páginas.
+ * Cada página pode redefinir tokens no próprio <style> (ex.: investimentos troca os papéis de --gold/--teal).
+ */
+:root{
+  /* Paleta da marca — tema claro (padrão) */
+  --bg:#F3F8F8; --panel:#FFFFFF; --panel-2:#EFF6F6; --line:#D3E0E1; --line-soft:#E6EFEF;
+  --ink:#003641; --ink-muted:#3E6169; --ink-faint:#4F7178;
+  --gold:#007A73; --gold-dim:#00AE9D; --teal:#437526; --teal-dim:#7DB61C; --blue:#49479D; --blue-dim:#8E8CD6; --red:#B93A34;
+  --ok:#437526; --acc:#007A73; --destaque:#007A73; --hl:#C9D200; --on-accent:#FFFFFF; --btn:#003641; --on-btn:#FFFFFF;
+  --l-roxo:#49479D; --l-turq:#00AE9D; --l-verde:#7DB61C; --l-red:#C2413B; --l-meta:#003641;
+  --grid:rgba(0,54,65,.10); --shadow:0 1px 2px rgba(0,54,65,.06), 0 10px 28px rgba(0,54,65,.07);
+}
+:root[data-theme="dark"]{
+  /* Tema escuro — base verde escuro #003641 */
+  --bg:#003641; --panel:#004750; --panel-2:#004F58; --line:#0C6168; --line-soft:#00535B;
+  --ink:#FFFFFF; --ink-muted:#C2D6D9; --ink-faint:#A3C2C6;
+  --gold:#40CDBD; --gold-dim:#00AE9D; --teal:#A3D24A; --teal-dim:#7DB61C; --blue:#B9B7F5; --blue-dim:#8E8CD6; --red:#FF9B8C;
+  --ok:#A3D24A; --acc:#40CDBD; --destaque:#C9D200; --hl:#C9D200; --on-accent:#003641; --btn:#00AE9D; --on-btn:#003641;
+  --l-roxo:#B9B7F5; --l-turq:#00AE9D; --l-verde:#C9D200; --l-red:#FF9B8C; --l-meta:#FFFFFF;
+  --grid:rgba(255,255,255,.12); --shadow:none;
+}
+
+body{font-variant-numeric: tabular-nums;}
+.home-link{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); text-decoration:none; margin-bottom:10px; border:1px solid var(--line); border-radius:20px; padding:3px 11px;}
+.home-link:hover{color:var(--ink); border-color:var(--teal);}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+.theme-toggle{background:var(--panel-2); border:1px solid var(--line); color:var(--ink); width:38px; height:38px; border-radius:50%; font-size:16px; cursor:pointer;}
+.theme-toggle:hover{border-color:var(--teal);}
+button.primary:hover{filter:brightness(1.08);}
+footer{margin-top:28px; font-size:11.5px; color:var(--ink-faint); border-top:1px solid var(--line); padding-top:14px;}
+footer p{margin:0 0 8px;}

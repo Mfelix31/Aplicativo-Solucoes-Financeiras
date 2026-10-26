@@ -5,65 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Planejamento Financeiro</title>
 <script src="assets/tema.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/componentes.css">
 <style>
-  :root{
-    /* Paleta da marca — tema claro (padrão) */
-    --bg:#F3F8F8; --panel:#FFFFFF; --panel-2:#EFF6F6; --line:#D3E0E1; --line-soft:#E6EFEF;
-    --ink:#003641; --ink-muted:#3E6169; --ink-faint:#4F7178;
-    --gold:#007A73; --gold-dim:#00AE9D; --teal:#437526; --teal-dim:#7DB61C; --blue:#49479D; --blue-dim:#8E8CD6; --red:#B93A34;
-    --ok:#437526; --acc:#007A73; --destaque:#007A73; --hl:#C9D200; --on-accent:#FFFFFF; --btn:#003641; --on-btn:#FFFFFF;
-    --l-roxo:#49479D; --l-turq:#00AE9D; --l-verde:#7DB61C; --l-red:#C2413B; --l-meta:#003641;
-    --grid:rgba(0,54,65,.10);
-  }
-  :root[data-theme="dark"]{
-    /* Tema escuro — base verde escuro #003641 */
-    --bg:#003641; --panel:#004750; --panel-2:#004F58; --line:#0C6168; --line-soft:#00535B;
-    --ink:#FFFFFF; --ink-muted:#C2D6D9; --ink-faint:#A3C2C6;
-    --gold:#40CDBD; --gold-dim:#00AE9D; --teal:#A3D24A; --teal-dim:#7DB61C; --blue:#B9B7F5; --blue-dim:#8E8CD6; --red:#FF9B8C;
-    --ok:#A3D24A; --acc:#40CDBD; --destaque:#C9D200; --hl:#C9D200; --on-accent:#003641; --btn:#00AE9D; --on-btn:#003641;
-    --l-roxo:#B9B7F5; --l-turq:#00AE9D; --l-verde:#C9D200; --l-red:#FF9B8C; --l-meta:#FFFFFF;
-    --grid:rgba(255,255,255,.12);
-  }
-  body{font-variant-numeric: tabular-nums;}
-  .home-link{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); text-decoration:none; margin-bottom:10px; border:1px solid var(--line); border-radius:20px; padding:3px 11px;}
-  .home-link:hover{color:var(--ink); border-color:var(--teal);}
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
   body{background:var(--bg); color:var(--ink); font-family:Arial, Helvetica, sans-serif; line-height:1.5; padding:28px 16px 60px;}
   .wrap{max-width:920px; margin:0 auto;}
   .mono{font-family:Arial, Helvetica, sans-serif;}
-
-  header{border-bottom:1px solid var(--line); padding-bottom:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px;}
   header h1{font-family:Arial, Helvetica, sans-serif; font-weight:600; font-size:30px; margin:0 0 4px;}
   header p{margin:0; color:var(--ink-muted); font-size:14px; max-width:52ch;}
   .head-right{display:flex; align-items:center; gap:12px;}
   .badge{font-size:10.5px; font-weight:600; letter-spacing:.4px; color:var(--gold); border:1px solid var(--gold-dim); padding:3px 9px; border-radius:20px;}
-  .theme-toggle{background:var(--panel-2); border:1px solid var(--line); color:var(--ink); width:38px; height:38px; border-radius:50%; font-size:16px; cursor:pointer;}
-  .theme-toggle:hover{border-color:var(--teal);}
-
-  /* etapas */
-  .steps{display:flex; gap:4px; margin-bottom:22px; border-bottom:1px solid var(--line); overflow-x:auto;}
   .step-btn{background:transparent; border:none; color:var(--ink-faint); font-family:Arial, Helvetica, sans-serif; font-size:16px; padding:10px 4px; margin-right:24px; cursor:pointer; position:relative; top:1px; white-space:nowrap; display:flex; align-items:center; gap:8px;}
   .step-btn .n{font-family:Arial, Helvetica, sans-serif; font-size:11px; border:1px solid var(--line); padding:0 6px; border-radius:3px;}
-  .step-btn.active{color:var(--ink); border-bottom:2px solid var(--gold); padding-bottom:9px;}
-  .step-btn.active .n{border-color:var(--gold-dim); color:var(--gold);}
-  .step-panel{display:none;}
-  .step-panel.active{display:block;}
-
-  section.panel{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px 20px 8px; margin-bottom:18px;}
   section.panel h2{font-family:Arial, Helvetica, sans-serif; font-size:17px; font-weight:600; margin:0 0 4px;}
-  section.panel .sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 16px;}
-
-  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px 18px; margin-bottom:14px;}
-  .field label{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:6px;}
-  .row-input{display:flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--panel-2);}
-  .row-input:focus-within{border-color:var(--teal);}
-  .row-input.invalid{border-color:var(--red);}
   .row-input input, .row-input select{flex:1; min-width:0; background:transparent; border:none; color:var(--ink); font-family:Arial, Helvetica, sans-serif; font-size:15px; padding:10px; width:100%; outline:none;}
   .row-input select{font-family:Arial, Helvetica, sans-serif; font-size:13.5px; color:var(--ink);}
-  .row-input select option{background:var(--panel); color:var(--ink);}
   .prefix,.suffix{display:flex; align-items:center; padding:0 10px; color:var(--ink-faint); font-family:Arial, Helvetica, sans-serif; font-size:12.5px; background:var(--line-soft); white-space:nowrap;}
-  .hint{font-size:11.5px; color:var(--ink-faint); margin-top:5px;}
   .hint.err{color:var(--red);}
   .tag-ir{display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.3px; color:var(--ink-muted); border:1px dashed var(--line); border-radius:3px; padding:1px 7px; margin-left:6px; vertical-align:middle;}
 
@@ -86,9 +43,7 @@
 
   .nav-row{display:flex; justify-content:flex-end; gap:10px; margin:4px 0 22px;}
   button.primary{background:var(--btn); color:var(--on-btn); border:none; font-family:Arial, Helvetica, sans-serif; font-weight:600; font-size:14.5px; padding:12px 20px; border-radius:4px; cursor:pointer;}
-  button.primary:hover{filter:brightness(1.08);}
   button.ghost{background:transparent; border:1px solid var(--teal-dim); color:var(--teal); font-family:Arial, Helvetica, sans-serif; font-size:13px; padding:11px 16px; border-radius:4px; cursor:pointer;}
-  button.ghost:hover{border-color:var(--teal);}
 
   /* indicadores */
   .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-bottom:18px;}
@@ -98,27 +53,16 @@
   .kpi .s{font-family:Arial, Helvetica, sans-serif; font-size:12.5px; color:var(--ink); margin-top:6px;}
   .kpi .s .lbl{font-family:Arial, Helvetica, sans-serif; color:var(--ink-faint); font-size:11.5px; display:block;}
   .unit{font-size:10.5px; font-weight:600; letter-spacing:.3px; padding:1px 6px; border-radius:3px; margin-left:6px; vertical-align:middle; font-family:Arial, Helvetica, sans-serif;}
-  .unit.hoje{color:var(--teal); border:1px solid var(--teal-dim);}
-  .unit.nom{color:var(--ink-faint); border:1px solid var(--line);}
-
-  .explain{background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--teal-dim); border-radius:5px; padding:12px 16px; font-size:12.5px; color:var(--ink-muted); margin-bottom:18px;}
   .explain p{margin:0 0 6px;} .explain p:last-child{margin:0;}
   .explain .f{font-family:Arial, Helvetica, sans-serif; color:var(--ink); font-size:12px;}
-  .warn-box{display:flex; gap:10px; align-items:flex-start; background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--gold-dim); border-radius:5px; padding:10px 14px; font-size:12px; color:var(--ink-muted); margin-bottom:18px;}
 
   .chart-box{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px 18px; margin-bottom:18px; position:relative;}
-  .chart-head{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
   .chart-title{font-size:13px; color:var(--ink-muted);}
   .chart-box canvas{display:block; width:100%; height:280px;}
-  .legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink-muted); margin-top:8px;}
-  .legend span::before{content:''; display:inline-block; width:14px; height:3px; border-radius:2px; background:var(--c); margin-right:6px; vertical-align:middle;}
   .legend span.dash::before{background:repeating-linear-gradient(90deg,var(--c) 0 4px,transparent 4px 7px);}
-  .tooltip{position:absolute; pointer-events:none; background:var(--panel-2); border:1px solid var(--line); border-radius:5px; padding:8px 10px; font-size:11.5px; color:var(--ink); white-space:nowrap; display:none; z-index:2; box-shadow:0 4px 14px rgba(0,0,0,.18);}
-  .tooltip .t{color:var(--ink-faint); margin-bottom:3px;}
   .tooltip .r{font-family:Arial, Helvetica, sans-serif;}
   .seg{display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden;}
   .seg button{background:transparent; border:none; color:var(--ink-muted); font-size:12px; padding:6px 10px; cursor:pointer; font-family:Arial, Helvetica, sans-serif;}
-  .seg button.active{background:var(--btn); color:var(--on-btn); font-weight:600;}
 
   .curve-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;}
   @media(max-width:720px){.curve-cards{grid-template-columns:1fr;}}
@@ -135,10 +79,6 @@
   .ledger h3{font-family:Arial, Helvetica, sans-serif; font-size:17px; margin:0; color:var(--ink);}
   .ledger .desc{font-size:11.5px; color:var(--ink-faint); margin-bottom:10px;}
   .status{display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; margin:4px 0 10px;}
-  .status.ok{background:color-mix(in srgb, var(--ok) 12%, transparent); color:var(--ok); border:1px solid var(--ok);}
-  .status.no{background:color-mix(in srgb, var(--red) 10%, transparent); color:var(--red); border:1px solid var(--red);}
-  .lrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 0; border-top:1px dashed var(--line); font-size:12.5px;}
-  .lrow .k{color:var(--ink-muted);}
   .lrow .v{font-family:Arial, Helvetica, sans-serif; color:var(--ink); text-align:right;}
   .lrow .v small{display:block; color:var(--ink-faint); font-size:10.5px;}
   .lrow.hl .v{color:var(--c); font-weight:600;}
@@ -150,7 +90,6 @@
   .obj-table td.num{font-family:Arial, Helvetica, sans-serif; text-align:right;}
   .obj-table th.c, .obj-table td.c{text-align:center;}
   .ok-t{color:var(--ok); font-weight:600;} .no-t{color:var(--red); font-weight:600;}
-  .table-scroll{overflow-x:auto;}
 
   /* popup */
   .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:16px; z-index:10;}
@@ -172,12 +111,6 @@
   .obj-line .st.ok{color:var(--ok); border:1px solid var(--ok);}
   .obj-line .st.no{color:var(--red); border:1px solid var(--red);}
   .obj-line .st::after{content:' ›';}
-
-  footer{margin-top:28px; font-size:11.5px; color:var(--ink-faint); border-top:1px solid var(--line); padding-top:14px;}
-  footer p{margin:0 0 8px;}
-
-  /* ---------- relatório em PDF (impressão) ---------- */
-  #printArea{display:none;}
   @media print{
     @page{size:A4; margin:14mm 12mm;}
     body{background:#fff !important; padding:0 !important;}
@@ -206,9 +139,6 @@
     #printArea .pr-footer p{margin:0 0 5px;}
     #printArea .bloco{break-inside:avoid;}
   }
-  .err-banner{display:none; background:color-mix(in srgb, var(--red) 10%, transparent); border:1px solid var(--red); color:var(--ink); border-radius:5px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;}
-  .err-banner.show{display:block;}
-  .stale{opacity:.3; filter:grayscale(.6); pointer-events:none; user-select:none; transition:opacity .15s ease;}
   .kpi .s .extra[hidden]{display:none;}
   .kpi .s .extra{display:block; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-family:Arial, Helvetica, sans-serif; font-size:12.5px; color:var(--ink);}
 </style>
@@ -418,6 +348,8 @@
   </div>
 </div>
 
+<script src="assets/formato.js"></script>
+<script src="assets/grafico.js"></script>
 <script src="engine/planejamento.js"></script>
 
 <script>
@@ -428,36 +360,9 @@ const $ = id => document.getElementById(id);
 const HOJE = new Date();
 const ANO = HOJE.getFullYear();
 
-/* ---------- formatação ---------- */
-const fmtBRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-const fmtBRL0 = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
-const fmtPct = (v, c=2) => (v*100).toLocaleString('pt-BR', {minimumFractionDigits:c, maximumFractionDigits:c}) + '%';
-function fmtCurto(v){
-  const a = Math.abs(v);
-  if(a >= 1e6) return 'R$ ' + (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' mi';
-  if(a >= 1e3) return 'R$ ' + (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' mil';
-  return fmtBRL0(v);
-}
-const fmtAnos = n => n === 1 ? '1 ano' : n + ' anos';
-function fmtPrazo(meses){
-  const a = Math.floor(meses/12), m = meses % 12;
-  if(a === 0) return m + (m===1?' mês':' meses');
-  return fmtAnos(a) + (m ? ' e ' + m + (m===1?' mês':' meses') : '');
-}
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-/* ---------- entrada de moeda (mesma máscara do simulador) ---------- */
-function lerMoeda(el){ const n = parseFloat(String(el.value||'0').replace(/\./g,'').replace(',','.')); return isNaN(n) ? 0 : n; }
-function escreverMoeda(el, v){ el.value = v.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
-function mascara(el){
-  el.addEventListener('input', ()=>{
-    let d = el.value.replace(/\D/g,'') || '0';
-    d = d.replace(/^0+(?=\d)/,'');
-    while(d.length < 3) d = '0' + d;
-    const int = (d.slice(0,-2).replace(/^0+(?=\d)/,'') || '0').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-    el.value = int + ',' + d.slice(-2);
-  });
-}
+/* ---------- formatação (assets/formato.js) ---------- */
+const {brl: fmtBRL, brl0: fmtBRL0, pct: fmtPct, curto: fmtCurto, anos: fmtAnos, prazo: fmtPrazo, esc, lerMoeda, mascara} = Formato;
+function escreverMoeda(el, v){ el.value = Formato.moeda(v); }
 const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? NaN : v; };
 
 /* ---------- objetivos ---------- */
@@ -828,91 +733,24 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape') $('modal').classL
 
 /* ---------- gráficos (canvas, sem bibliotecas) ---------- */
 const LINHA = {'--blue':'--l-roxo', '--gold':'--l-turq', '--teal':'--l-verde', '--red':'--l-red', '--ink-muted':'--l-meta'};
-function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const cssVar = Grafico.cssVar;
 function legenda(id, itens){
   $(id).innerHTML = itens.map(i=>'<span class="'+(i.dash?'dash':'')+'" style="--c:var('+(LINHA[i.cor]||i.cor)+')">'+esc(i.nome)+'</span>').join('');
 }
+/* gráfico de linhas compartilhado (assets/grafico.js); o tooltip mostra o ponto mais próximo de cada série */
 const graficos = {};
 function desenharGrafico(canvasId, ttId, cfg){
-  graficos[canvasId] = {ttId, cfg};
-  const canvas = $(canvasId);
-  const W = canvas.parentElement.clientWidth - 36;
-  if(W <= 0) return; // aba oculta: desenha ao abrir
-  const H = 280, dpr = window.devicePixelRatio || 1;
-  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-  canvas.width = W*dpr; canvas.height = H*dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,W,H);
-  ctx.font = '10.5px Arial, Helvetica, sans-serif';
-  const yMaxPrev = Math.max(...cfg.series.flatMap(s=>s.pontos.map(p=>p.y)), 1)*1.08;
-  const pad = {t:14, r:14, b:28, l: Math.ceil(ctx.measureText(fmtCurto(yMaxPrev)).width) + 16};
-  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
-  const all = cfg.series.flatMap(s=>s.pontos);
-  if(!all.length) return;
-  const xMin = Math.min(...all.map(p=>p.x)), xMax = Math.max(...all.map(p=>p.x));
-  let yMax = Math.max(...all.map(p=>p.y)), yMin = 0;
-  yMax = yMax > 0 ? yMax*1.08 : 1;
-  const X = x => pad.l + (xMax===xMin ? 0 : (x - xMin)/(xMax - xMin)*pw);
-  const Y = y => pad.t + ph - (y - yMin)/(yMax - yMin)*ph;
-  const grid = cssVar('--grid');
-  const faint = cssVar('--ink-faint');
-  ctx.font = '10.5px Arial, Helvetica, sans-serif';
-  ctx.fillStyle = faint; ctx.strokeStyle = grid; ctx.lineWidth = 1;
-  for(let g=0; g<=4; g++){
-    const v = yMin + (yMax-yMin)*g/4, y = Y(v);
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
-    ctx.textAlign = 'right'; ctx.fillText(fmtCurto(v), pad.l - 8, y + 3);
-  }
-  // eixo x: idades
-  ctx.textAlign = 'center';
-  const span = xMax - xMin;
-  const stepX = span > 50 ? 10 : (span > 20 ? 5 : (span > 8 ? 2 : 1));
-  for(let x = Math.ceil(xMin/stepX)*stepX; x <= xMax + 1e-9; x += stepX){
-    ctx.fillText(Math.round(x) + '', X(x), H - 10);
-  }
-  ctx.textAlign = 'left'; ctx.fillText('idade', pad.l, H - 0.5);
-  if(cfg.vline){
-    const vx = X(cfg.vline.x);
-    ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = faint;
-    ctx.beginPath(); ctx.moveTo(vx, pad.t); ctx.lineTo(vx, pad.t+ph); ctx.stroke(); ctx.restore();
-    ctx.fillStyle = faint; ctx.textAlign = vx > W - 110 ? 'right' : 'left';
-    ctx.fillText(cfg.vline.rotulo, vx + (ctx.textAlign==='left'?5:-5), pad.t + 10);
-  }
-  cfg.series.forEach(s=>{
-    ctx.save();
-    if(s.dash) ctx.setLineDash([6,4]);
-    ctx.strokeStyle = s.cor; ctx.lineWidth = s.dash ? 1.5 : 2.2;
-    ctx.beginPath();
-    s.pontos.forEach((p,i)=>{ const x=X(p.x), y=Y(p.y); i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
-    ctx.stroke(); ctx.restore();
-  });
-  graficos[canvasId].geo = {X, Y, xMin, xMax, pad, pw, W};
+  graficos[canvasId] = {ttId, cfg, geo: Grafico.desenhar($(canvasId), Object.assign({rotuloX: 'idade'}, cfg))};
 }
-function ligarTooltip(canvasId){
-  const canvas = $(canvasId);
-  const mover = ev=>{
-    const g = graficos[canvasId]; if(!g || !g.geo) return;
-    const tt = $(g.ttId);
-    const r = canvas.getBoundingClientRect();
-    const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
-    const {xMin, xMax, pad, pw, W} = g.geo;
-    if(px < pad.l || px > pad.l + pw){ tt.style.display='none'; return; }
-    const xv = xMin + (px - pad.l)/pw*(xMax - xMin);
-    const linhas = g.cfg.series.map(s=>{
+function ligarTooltip(canvasId, ttId){
+  Grafico.tooltip($(canvasId), $(ttId), () => {
+    const g = graficos[canvasId]; if(!g) return null;
+    return {geo: g.geo, html: xv => '<div class="t">' + g.cfg.xFmt(xv) + '</div>' + g.cfg.series.map(s=>{
       let best = s.pontos[0];
       for(const p of s.pontos){ if(Math.abs(p.x-xv) < Math.abs(best.x-xv)) best = p; }
       return '<div class="r"><span style="color:'+s.cor+'">●</span> ' + esc(s.nome) + ': ' + fmtCurto(best.y) + '</div>';
-    }).join('');
-    tt.innerHTML = '<div class="t">' + g.cfg.xFmt(xv) + '</div>' + linhas;
-    tt.style.display = 'block';
-    const left = Math.min(px + 30, W - tt.offsetWidth + 10);
-    tt.style.left = Math.max(10, left) + 'px';
-    tt.style.top = '54px';
-  };
-  canvas.addEventListener('mousemove', mover);
-  canvas.addEventListener('touchmove', mover, {passive:true});
-  canvas.addEventListener('mouseleave', ()=>{ const g=graficos[canvasId]; if(g) $(g.ttId).style.display='none'; });
+    }).join('')};
+  });
 }
 function redesenhar(){
   Object.keys(graficos).forEach(id=>{ const g = graficos[id]; desenharGrafico(id, g.ttId, g.cfg); });
@@ -1021,20 +859,14 @@ function gerarPdf(){
 $('btnPdf').addEventListener('click', gerarPdf);
 
 /* ---------- tema ---------- */
-function atualizarBotaoTema(){ $('btnTema').textContent = Tema.icone(); $('btnTema').title = Tema.rotulo(); $('btnTema').setAttribute('aria-label', Tema.rotulo()); }
-atualizarBotaoTema();
-$('btnTema').addEventListener('click', ()=>{
-  Tema.alternar();
-  atualizarBotaoTema();
-  setTimeout(()=>{ if(ultimo){ renderEtapa2(); desenharPlano(); } }, 30);
-});
+Tema.ligarBotao($('btnTema'), ()=> setTimeout(()=>{ if(ultimo){ renderEtapa2(); desenharPlano(); } }, 30));
 let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeout(redesenhar, 150); });
 
 /* ---------- inicialização ---------- */
 document.querySelectorAll('.money').forEach(mascara);
 ['idade','patrimonio','aporte','renda','outrasRendas','anosRenda','inflacao','spread','tx0','tx1','tx2'].forEach(id=>$(id).addEventListener('input', agendar));
 $('rentUso').addEventListener('input', agendar);
-ligarTooltip('chUso'); ligarTooltip('chPlan');
+ligarTooltip('chUso', 'ttUso'); ligarTooltip('chPlan', 'ttPlan');
 montarCardsCurvas();
 renderChips();
 renderObjetivos();

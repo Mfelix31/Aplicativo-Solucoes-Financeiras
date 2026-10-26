@@ -5,64 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Estratégia de Aquisição</title>
 <script src="assets/tema.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/componentes.css">
 <style>
-  :root{
-    /* Paleta da marca — tema claro (padrão) */
-    --bg:#F3F8F8; --panel:#FFFFFF; --panel-2:#EFF6F6; --line:#D3E0E1; --line-soft:#E6EFEF;
-    --ink:#003641; --ink-muted:#3E6169; --ink-faint:#4F7178;
-    --gold:#007A73; --gold-dim:#00AE9D; --teal:#437526; --teal-dim:#7DB61C; --blue:#49479D; --blue-dim:#8E8CD6; --red:#B93A34;
-    --ok:#437526; --acc:#007A73; --destaque:#007A73; --hl:#C9D200; --on-accent:#FFFFFF; --btn:#003641; --on-btn:#FFFFFF;
-    --l-roxo:#49479D; --l-turq:#00AE9D; --l-verde:#7DB61C; --l-red:#C2413B; --l-meta:#003641;
-    --grid:rgba(0,54,65,.10);
-  }
-  :root[data-theme="dark"]{
-    /* Tema escuro — base verde escuro #003641 */
-    --bg:#003641; --panel:#004750; --panel-2:#004F58; --line:#0C6168; --line-soft:#00535B;
-    --ink:#FFFFFF; --ink-muted:#C2D6D9; --ink-faint:#A3C2C6;
-    --gold:#40CDBD; --gold-dim:#00AE9D; --teal:#A3D24A; --teal-dim:#7DB61C; --blue:#B9B7F5; --blue-dim:#8E8CD6; --red:#FF9B8C;
-    --ok:#A3D24A; --acc:#40CDBD; --destaque:#C9D200; --hl:#C9D200; --on-accent:#003641; --btn:#00AE9D; --on-btn:#003641;
-    --l-roxo:#B9B7F5; --l-turq:#00AE9D; --l-verde:#C9D200; --l-red:#FF9B8C; --l-meta:#FFFFFF;
-    --grid:rgba(255,255,255,.12);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
   body{background:var(--bg); color:var(--ink); font-family:Arial, Helvetica, sans-serif; line-height:1.5; padding:28px 16px 60px; font-variant-numeric:tabular-nums;}
   .wrap{max-width:980px; margin:0 auto;}
-  .home-link{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); text-decoration:none; margin-bottom:10px; border:1px solid var(--line); border-radius:20px; padding:3px 11px;}
-  .home-link:hover{color:var(--ink); border-color:var(--teal);}
-
-  header{border-bottom:1px solid var(--line); padding-bottom:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px;}
   header h1{font-weight:600; font-size:30px; margin:0 0 4px;}
   header p{margin:0; color:var(--ink-muted); font-size:14px; max-width:60ch;}
-  .theme-toggle{background:var(--panel-2); border:1px solid var(--line); color:var(--ink); width:38px; height:38px; border-radius:50%; font-size:16px; cursor:pointer;}
-  .theme-toggle:hover{border-color:var(--teal);}
-
-  /* etapas */
-  .steps{display:flex; gap:4px; margin-bottom:22px; border-bottom:1px solid var(--line); overflow-x:auto;}
   .step-btn{background:transparent; border:none; color:var(--ink-faint); font-family:inherit; font-size:16px; padding:10px 4px; margin-right:24px; cursor:pointer; position:relative; top:1px; white-space:nowrap; display:flex; align-items:center; gap:8px;}
   .step-btn .n{font-size:11px; border:1px solid var(--line); padding:0 6px; border-radius:3px;}
-  .step-btn.active{color:var(--ink); border-bottom:2px solid var(--gold); padding-bottom:9px;}
-  .step-btn.active .n{border-color:var(--gold-dim); color:var(--gold);}
-  .step-panel{display:none;}
-  .step-panel.active{display:block;}
-
-  section.panel{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px 20px 8px; margin-bottom:18px;}
   section.panel h2{font-size:17px; font-weight:600; margin:0 0 4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-  section.panel .sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 16px;}
   section.panel.path{border-top:3px solid var(--c);}
   section.panel.path.off .path-body{display:none;}
   section.panel.path.off{padding-bottom:12px;}
-
-  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px 18px; margin-bottom:14px;}
-  .field label{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:6px;}
-  .row-input{display:flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--panel-2);}
-  .row-input:focus-within{border-color:var(--teal);}
-  .row-input.invalid{border-color:var(--red);}
   .row-input input, .row-input select{flex:1; min-width:0; background:transparent; border:none; color:var(--ink); font-family:inherit; font-size:15px; padding:10px; width:100%; outline:none;}
   .row-input select{font-size:13.5px;}
-  .row-input select option{background:var(--panel); color:var(--ink);}
   .prefix,.suffix{display:flex; align-items:center; padding:0 10px; color:var(--ink-faint); font-size:12.5px; background:var(--line-soft); white-space:nowrap;}
-  .hint{font-size:11.5px; color:var(--ink-faint); margin-top:5px;}
   .hint strong{color:var(--ink);}
   .inline-check{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-muted); margin:2px 0 12px; cursor:pointer;}
   .inline-check input{width:16px; height:16px; accent-color:var(--gold-dim);}
@@ -72,7 +30,6 @@
 
   .seg{display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; flex-wrap:wrap;}
   .seg button{background:transparent; border:none; color:var(--ink-muted); font-size:12.5px; padding:8px 12px; cursor:pointer; font-family:inherit;}
-  .seg button.active{background:var(--btn); color:var(--on-btn); font-weight:600;}
   .seg-wrap{margin-bottom:14px;}
   .seg-wrap .lbl{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:6px;}
 
@@ -90,10 +47,8 @@
 
   .nav-row{display:flex; justify-content:flex-end; gap:10px; margin:4px 0 22px; flex-wrap:wrap;}
   button.primary{background:var(--btn); color:var(--on-btn); border:none; font-family:inherit; font-weight:600; font-size:14.5px; padding:12px 20px; border-radius:4px; cursor:pointer;}
-  button.primary:hover{filter:brightness(1.08);}
   button.primary:disabled{opacity:.45; cursor:default;}
   button.ghost{background:transparent; border:1px solid var(--teal-dim); color:var(--teal); font-family:inherit; font-size:13px; padding:10px 14px; border-radius:4px; cursor:pointer; white-space:nowrap;}
-  button.ghost:hover{border-color:var(--teal);}
   button.ghost:disabled{opacity:.5; cursor:default;}
 
   /* resultados */
@@ -112,11 +67,7 @@
   .best-tag{position:absolute; top:-11px; right:12px; background:var(--hl); color:#003641; font-size:10.5px; font-weight:700; letter-spacing:.3px; padding:2px 9px; border-radius:20px;}
   .badges{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px;}
   .status{display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px;}
-  .status.ok{background:color-mix(in srgb, var(--ok) 12%, transparent); color:var(--ok); border:1px solid var(--ok);}
-  .status.no{background:color-mix(in srgb, var(--red) 10%, transparent); color:var(--red); border:1px solid var(--red);}
   .status.neutral{color:var(--ink-muted); border:1px solid var(--line);}
-  .lrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 0; border-top:1px dashed var(--line); font-size:12.5px;}
-  .lrow .k{color:var(--ink-muted);}
   .lrow .v{color:var(--ink); text-align:right; font-weight:600;}
   .lrow .v small{display:block; color:var(--ink-faint); font-size:10.5px; font-weight:400;}
   .lrow .v.no-t{color:var(--red);} .lrow .v.ok-t{color:var(--ok);}
@@ -127,26 +78,17 @@
   .cover .bar i{display:block; height:100%; border-radius:4px; background:var(--cl);}
   .cover .t{display:flex; justify-content:space-between; font-size:11.5px; color:var(--ink-muted);}
   .unit{font-size:10px; font-weight:600; letter-spacing:.3px; padding:1px 5px; border-radius:3px; margin-left:4px; vertical-align:middle;}
-  .unit.hoje{color:var(--teal); border:1px solid var(--teal-dim);}
-  .unit.nom{color:var(--ink-faint); border:1px solid var(--line);}
 
   .block{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px 18px; margin-bottom:18px; position:relative;}
   .block h3{font-size:15px; margin:0 0 4px;}
   .block .sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 12px;}
-  .chart-head{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
   .block canvas{display:block; width:100%; height:290px;}
-  .legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink-muted); margin-top:8px;}
-  .legend span::before{content:''; display:inline-block; width:14px; height:3px; border-radius:2px; background:var(--c); margin-right:6px; vertical-align:middle;}
-  .tooltip{position:absolute; pointer-events:none; background:var(--panel-2); border:1px solid var(--line); border-radius:5px; padding:8px 10px; font-size:11.5px; color:var(--ink); white-space:nowrap; display:none; z-index:2; box-shadow:0 4px 14px rgba(0,0,0,.18);}
-  .tooltip .t{color:var(--ink-faint); margin-bottom:3px;}
 
   .eq{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-bottom:14px;}
   .eq-card{background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:12px 14px;}
   .eq-card .k{font-size:12px; color:var(--ink-muted);}
   .eq-card .v{font-size:22px; font-weight:600; color:var(--destaque); line-height:1.25;}
   .eq-card .s{font-size:12px; color:var(--ink-muted); margin-top:4px;}
-
-  .table-scroll{overflow-x:auto;}
   table.t{width:100%; border-collapse:collapse; font-size:12.5px;}
   .t th{text-align:right; font-weight:600; color:var(--ink-faint); font-size:11.5px; padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap;}
   .t th:first-child, .t td:first-child{text-align:left;}
@@ -179,22 +121,10 @@
   details.flow .flow-tools{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0;}
   .flow-wrap{max-height:420px; overflow:auto; border:1px solid var(--line); border-radius:5px;}
   .flow-wrap table.t th{position:sticky; top:0; background:var(--panel);}
-
-  .explain{background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--teal-dim); border-radius:5px; padding:12px 16px; font-size:12.5px; color:var(--ink-muted); margin-bottom:18px;}
   .explain h3{font-size:13.5px; margin:0 0 6px; color:var(--ink);}
   .explain ul{margin:0; padding-left:18px;}
   .explain li{margin-bottom:4px;}
-  .warn-box{display:flex; gap:10px; align-items:flex-start; background:var(--line-soft); border:1px solid var(--line); border-left:3px solid var(--gold-dim); border-radius:5px; padding:10px 14px; font-size:12px; color:var(--ink-muted); margin-bottom:18px;}
-  .err-banner{display:none; background:color-mix(in srgb, var(--red) 10%, transparent); border:1px solid var(--red); color:var(--ink); border-radius:5px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;}
-  .err-banner.show{display:block;}
   .err-banner ul{margin:4px 0 0; padding-left:18px;}
-  .stale{opacity:.3; filter:grayscale(.6); pointer-events:none; user-select:none; transition:opacity .15s ease;}
-
-  footer{margin-top:28px; font-size:11.5px; color:var(--ink-faint); border-top:1px solid var(--line); padding-top:14px;}
-  footer p{margin:0 0 8px;}
-
-  /* ---------- relatório em PDF (impressão) ---------- */
-  #printArea{display:none;}
   @media print{
     @page{size:A4; margin:14mm 12mm;}
     body{background:#fff !important; padding:0 !important;}
@@ -652,6 +582,9 @@
 
 <div id="printArea"></div>
 
+<script src="assets/formato.js"></script>
+<script src="assets/grafico.js"></script>
+<script src="assets/bcb.js"></script>
 <script src="engine/aquisicao.js"></script>
 <script src="engine/propostas.js"></script>
 <script>
@@ -662,23 +595,8 @@ const $ = id => document.getElementById(id);
 const HOJE = new Date();
 const ANO = HOJE.getFullYear();
 
-/* ---------- formatação ---------- */
-const fmtBRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
-const fmtBRL0 = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
-const fmtPct = (v, c=2) => (v*100).toLocaleString('pt-BR', {minimumFractionDigits:c, maximumFractionDigits:c}) + '%';
-function fmtCurto(v){
-  const a = Math.abs(v), s = v < 0 ? '−' : '';
-  if(a >= 1e6) return s + 'R$ ' + (a/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' mi';
-  if(a >= 1e3) return s + 'R$ ' + (a/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' mil';
-  return s + fmtBRL0(a);
-}
-const fmtAnos = n => n === 1 ? '1 ano' : n + ' anos';
-function fmtPrazo(meses){
-  const a = Math.floor(meses/12), m = meses % 12;
-  if(a === 0) return m + (m===1?' mês':' meses');
-  return fmtAnos(a) + (m ? ' e ' + m + (m===1?' mês':' meses') : '');
-}
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* ---------- formatação (assets/formato.js) ---------- */
+const {brl: fmtBRL, brl0: fmtBRL0, pct: fmtPct, curto: fmtCurto, anos: fmtAnos, prazo: fmtPrazo, esc, lerMoeda, mascara} = Formato;
 function mesAno(t){
   const d = new Date(HOJE.getFullYear(), HOJE.getMonth() + t, 1);
   return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][d.getMonth()] + '/' + d.getFullYear();
@@ -710,17 +628,6 @@ function renderMip(){
 }
 const lerMip = () => mipTabela.map(([a], k) => ({idadeAte: a, taxa: num('mip' + k)/100}));
 
-/* ---------- entrada de moeda (mesma máscara do simulador) ---------- */
-function lerMoeda(el){ const n = parseFloat(String(el.value||'0').replace(/\./g,'').replace(',','.')); return isNaN(n) ? 0 : n; }
-function mascara(el){
-  el.addEventListener('input', ()=>{
-    let d = el.value.replace(/\D/g,'') || '0';
-    d = d.replace(/^0+(?=\d)/,'');
-    while(d.length < 3) d = '0' + d;
-    const int = (d.slice(0,-2).replace(/^0+(?=\d)/,'') || '0').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-    el.value = int + ',' + d.slice(-2);
-  });
-}
 const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? NaN : v; };
 const money = id => lerMoeda($(id));
 
@@ -732,7 +639,7 @@ const CAM = {
 };
 const ORDEM = ['financiamento','consorcio','avista'];
 const BEM = {imovel:'imóvel', carro:'carro', terreno:'terreno', outro:'bem'};
-function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const cssVar = Grafico.cssVar;
 
 /* ---------- estado de UI ---------- */
 const seg = {lanceEm:'pct', finModo:'proposta', modal:'embutido', modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
@@ -744,29 +651,18 @@ function ligarSeg(id, chave, cb){
   }));
 }
 
-/* ---------- CDI projetado (Focus) ---------- */
-const SPREAD_CDI_SELIC = 0.10;
+/* ---------- CDI projetado (Focus, via assets/bcb.js) ---------- */
 let curvaFocus = null; // {ano: cdi%}
 async function buscarFocus(){
   const st = $('focusStatus'); st.hidden = false;
   st.textContent = 'Consultando o Boletim Focus no Banco Central…';
   try{
-    const url = "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoAnuais" +
-      "?$top=60&$filter=Indicador%20eq%20'Selic'&$orderby=Data%20desc&$format=json&$select=Indicador,Data,DataReferencia,Mediana,baseCalculo";
-    const resp = await fetch(url);
-    if(!resp.ok) throw new Error('resposta não OK');
-    const json = await resp.json();
-    const linhas = ((json && json.value) || []).filter(l => l.baseCalculo == null || l.baseCalculo === 0);
-    if(!linhas.length) throw new Error('sem dados');
-    const data = linhas[0].Data, porAno = {};
-    linhas.filter(l => l.Data === data).forEach(l=>{
-      const a = parseInt(l.DataReferencia,10), v = parseFloat(l.Mediana);
-      if(a > ANO && v > 0 && v < 60) porAno[a] = v - SPREAD_CDI_SELIC;
-    });
-    if(!Object.keys(porAno).length) throw new Error('sem anos futuros');
+    const f = await BCB.focusSelic(ANO + 1);
+    const porAno = {};
+    Object.keys(f.porAno).forEach(a => { porAno[a] = f.porAno[a] - BCB.SPREAD_CDI_SELIC; });
     curvaFocus = porAno;
     const anos = Object.keys(porAno).map(Number).sort((a,b)=>a-b);
-    st.textContent = 'CDI por ano = Selic de fim de ano esperada no Boletim Focus de ' + String(data).split('-').reverse().join('/') +
+    st.textContent = 'CDI por ano = Selic de fim de ano esperada no Boletim Focus de ' + String(f.data).split('-').reverse().join('/') +
       ' (expectativa de mercado, não é previsão oficial) − 0,10 p.p.: ' + anos.map(a => a + ' ' + fmtPct(porAno[a]/100)).join(' · ') +
       '. Ano atual = CDI informado; depois de ' + anos[anos.length-1] + ' mantém o último valor.';
   }catch(e){
@@ -1173,104 +1069,45 @@ function renderFluxo(){
   $('tabFluxo').innerHTML = h;
 }
 
-/* ---------- gráfico (canvas, sem bibliotecas) ---------- */
-let geo = null;
+/* ---------- gráfico (assets/grafico.js) ---------- */
+let geo = null, seriesGrafico = [];
 function desenharGrafico(){
   if(!ultimo) return;
-  const canvas = $('ch');
-  const W = canvas.parentElement.clientWidth - 36;
-  if(W <= 0) return; // aba oculta: desenha ao abrir
   const {r, inp} = ultimo;
   const H = inp.e.horizonteMeses;
   const fim = seg.janela === 'h' ? H : r.mesesSimulados;
   const campo = seg.serie;
-  const series = ORDEM.filter(id => r.cenarios[id]).map(id => ({
-    id, nome: CAM[id].nome, cor: cssVar(CAM[id].cor),
-    pontos: r.cenarios[id].serie.filter(s => s.mes <= fim).map(s => ({x: s.mes/12, y: s[campo]}))
-  }));
   const reserva = inp.e.reservaMinima;
-  const HH = 290, dpr = window.devicePixelRatio || 1;
-  canvas.style.width = W + 'px'; canvas.style.height = HH + 'px';
-  canvas.width = W*dpr; canvas.height = HH*dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,W,HH);
-  ctx.font = '10.5px Arial, Helvetica, sans-serif';
-  const all = series.flatMap(s => s.pontos);
-  if(!all.length) return;
-  let yMax = Math.max(...all.map(p => p.y), campo === 'capital' ? reserva : 0, 1);
-  let yMin = Math.min(...all.map(p => p.y), 0);
-  const span = (yMax - yMin) || 1;
-  yMax += span*0.06; if(yMin < 0) yMin -= span*0.04;
-  const pad = {t:14, r:14, b:28, l: Math.ceil(Math.max(ctx.measureText(fmtCurto(yMax)).width, ctx.measureText(fmtCurto(yMin)).width)) + 16};
-  const pw = W - pad.l - pad.r, ph = HH - pad.t - pad.b;
-  const xMin = 0, xMax = fim/12;
-  const X = x => pad.l + (xMax === xMin ? 0 : (x - xMin)/(xMax - xMin)*pw);
-  const Y = y => pad.t + ph - (y - yMin)/(yMax - yMin)*ph;
-  const grid = cssVar('--grid'), faint = cssVar('--ink-faint');
-  ctx.fillStyle = faint; ctx.strokeStyle = grid; ctx.lineWidth = 1;
-  for(let g=0; g<=4; g++){
-    const v = yMin + (yMax-yMin)*g/4, y = Y(v);
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
-    ctx.textAlign = 'right'; ctx.fillText(fmtCurto(v), pad.l - 8, y + 3);
-  }
-  if(yMin < 0){ ctx.save(); ctx.strokeStyle = faint; ctx.beginPath(); ctx.moveTo(pad.l, Y(0)); ctx.lineTo(W-pad.r, Y(0)); ctx.stroke(); ctx.restore(); }
-  ctx.textAlign = 'center';
-  const spanX = xMax - xMin;
-  const stepX = spanX > 30 ? 5 : (spanX > 12 ? 2 : 1);
-  for(let x = 0; x <= xMax + 1e-9; x += stepX) ctx.fillText(Math.round(x) + '', X(x), HH - 10);
-  ctx.textAlign = 'left'; ctx.fillText('anos', pad.l, HH - 0.5);
-  if(campo === 'capital' && reserva > 0){
-    ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = cssVar('--l-red');
-    ctx.beginPath(); ctx.moveTo(pad.l, Y(reserva)); ctx.lineTo(W-pad.r, Y(reserva)); ctx.stroke(); ctx.restore();
-    ctx.fillStyle = cssVar('--red'); ctx.textAlign = 'right'; ctx.fillText('reserva mínima', W - pad.r - 4, Y(reserva) - 5);
-  }
-  if(seg.janela === 'tudo' && H < fim){
-    const vx = X(H/12);
-    ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = faint;
-    ctx.beginPath(); ctx.moveTo(vx, pad.t); ctx.lineTo(vx, pad.t+ph); ctx.stroke(); ctx.restore();
-    ctx.fillStyle = faint; ctx.textAlign = 'left'; ctx.fillText('horizonte', vx + 5, pad.t + 10);
-  }
-  series.forEach(s => {
-    ctx.save(); ctx.strokeStyle = s.cor; ctx.lineWidth = 2.2; ctx.beginPath();
-    s.pontos.forEach((p,i) => { const x = X(p.x), y = Y(p.y); i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
-    ctx.stroke(); ctx.restore();
-    // marca da compra
-    const c = r.cenarios[s.id];
-    if(c.mesCompra !== null && c.mesCompra <= fim){
-      const p = c.serie[c.mesCompra];
-      ctx.beginPath(); ctx.arc(X(p.mes/12), Y(p[campo]), 3.5, 0, Math.PI*2); ctx.fillStyle = s.cor; ctx.fill();
-    }
+  const series = ORDEM.filter(id => r.cenarios[id]).map(id => {
+    const c = r.cenarios[id];
+    const marca = c.mesCompra !== null && c.mesCompra <= fim ? c.serie[c.mesCompra] : null;
+    return {id, nome: CAM[id].nome, cor: cssVar(CAM[id].cor),
+      pontos: c.serie.filter(s => s.mes <= fim).map(s => ({x: s.mes/12, y: s[campo]})),
+      marcador: marca ? {x: marca.mes/12, y: marca[campo]} : null};
   });
-  geo = {X, Y, xMin, xMax, pad, pw, W, series};
+  const cap = campo === 'capital' && reserva > 0;
+  const g = Grafico.desenhar($('ch'), {
+    series, altura: 290, escala: 'auto', yExtra: [campo === 'capital' ? reserva : 0],
+    xMin: 0, xMax: fim/12, passoX: s => s > 30 ? 5 : (s > 12 ? 2 : 1), rotuloX: 'anos',
+    linhasH: cap ? [{y: reserva, cor: cssVar('--l-red'), rotulo: 'reserva mínima', corRotulo: cssVar('--red')}] : [],
+    vline: seg.janela === 'tudo' && H < fim ? {x: H/12, rotulo: 'horizonte', alinhar: 'esquerda'} : null
+  });
+  if(!g) return;
+  geo = g; seriesGrafico = series;
   $('legenda').innerHTML = series.map(s => '<span style="--c:var(' + CAM[s.id].cor + ')">' + s.nome + '</span>').join('') +
-    (campo === 'capital' && reserva > 0 ? '<span style="--c:var(--l-red)">Reserva mínima</span>' : '');
+    (cap ? '<span style="--c:var(--l-red)">Reserva mínima</span>' : '');
   $('chartSub').textContent = campo === 'patrimonio'
     ? 'Capital investido + valor do bem − saldo devedor, em valores nominais. O ponto marca a compra do bem.'
     : 'Quanto continua investido rendendo. Abaixo de zero = dinheiro que precisaria vir de fora.';
 }
 function ligarTooltip(){
-  const canvas = $('ch');
-  const mover = ev => {
-    if(!geo) return;
-    const tt = $('tt');
-    const rc = canvas.getBoundingClientRect();
-    const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rc.left;
-    const {xMin, xMax, pad, pw, W, series} = geo;
-    if(px < pad.l || px > pad.l + pw){ tt.style.display = 'none'; return; }
-    const xv = xMin + (px - pad.l)/pw*(xMax - xMin);
+  Grafico.tooltip($('ch'), $('tt'), () => geo && {geo, html: xv => {
     const t = Math.round(xv*12);
-    tt.innerHTML = '<div class="t">Mês ' + t + ' · ' + mesAno(t) + '</div>' + series.map(s => {
+    return '<div class="t">Mês ' + t + ' · ' + mesAno(t) + '</div>' + seriesGrafico.map(s => {
       const p = s.pontos[Math.min(t, s.pontos.length-1)];
       return '<div><span style="color:' + s.cor + '">●</span> ' + esc(s.nome) + ': ' + fmtCurto(p.y) + '</div>';
     }).join('');
-    tt.style.display = 'block';
-    tt.style.left = Math.max(10, Math.min(px + 30, W - tt.offsetWidth + 10)) + 'px';
-    tt.style.top = '70px';
-  };
-  canvas.addEventListener('mousemove', mover);
-  canvas.addEventListener('touchmove', mover, {passive:true});
-  canvas.addEventListener('mouseleave', () => { $('tt').style.display = 'none'; });
+  }}, 70);
 }
 
 function renderTudo(){
@@ -1288,31 +1125,23 @@ function irPara(n){
 document.querySelectorAll('.step-btn').forEach(b => b.addEventListener('click', () => irPara(parseInt(b.dataset.step,10))));
 document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => irPara(parseInt(b.dataset.goto,10))));
 
-/* ---------- busca de CDI e IPCA (BCB) ---------- */
+/* ---------- busca de CDI e IPCA (assets/bcb.js) ---------- */
 $('btnCdi').addEventListener('click', async () => {
   const st = $('cdiStatus'); st.textContent = 'Consultando o Banco Central…';
   try{
-    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json');
-    if(!resp.ok) throw new Error();
-    const d = await resp.json();
-    const selic = parseFloat(String(d[0].valor).replace(',','.'));
-    if(!(selic > 0)) throw new Error();
-    $('cdi').value = (selic - SPREAD_CDI_SELIC).toFixed(2);
-    st.textContent = 'CDI estimado pela Meta Selic do Copom (' + fmtPct(selic/100) + ', vigente desde ' + d[0].data + ') − 0,10 p.p. Fonte: BCB, SGS 432.';
+    const d = await BCB.metaSelic();
+    $('cdi').value = d.cdi.toFixed(2);
+    st.textContent = 'CDI estimado pela Meta Selic do Copom (' + fmtPct(d.metaSelic/100) + ', vigente desde ' + d.data + ') − 0,10 p.p. Fonte: BCB, SGS 432.';
   }catch(e){ st.textContent = 'Não foi possível consultar o Banco Central agora. Use o valor manual.'; }
   agendar();
 });
 $('btnIpca').addEventListener('click', async () => {
   const st = $('ipcaStatus'); st.textContent = 'Consultando o Banco Central…';
   try{
-    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json');
-    if(!resp.ok) throw new Error();
-    const d = await resp.json();
-    const v = parseFloat(String(d[0].valor).replace(',','.'));
-    if(!isFinite(v)) throw new Error();
-    $('ipca').value = v.toFixed(2);
-    const p = String(d[0].data).split('/');
-    st.textContent = 'IPCA acumulado em 12 meses até ' + (p.length === 3 ? p[1] + '/' + p[2] : d[0].data) + ': ' + fmtPct(v/100) + ' (BCB, SGS 13522). É inflação passada usada como premissa para o futuro — ajuste se quiser.';
+    const d = await BCB.ipca12m();
+    $('ipca').value = d.valor.toFixed(2);
+    const p = String(d.data).split('/');
+    st.textContent = 'IPCA acumulado em 12 meses até ' + (p.length === 3 ? p[1] + '/' + p[2] : d.data) + ': ' + fmtPct(d.valor/100) + ' (BCB, SGS 13522). É inflação passada usada como premissa para o futuro — ajuste se quiser.';
   }catch(e){ st.textContent = 'Não foi possível consultar o Banco Central agora. Use o valor manual.'; }
   agendar();
 });
@@ -1425,7 +1254,7 @@ async function lerPdfSicoob(arquivo){
   for(let p = 1; p <= doc.numPages; p++) paginas.push((await (await doc.getPage(p)).getTextContent()).items);
   return PropostasSicoob.ler(PropostasSicoob.linhasDeItens(paginas));
 }
-const moedaBR = v => v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const moedaBR = Formato.moeda;
 function setSeg(id, chave, v){
   seg[chave] = v;
   $(id).querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
@@ -1499,9 +1328,7 @@ function aplicarConsorcio(r){
 }));
 
 /* ---------- tema ---------- */
-function atualizarBotaoTema(){ $('btnTema').textContent = Tema.icone(); $('btnTema').title = Tema.rotulo(); $('btnTema').setAttribute('aria-label', Tema.rotulo()); }
-atualizarBotaoTema();
-$('btnTema').addEventListener('click', () => { Tema.alternar(); atualizarBotaoTema(); setTimeout(desenharGrafico, 30); });
+Tema.ligarBotao($('btnTema'), () => setTimeout(desenharGrafico, 30));
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(desenharGrafico, 150); });
 
 /* ---------- ligações ---------- */

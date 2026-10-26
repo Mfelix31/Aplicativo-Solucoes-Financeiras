@@ -21,6 +21,13 @@
     },
     /** ícone do botão: mostra para onde o clique leva */
     icone: function () { return this.escuro() ? '☀️' : '🌙'; },
-    rotulo: function () { return this.escuro() ? 'Mudar para tema claro' : 'Mudar para tema escuro'; }
+    rotulo: function () { return this.escuro() ? 'Mudar para tema claro' : 'Mudar para tema escuro'; },
+    /** liga o botão de tema: ícone, título e acessibilidade; aoMudar roda depois da troca */
+    ligarBotao: function (btn, aoMudar) {
+      var self = this;
+      function atualizar() { btn.textContent = self.icone(); btn.title = self.rotulo(); btn.setAttribute('aria-label', self.rotulo()); }
+      atualizar();
+      btn.addEventListener('click', function () { self.alternar(); atualizar(); if (aoMudar) aoMudar(); });
+    }
   };
 })();

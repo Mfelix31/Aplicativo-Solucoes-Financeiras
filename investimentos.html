@@ -5,33 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simulador de Investimentos</title>
 <script src="assets/tema.js"></script>
+<link rel="stylesheet" href="assets/base.css">
 <style>
-  :root{
-    /* Paleta da marca — tema claro (padrão) */
-    --bg:#F3F8F8; --panel:#FFFFFF; --panel-2:#EFF6F6; --line:#D3E0E1; --line-soft:#E6EFEF;
-    --ink:#003641; --ink-muted:#3E6169; --ink-faint:#4F7178;
-    --gold:#437526; --gold-dim:#7DB61C; --teal:#007A73; --teal-dim:#00AE9D; --blue:#49479D; --blue-dim:#8E8CD6; --red:#B93A34;
-    --ok:#437526; --acc:#007A73; --destaque:#007A73; --hl:#C9D200; --on-accent:#FFFFFF; --btn:#003641; --on-btn:#FFFFFF;
-    --l-roxo:#49479D; --l-turq:#00AE9D; --l-verde:#7DB61C; --l-red:#C2413B; --l-meta:#003641;
-    --grid:rgba(0,54,65,.10);
-  }
-  :root[data-theme="dark"]{
-    /* Tema escuro — base verde escuro #003641 */
-    --bg:#003641; --panel:#004750; --panel-2:#004F58; --line:#0C6168; --line-soft:#00535B;
-    --ink:#FFFFFF; --ink-muted:#C2D6D9; --ink-faint:#A3C2C6;
-    --gold:#A3D24A; --gold-dim:#7DB61C; --teal:#40CDBD; --teal-dim:#00AE9D; --blue:#B9B7F5; --blue-dim:#8E8CD6; --red:#FF9B8C;
-    --ok:#A3D24A; --acc:#40CDBD; --destaque:#C9D200; --hl:#C9D200; --on-accent:#003641; --btn:#00AE9D; --on-btn:#003641;
-    --l-roxo:#B9B7F5; --l-turq:#00AE9D; --l-verde:#C9D200; --l-red:#FF9B8C; --l-meta:#FFFFFF;
-    --grid:rgba(255,255,255,.12);
-  }
-  body{font-variant-numeric: tabular-nums;}
+  /* papéis das cores neste módulo: verde = LCA (--gold), turquesa = RDC (--teal) */
+  :root{ --gold:#437526; --gold-dim:#7DB61C; --teal:#007A73; --teal-dim:#00AE9D; }
+  :root[data-theme="dark"]{ --gold:#A3D24A; --gold-dim:#7DB61C; --teal:#40CDBD; --teal-dim:#00AE9D; }
   body, .ledger, section.panel, .equiv-box, .chart-box, .scenario-box, .field .row-input, .field select{
     transition: background-color .2s ease, border-color .2s ease, color .2s ease;
   }
-  .home-link{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); text-decoration:none; margin-bottom:10px; border:1px solid var(--line); border-radius:20px; padding:3px 11px;}
-  .home-link:hover{color:var(--ink); border-color:var(--teal);}
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
   body{
     background: var(--bg);
     color: var(--ink);
@@ -327,7 +308,6 @@
     margin: 6px 0 22px;
     transition: filter .15s ease, background .15s ease;
   }
-  button.primary:hover{filter:brightness(1.08);}
   button.primary.teal{background: var(--teal); color:var(--on-accent);}
   button.primary.blue{background: var(--blue); color:var(--on-accent);}
 
@@ -425,7 +405,6 @@
     border-top: 1px solid var(--line);
     padding-top: 16px;
   }
-  footer p{margin:0 0 8px;}
 
   .hidden{display:none;}
 
@@ -952,6 +931,8 @@
     
 </div>
 
+<script src="assets/formato.js"></script>
+<script src="assets/bcb.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -970,9 +951,7 @@ function taxaReal(taxaAnualLiquidaPct, ipcaPct){
   return ((1 + taxaAnualLiquidaPct/100) / (1 + ipcaPct/100) - 1) * 100;
 }
 
-function escHTML(s){
-  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-}
+const escHTML = Formato.esc;
 
 function numeroDoCampo(id){
   const raw = $(id).value || '0';
@@ -980,20 +959,7 @@ function numeroDoCampo(id){
   return isNaN(num) ? 0 : num;
 }
 
-function aplicarMascaraMoeda(id){
-  const input = $(id);
-  if(!input) return;
-  input.addEventListener('input', ()=>{
-    let digits = input.value.replace(/\D/g, '');
-    if(digits === '') digits = '0';
-    digits = digits.replace(/^0+(?=\d)/, '');
-    while(digits.length < 3) digits = '0' + digits;
-    const cents = digits.slice(-2);
-    let intPart = digits.slice(0, -2).replace(/^0+(?=\d)/, '') || '0';
-    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    input.value = intPart + ',' + cents;
-  });
-}
+function aplicarMascaraMoeda(id){ Formato.mascara($(id)); }
 
 let ultimoNominalSim = null;
 function atualizarCaixaRealSim(){
@@ -1164,13 +1130,10 @@ function preencherCard(prefix, r, pv){
 
 async function buscarCDI(inputId, heroSync, statusId){
   try{
-    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json');
-    if(!resp.ok) throw new Error('resposta não OK');
-    const data = await resp.json();
-    if(!data || !data[0] || !data[0].valor) throw new Error('formato inesperado');
-    const metaSelic = parseFloat(data[0].valor.replace(',','.'));
-    const SPREAD_CDI_SELIC = 0.10; // spread histórico entre CDI e a Meta Selic
-    const cdiEstimado = metaSelic - SPREAD_CDI_SELIC;
+    const d = await BCB.metaSelic(); // assets/bcb.js: Meta Selic (SGS 432) e CDI = Selic − 0,10 p.p.
+    const data = [{data: d.data}];
+    const metaSelic = d.metaSelic;
+    const cdiEstimado = d.cdi;
     $(inputId).value = cdiEstimado.toFixed(2);
     if(heroSync){
       $('cdiHeroValue').textContent = fmtPct(cdiEstimado,2);
@@ -1186,11 +1149,9 @@ async function buscarCDI(inputId, heroSync, statusId){
 
 async function buscarIPCA(inputId, statusId){
   try{
-    const resp = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json');
-    if(!resp.ok) throw new Error('resposta não OK');
-    const data = await resp.json();
-    if(!data || !data[0] || !data[0].valor) throw new Error('formato inesperado');
-    const valor = parseFloat(data[0].valor.replace(',','.'));
+    const d = await BCB.ipca12m(); // assets/bcb.js: IPCA acumulado em 12 meses (SGS 13522)
+    const data = [{data: d.data}];
+    const valor = d.valor;
     $(inputId).value = valor.toFixed(2);
     const partes = data[0].data.split('/');
     const mesesNome = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
@@ -1621,21 +1582,7 @@ function montarCurvaPadrao(cdi){
   return c;
 }
 async function buscarFocusSelic(){
-  const url = "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoAnuais" +
-    "?$top=60&$filter=Indicador%20eq%20'Selic'&$orderby=Data%20desc&$format=json&$select=Indicador,Data,DataReferencia,Mediana,baseCalculo";
-  const resp = await fetch(url);
-  if(!resp.ok) throw new Error('resposta não OK');
-  const json = await resp.json();
-  const linhas = ((json && json.value) || []).filter(l => l.baseCalculo == null || l.baseCalculo === 0);
-  if(!linhas.length) throw new Error('sem dados');
-  const dataMaisRecente = linhas[0].Data;
-  const porAno = {};
-  linhas.filter(l => l.Data === dataMaisRecente).forEach(l=>{
-    const ano = parseInt(l.DataReferencia, 10), v = parseFloat(l.Mediana);
-    if(ano >= ANO_ATUAL && v > 0 && v < 60) porAno[ano] = v;
-  });
-  if(!Object.keys(porAno).length) throw new Error('sem anos futuros');
-  return {data: dataMaisRecente, porAno};
+  return BCB.focusSelic(ANO_ATUAL); // assets/bcb.js: Boletim Focus, mediana mais recente da Selic de fim de ano
 }
 async function ativarCurva(){
   const cdi = parseFloat($('s_cdi').value) || 0;
@@ -2188,13 +2135,7 @@ window.addEventListener('resize', ()=>{
 });
 
 /* ---------------- TEMA CLARO/ESCURO ---------------- */
-function atualizarBotaoTema(){ $('btnTema').textContent = Tema.icone(); $('btnTema').title = Tema.rotulo(); $('btnTema').setAttribute('aria-label', Tema.rotulo()); }
-atualizarBotaoTema();
-$('btnTema').addEventListener('click', ()=>{
-  Tema.alternar();
-  atualizarBotaoTema();
-  setTimeout(redesenharTodosGraficos, 50);
-});
+Tema.ligarBotao($('btnTema'), ()=> setTimeout(redesenharTodosGraficos, 50));
 
 aplicarMascaraMoeda('s_valor');
 aplicarMascaraMoeda('s_aporte');
