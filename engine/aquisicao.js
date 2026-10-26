@@ -110,7 +110,14 @@
     const f = e.financiamento;
     if (f && f.ativo) {
       if (!(pos(f.valorFinanciado) && f.valorFinanciado > 0)) erros.push('Financiamento: informe o valor financiado.');
-      if (!(pos(f.cetAnual) && f.cetAnual >= 0)) erros.push('Financiamento: CET inválido.');
+      if (f.modo === 'proposta') {
+        if (!(pos(f.jurosNominalAnual) && f.jurosNominalAnual >= 0)) erros.push('Financiamento: taxa nominal de juros inválida.');
+        if (!(pos(f.trMensal) && f.trMensal >= 0)) erros.push('Financiamento: TR projetada inválida.');
+        if (!(pos(f.dfiMensal) && f.dfiMensal >= 0)) erros.push('Financiamento: seguro DFI inválido.');
+        if (!(pos(f.tacMensal) && f.tacMensal >= 0)) erros.push('Financiamento: tarifa mensal inválida.');
+        if (!(pos(f.despesasIniciais) && f.despesasIniciais >= 0)) erros.push('Financiamento: despesas iniciais inválidas.');
+      } else if (!(pos(f.cetAnual) && f.cetAnual >= 0)) erros.push('Financiamento: CET inválido.');
+      if (f.mesInicio !== undefined && !(pos(f.mesInicio) && f.mesInicio >= 0)) erros.push('Financiamento: a data da contratação não pode ser no passado.');
       if (!(pos(f.prazoMeses) && f.prazoMeses >= 1 && f.prazoMeses <= MAX_MESES)) erros.push('Financiamento: prazo inválido.');
     }
     const c = e.consorcio;
@@ -138,6 +145,7 @@
       ipcaAnual: e.ipcaAnual || 0,
       custoEsperaMensal: e.custoEsperaMensal || 0,
       reservaMinima: e.reservaMinima || 0,
+      mesCompraAlvo: Math.max(0, Math.round(e.mesCompra || 0)),
       horizonteMeses: Math.round(e.horizonteMeses)
     }, override || {});
     // taxa do mês m (1..): função, lista ou número
@@ -164,7 +172,21 @@
     const furaReserva = ctx.reservaMinima > 0 && base.mesCompra !== null
       ? serie.find(s => s.mes >= base.mesCompra && s.capital < ctx.reservaMinima - 0.005) : null;
     const h = serie[H];
+    // A pergunta central: quanto das parcelas a renda do capital pagou até o horizonte?
+    let somaParcelas = 0, rendaUsada = 0, retirado = 0, mesesCobertos = 0, mesesComParcela = 0;
+    // Conta todas as parcelas até o horizonte (no consórcio, também as pagas antes da contemplação).
+    // Parcela paga no início do mês (consórcio) é comparada com a renda daquele mês, que entra no fim dele.
+    serie.forEach(s => {
+      if (s.mes > H || !(s.parcela > 0)) return;
+      const ref = base.pagamentoAntecipado ? serie[s.mes + 1] : s;
+      const r = Math.max(0, ref ? ref.renda : 0);
+      somaParcelas += s.parcela; rendaUsada += Math.min(r, s.parcela);
+      retirado += Math.max(0, s.parcela - r);
+      mesesComParcela++; if (r >= s.parcela - 1e-6) mesesCobertos++;
+    });
     return Object.assign(base, {
+      periodo: { somaParcelas, rendaUsada, retiradoDoCapital: retirado, mesesComParcela, mesesCobertos,
+        cobertura: somaParcelas > 0 ? rendaUsada / somaParcelas : null },
       capitalMinimo: capMin ? capMin.capital : null,
       mesCapitalMinimo: capMin ? capMin.mes : null,
       mesEsgota: esgota ? esgota.mes : null,
@@ -176,48 +198,99 @@
   }
 
   /* ---------- financiamento ---------- */
+  /*
+   * Dois modos:
+   *  - 'proposta' (padrão do crédito imobiliário do Sicoob, conferido com a proposta
+   *    de 23/10/2026): todo mês o saldo é corrigido pela TR projetada; juros = saldo
+   *    corrigido × taxa nominal anual ÷ 12; amortização SAC = saldo corrigido ÷ meses
+   *    restantes (Price: parcela recalculada sobre o saldo corrigido); seguro MIP =
+   *    % do saldo corrigido pela faixa de idade do proponente; seguro DFI = % do valor
+   *    do imóvel, corrigido pela TR; tarifa mensal (TAC) fixa; despesas não
+   *    incorporadas saem do capital na contratação.
+   *  - 'cet': só o CET informado como taxa de juros, sem TR, seguros ou tarifas à parte.
+   * A contratação acontece no mês f.mesInicio (0 = hoje); até lá o capital rende.
+   * A 1ª parcela vence um mês depois da contratação.
+   */
+  function faixaMIP(tabela, idadeAnos) {
+    for (let k = 0; k < tabela.length; k++) if (idadeAnos <= tabela[k].idadeAte) return tabela[k].taxa;
+    return tabela.length ? tabela[tabela.length - 1].taxa : 0;
+  }
+
   function simularFinanciamento(f, ctx, Hsim) {
-    const i = taxaMensal(f.cetAnual);
+    const proposta = f.modo === 'proposta';
+    const i = proposta ? f.jurosNominalAnual / 12 : taxaMensal(f.cetAnual);
+    const tr = proposta ? (f.trMensal || 0) : 0;
     const n = Math.round(f.prazoMeses);
-    let C = ctx.capital;
-    let saldo = f.valorFinanciado;
-    const entrada = ctx.valorBem - f.valorFinanciado; // negativo = sobra de crédito volta ao capital
-    C -= entrada;
-    const capitalAposCompra = C;
-    const serie = [novoRegistro(ctx, 0, C, saldo, true, { renda: 0, parcela: 0 })];
-    const pmtPrice = pmt(f.valorFinanciado, i, n);
-    const fluxos = [f.valorFinanciado];
-    let totalParcelas = 0, parcelaInicial = 0, juros = 0;
-    for (let m = 1; m <= Hsim; m++) {
-      const renda = C * ctx.taxa(m);
-      let parcela = 0;
-      if (m <= n && saldo > 1e-9) {
-        const j = saldo * i;
-        const amort = f.sistema === 'PRICE' ? Math.min(pmtPrice - j, saldo) : Math.min(f.valorFinanciado / n, saldo);
-        parcela = amort + j; saldo -= amort; juros += j;
-        if (m === n) { parcela += saldo; saldo = 0; }
+    const D = Math.max(0, Math.round(f.mesInicio || 0));
+    const tac = proposta ? (f.tacMensal || 0) : 0;
+    const dfi = proposta ? (f.dfiMensal || 0) : 0;
+    const despesas = proposta ? (f.despesasIniciais || 0) : 0;
+    const tabMIP = proposta ? (f.tabelaMIP || []) : [];
+    const idade0 = proposta && f.idadeMesesHoje >= 0 ? f.idadeMesesHoje : null;
+
+    let C = ctx.capital, saldo = 0, temBem = false, p = 0;
+    let rendaMes = 0, entrada = 0, valorImovel = 0;
+    const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0 };
+    const fluxos = [];
+    let totalParcelas = 0, juros = 0, seguros = 0, tarifas = 0, correcao = 0, parcelaFinal = 0;
+    const serie = [];
+    for (let t = 0; t <= Hsim; t++) {
+      let pago = 0, det = null;
+      if (t >= 1) {
+        rendaMes = C * ctx.taxa(t);
+        C = C + rendaMes + ctx.aporteMensal - (temBem ? 0 : ctx.custoEsperaMensal);
       }
-      if (m === 1) parcelaInicial = parcela;
-      totalParcelas += parcela;
-      if (m <= n) fluxos.push(-parcela);
-      C = C + renda + ctx.aporteMensal - parcela;
-      serie.push(novoRegistro(ctx, m, C, Math.max(0, saldo), true, { renda, parcela }));
+      if (t > D && p < n && saldo > 1e-9) {
+        p += 1;
+        // no modo proposta, cada componente é arredondado a centavos, como no contrato
+        const cent = v => proposta ? Math.round(v * 100) / 100 : v;
+        const cm = cent(saldo * tr);
+        const corr = saldo + cm;
+        const j = cent(corr * i);
+        const rest = n - p + 1;
+        let amort = cent(f.sistema === 'PRICE' ? pmt(corr, i, rest) - j : corr / rest);
+        if (p === n || amort > corr) amort = corr;
+        const mip = idade0 === null ? 0 : cent(corr * faixaMIP(tabMIP, Math.floor((idade0 + t) / 12)));
+        const dfiV = cent(valorImovel * dfi * Math.pow(1 + tr, p - 1));
+        saldo = corr - amort;
+        if (saldo < 1e-6) saldo = 0;
+        pago = amort + j + mip + dfiV + tac;
+        det = { correcao: cm, amortizacao: amort, juros: j, mip, dfi: dfiV, tac };
+        juros += j; seguros += mip + dfiV; tarifas += tac; correcao += cm;
+        totalParcelas += pago; parcelaFinal = pago;
+        C -= pago;
+        fluxos[t] = (fluxos[t] || 0) - pago;
+        if (p === 1) info.parcelaInicial = pago;
+      }
+      if (t === D) {
+        valorImovel = ctx.precoBem(t);
+        entrada = valorImovel - f.valorFinanciado; // negativo = sobra de crédito volta ao capital
+        saldo = f.valorFinanciado;
+        C -= entrada + despesas;
+        temBem = true;
+        fluxos[t] = (fluxos[t] || 0) + f.valorFinanciado - despesas;
+        info.mesCompra = t;
+        info.desembolsoCompra = Math.max(0, entrada) + despesas;
+        info.capitalAposCompra = C;
+        info.rendaInicial = C * ctx.taxa(t + 1);
+      }
+      serie.push(novoRegistro(ctx, t, C, saldo, temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago, detalhe: det }));
     }
-    const ti = tir(fluxos);
-    return metricas(ctx, serie, {
+    for (let t = 0; t < fluxos.length; t++) if (fluxos[t] === undefined) fluxos[t] = 0;
+    const ti = fluxos.length > 1 ? tir(fluxos) : null;
+    // se a simulação não alcançou o fim do contrato, o custo efetivo usa o fluxo parcial (aproximação)
+    return metricas(ctx, serie, Object.assign(info, {
       id: 'financiamento',
-      mesCompra: 0,
-      desembolsoCompra: Math.max(0, entrada),
-      capitalAposCompra,
-      rendaInicial: capitalAposCompra * ctx.taxa(1),
-      parcelaInicial,
-      parcelaFinal: serie[Math.min(n, Hsim)].parcela,
-      totalPago: totalParcelas + Math.max(0, entrada),
-      custoCredito: juros,
+      modo: proposta ? 'proposta' : 'cet',
+      parcelaFinal,
+      totalPago: totalParcelas + info.desembolsoCompra,
+      totalParcelas,
+      custoCredito: juros + seguros + tarifas + correcao + despesas,
+      juros, seguros, tarifas, correcao, despesas,
       creditoUtil: f.valorFinanciado,
       custoEfetivoAnual: ti === null ? null : taxaAnualDeMensal(ti),
-      fimContrato: n
-    });
+      fimContrato: D + n
+    }));
   }
 
   /* ---------- consórcio ---------- */
@@ -307,6 +380,7 @@
     const ti = fluxos.some(f => f > 0) && fluxos.some(f => f < 0) ? tir(fluxos) : null;
     return metricas(ctx, serie, Object.assign(info, {
       id: 'consorcio',
+      pagamentoAntecipado: true,
       parcelaOriginal: (P / n) * c.carta + c.seguroMensal * P * c.carta,
       creditoRecebido: credito,
       lanceProprio, complemento, excedenteAbatido: excedente,
@@ -325,7 +399,7 @@
     const info = { mesCompra: null, desembolsoCompra: 0, capitalAposCompra: null, rendaInicial: 0, parcelaInicial: 0 };
     const comprar = m => {
       const preco = ctx.precoBem(m);
-      if (!temBem && C >= preco - 1e-6) {
+      if (!temBem && m >= ctx.mesCompraAlvo && C >= preco - 1e-6) {
         C -= preco; temBem = true;
         info.mesCompra = m; info.desembolsoCompra = preco; info.capitalAposCompra = C;
         info.rendaInicial = C * ctx.taxa(m + 1);
@@ -352,7 +426,7 @@
   /* ---------- análise completa ---------- */
   function horizonteSimulacao(e) {
     let H = Math.round(e.horizonteMeses);
-    if (e.financiamento && e.financiamento.ativo) H = Math.max(H, Math.round(e.financiamento.prazoMeses));
+    if (e.financiamento && e.financiamento.ativo) H = Math.max(H, Math.round(e.financiamento.prazoMeses) + Math.round(e.financiamento.mesInicio || 0));
     if (e.consorcio && e.consorcio.ativo) H = Math.max(H, Math.round(e.consorcio.prazoMeses));
     return Math.min(MAX_MESES, Math.max(1, H));
   }

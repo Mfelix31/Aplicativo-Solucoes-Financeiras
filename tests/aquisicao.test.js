@@ -219,3 +219,63 @@ test('Consórcio com carta no valor do bem (sem embutido): lance livre sai todo 
   perto(c.lanceProprio, 210000, 1e-6);
   perto(c.desembolsoCompra, 210000, 1e-6);
 });
+
+/* ---------- financiamento no padrão da proposta Sicoob ---------- */
+// Proposta "Relatório da Simulação de Financiamento" do Banco Sicoob, 23/10/2026:
+// R$ 600 mil, imóvel R$ 700 mil, Funding FGTS Pró-Cotista, SAC, 420 meses, juros 7,99% a.a. nominais,
+// TR projetada 0,1661% a.m., MIP Tokio Marine por faixa de idade (nascimento ),
+// DFI 0,00608% a.m. do imóvel, TAC R$ 25/mês, tarifa Pró-Cotista R$ 2.140 não incorporada.
+const MIP_PROPOSTA = [
+  { idadeAte: 45, taxa: 0.000244 }, { idadeAte: 50, taxa: 0.000424 }, { idadeAte: 55, taxa: 0.000655 },
+  { idadeAte: 60, taxa: 0.000915 }, { idadeAte: 65, taxa: 0.001329 }, { idadeAte: 70, taxa: 0.00217 },
+  { idadeAte: 75, taxa: 0.003588 }, { idadeAte: 80, taxa: 0.005835 }
+];
+const PROPOSTA = { modo: 'proposta', valorFinanciado: 600000, jurosNominalAnual: 0.0799, trMensal: 0.001661,
+  prazoMeses: 420, sistema: 'SAC', tabelaMIP: MIP_PROPOSTA, idadeMesesHoje: 45 * 12, dfiMensal: 0.0000608,
+  tacMensal: 25, despesasIniciais: 2140, mesInicio: 0 };
+const REF = {"1": {"prest": 5646.78, "saldo": 599565.66, "mip": 146.64, "dfi": 42.56}, "2": {"prest": 5646.23, "saldo": 599128.22, "mip": 146.54, "dfi": 42.63}, "11": {"prest": 5640.43, "saldo": 595050.35, "mip": 145.55, "dfi": 43.27}, "12": {"prest": 5746.98, "saldo": 594581.43, "mip": 252.72, "dfi": 43.34}, "13": {"prest": 5746.16, "saldo": 594109.31, "mip": 252.52, "dfi": 43.42}, "60": {"prest": 5684.97, "saldo": 568134.11, "mip": 241.56, "dfi": 46.94}, "71": {"prest": 5664.04, "saldo": 560921.76, "mip": 238.51, "dfi": 47.8}, "72": {"prest": 5791.79, "saldo": 560243.56, "mip": 368.01, "dfi": 47.88}, "132": {"prest": 5748.86, "saldo": 512195.83, "mip": 470.29, "dfi": 52.9}, "192": {"prest": 5641.67, "saldo": 447946.08, "mip": 597.93, "dfi": 58.44}, "252": {"prest": 5498.1, "saldo": 364627.59, "mip": 795.95, "dfi": 64.55}, "312": {"prest": 5171.76, "saldo": 258950.66, "mip": 937.72, "dfi": 71.31}, "372": {"prest": 4373.97, "saldo": 127145.69, "mip": 757.35, "dfi": 78.78}, "419": {"prest": 3045.38, "saldo": 2875.39, "mip": 33.49, "dfi": 85.17}, "420": {"prest": 3026.47, "saldo": 0.0, "mip": 16.81, "dfi": 85.31}};
+
+test('Financiamento reproduz a proposta do Sicoob (prestação, saldo, MIP e DFI, mês a mês)', () => {
+  const f = E.analisar(caso({ horizonteMeses: 420, financiamento: PROPOSTA })).cenarios.financiamento;
+  for (const [n, r] of Object.entries(REF)) {
+    const s = f.serie[Number(n)];
+    // o banco arredonda internamente de forma um pouco diferente: diferença de centavos por mês,
+    // que se acumula no saldo (máx. ~R$ 12 em R$ 600 mil) e é absorvida pela última parcela
+    if (Number(n) < 420) perto(s.parcela, r.prest, 0.15, `prestação ${n}`);
+    perto(s.saldoDevedor, r.saldo, 12, `saldo ${n}`);
+    perto(s.detalhe.mip, r.mip, 0.1, `MIP ${n}`);
+    perto(s.detalhe.dfi, r.dfi, 0.02, `DFI ${n}`);
+  }
+  perto(f.parcelaInicial, 5646.78, 0.01, '1º encargo');
+});
+
+test('Financiamento da proposta: totais batem com o relatório (valor final R$ 2.181.986,40)', () => {
+  const f = E.analisar(caso({ horizonteMeses: 420, financiamento: PROPOSTA })).cenarios.financiamento;
+  perto(f.totalParcelas, 2181986.40, 25, 'valor final'); // diferença < 0,002%
+  perto(f.juros, 1076985.07, 25, 'juros');
+  perto(f.seguros, 200456.81 + 25823.40, 10, 'MIP + DFI');
+  perto(f.tarifas, 10500, 1e-6, 'TAC');
+  perto(f.desembolsoCompra, 100000 + 2140, 1e-6, 'entrada + tarifa');
+});
+
+test('Financiamento com contratação futura: capital rende até a data e a 1ª parcela vem um mês depois', () => {
+  const f = E.analisar(caso({ financiamento: Object.assign({}, PROPOSTA, { mesInicio: 6 }) })).cenarios.financiamento;
+  assert.equal(f.mesCompra, 6);
+  perto(f.serie[5].capital, 650000 * Math.pow(1 + r7k, 5), 1e-6);
+  assert.equal(f.serie[6].parcela, 0);
+  assert.ok(f.serie[7].parcela > 0);
+});
+
+test('Capital próprio respeita a data prevista da compra', () => {
+  const a = E.analisar(caso({ capital: 800000, mesCompra: 12 })).cenarios.avista;
+  assert.equal(a.mesCompra, 12);
+});
+
+test('Cobertura no período: quanto das parcelas a renda pagou e quanto saiu do capital', () => {
+  const r = E.analisar(caso());
+  const p = r.cenarios.financiamento.periodo;
+  assert.ok(p.cobertura > 0.99 && p.cobertura <= 1);
+  const c = r.cenarios.consorcio.periodo;
+  assert.ok(c.cobertura < 1 && c.retiradoDoCapital > 0);
+  perto(c.rendaUsada + c.retiradoDoCapital, c.somaParcelas, 1e-6);
+});

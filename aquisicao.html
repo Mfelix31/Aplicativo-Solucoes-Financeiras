@@ -156,6 +156,17 @@
   .t td small{display:block; color:var(--red); font-size:10.5px; font-weight:400;}
   .t th .dot{margin-right:5px;}
 
+  .mip-box{margin:0 0 14px;} .mip-box summary{cursor:pointer; font-size:12.5px; color:var(--ink-muted);}
+  .mip-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;}
+  .mip-grid .row-input input{font-size:13px; padding:7px 8px;}
+  .answer{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin-bottom:18px;}
+  .ans{background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--cl); border-radius:6px; padding:14px 16px;}
+  .ans h4{margin:0 0 2px; font-size:13px; color:var(--ink-muted); font-weight:600;}
+  .ans .big{font-size:20px; font-weight:700; margin:2px 0 8px;}
+  .ans .big.ok{color:var(--ok);} .ans .big.no{color:var(--red);} .ans .big.mid{color:var(--ink);}
+  .ans .lrow{font-size:12.5px;}
+  .q-title{font-size:18px; font-weight:600; margin:0 0 4px;}
+  .q-sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 12px;}
   details.flow summary{cursor:pointer; font-size:15px; font-weight:600; list-style:none; display:flex; align-items:center; gap:8px;}
   details.flow summary::before{content:'▸'; color:var(--ink-faint); transition:transform .15s ease;}
   details.flow[open] summary::before{transform:rotate(90deg);}
@@ -349,6 +360,11 @@
           <button type="button" class="ghost" id="btnIpca">Buscar</button>
         </div>
         <div class="field">
+          <label for="dataCompra">Data prevista da compra</label>
+          <div class="row-input"><input type="month" id="dataCompra"></div>
+          <div class="hint">Financiamento e compra à vista. Até lá, o capital continua investido e rendendo.</div>
+        </div>
+        <div class="field">
           <label for="horizonte">Comparar o patrimônio em</label>
           <div class="row-input"><input type="number" id="horizonte" value="10" min="1" max="50" step="1"><span class="suffix">anos</span></div>
           <div class="hint">Sugestão: 10 anos, para não depender de taxas por décadas.</div>
@@ -367,7 +383,14 @@
       <h2><span class="dot"></span>Financiamento
         <label class="switch"><input type="checkbox" id="onFin" checked> incluir</label></h2>
       <div class="path-body">
-        <p class="sub">A entrada sai do capital; o restante é pago em parcelas pelo CET informado.</p>
+        <p class="sub">Use os dados da simulação de financiamento do Sicoob para o caso do cooperado. A entrada sai do capital na contratação.</p>
+        <div class="seg-wrap">
+          <span class="lbl">Como informar as condições</span>
+          <div class="seg" id="segFinModo">
+            <button type="button" data-v="proposta" class="active">Dados da proposta</button>
+            <button type="button" data-v="cet">Só o CET</button>
+          </div>
+        </div>
         <div class="grid">
           <div class="field">
             <label for="finValor">Valor financiado</label>
@@ -375,14 +398,55 @@
             <div class="hint" id="hintEntrada"></div>
           </div>
           <div class="field">
-            <label for="finCet">CET (custo efetivo total)</label>
-            <div class="row-input"><input type="number" id="finCet" value="9.34" min="0" step="0.01"><span class="suffix">% a.a.</span></div>
-            <div class="hint">O CET já inclui juros, seguros e tarifas.</div>
-          </div>
-          <div class="field">
             <label for="finPrazo">Prazo</label>
             <div class="row-input"><input type="number" id="finPrazo" value="420" min="1" max="600" step="1"><span class="suffix">meses</span></div>
           </div>
+          <div class="field">
+            <label for="finCet">CET da proposta</label>
+            <div class="row-input"><input type="number" id="finCet" value="9.34" min="0" step="0.01"><span class="suffix">% a.a.</span></div>
+            <div class="hint" id="hintCet">Informativo: pela regra do Banco Central, o CET não inclui a TR futura.</div>
+          </div>
+        </div>
+        <div id="finProposta">
+          <div class="grid">
+            <div class="field">
+              <label for="finJuros">Taxa nominal de juros</label>
+              <div class="row-input"><input type="number" id="finJuros" value="7.99" min="0" step="0.01"><span class="suffix">% a.a.</span></div>
+              <div class="hint">Juros do mês = saldo corrigido × taxa ÷ 12.</div>
+            </div>
+            <div class="field">
+              <label for="finTr">TR projetada (correção do saldo)</label>
+              <div class="row-input"><input type="number" id="finTr" value="0.1661" min="0" step="0.0001"><span class="suffix">% a.m.</span></div>
+              <div class="hint">A da proposta. A TR real muda todo mês.</div>
+            </div>
+            <div class="field">
+              <label for="finNasc">Nascimento do 1º proponente</label>
+              <div class="row-input"><input type="date" id="finNasc" value=""></div>
+              <div class="hint">Define a faixa do seguro MIP. Fica só no navegador.</div>
+            </div>
+            <div class="field">
+              <label for="finDfi">Seguro DFI</label>
+              <div class="row-input"><input type="number" id="finDfi" value="0.00608" min="0" step="0.00001"><span class="suffix">% a.m. do imóvel</span></div>
+            </div>
+            <div class="field">
+              <label for="finTac">Tarifa mensal (TAC)</label>
+              <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="finTac" class="money" value="25,00"><span class="suffix">/mês</span></div>
+            </div>
+            <div class="field">
+              <label for="finDesp">Despesas não incorporadas</label>
+              <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="finDesp" class="money" value="2.140,00"></div>
+              <div class="hint">Tarifas pagas na contratação (ex.: Pró-Cotista). Saem do capital.</div>
+            </div>
+            <div class="field">
+              <label for="finData">Data da proposta</label>
+              <div class="row-input"><input type="date" id="finData" value="2026-10-23"></div>
+            </div>
+          </div>
+          <details class="mip-box">
+            <summary>Seguro MIP por faixa de idade (% a.m. do saldo)</summary>
+            <p class="hint" style="margin:6px 0 10px;">Taxas da seguradora na proposta (Tokio Marine, Sicoob, 23/10/2026). Ajuste se a proposta do cooperado trouxer outras.</p>
+            <div class="mip-grid" id="mipGrid"></div>
+          </details>
         </div>
         <div class="seg-wrap">
           <span class="lbl">Sistema de amortização</span>
@@ -446,9 +510,9 @@
             <div class="hint">Sai do próprio crédito: o cliente recebe menos, mas paga as taxas sobre a carta cheia.</div>
           </div>
           <div class="field">
-            <label for="consMes">Contemplação na assembleia nº</label>
-            <div class="row-input"><input type="number" id="consMes" value="1" min="1" step="1"></div>
-            <div class="hint">1 = primeira assembleia (compra imediata). Sem lance, a data é incerta.</div>
+            <label for="consMes">Contemplação prevista</label>
+            <div class="row-input"><input type="month" id="consMes"></div>
+            <div class="hint" id="hintConsMes">Adesão neste mês. Até a contemplação, as parcelas saem do capital, que segue rendendo. Sem lance, a data é incerta.</div>
           </div>
         </div>
         <div class="seg-wrap">
@@ -483,6 +547,10 @@
       <div class="warn-box"><span aria-hidden="true">⚠️</span><span>Esta é uma <strong>simulação</strong> com os parâmetros informados. Taxas, inflação e condições de crédito mudam ao longo do tempo; o resultado real pode ser diferente. Não é recomendação de investimento nem de crédito.</span></div>
 
       <div class="verdict" id="verdict"></div>
+
+      <p class="q-title">A renda do investimento paga a parcela?</p>
+      <p class="q-sub">A pergunta central: o capital que continua investido gera renda suficiente para pagar a parcela sem ser consumido?</p>
+      <div class="answer" id="answer"></div>
 
       <div class="paths" id="cards"></div>
 
@@ -531,9 +599,9 @@
         <ul>
           <li><b>Todo mês</b>, o capital investido rende pela taxa líquida informada; a parcela sai desse capital. O que sobra da renda fica investido; o que falta é descapitalização.</li>
           <li><b>Patrimônio líquido</b> = capital investido + valor do bem − saldo devedor. É o número que permite comparar caminhos diferentes de forma justa. Em "R$ de hoje", descontado o IPCA previsto.</li>
-          <li><b>Financiamento:</b> parcela pelo CET informado (SAC ou Price), paga no fim de cada mês. <b>Consórcio:</b> parcela = (100% + taxa de administração + fundo de reserva) ÷ prazo × carta, paga no início do mês; seguro sobre o saldo devedor; carta e saldo reajustados a cada 12 meses; crédito acima do preço do bem abate o saldo devedor. <b>Capital próprio:</b> compra quando o capital alcança o preço do bem já valorizado.</li>
+          <li><b>Financiamento:</b> como na proposta do Sicoob: saldo corrigido pela TR projetada, juros nominais ÷ 12, amortização SAC ou Price, seguros MIP (por idade) e DFI, tarifa mensal; parcela no fim de cada mês, a partir do mês seguinte à contratação. Conferido contra a proposta de 23/10/2026: diferença de centavos por parcela. <b>Consórcio:</b> parcela = (100% + taxa de administração + fundo de reserva) ÷ prazo × carta, paga no início do mês; seguro sobre o saldo devedor; carta e saldo reajustados a cada 12 meses; crédito acima do preço do bem abate o saldo devedor. <b>Capital próprio:</b> compra quando o capital alcança o preço do bem já valorizado.</li>
           <li><b>Base mensal</b> (taxa mensal equivalente), como no Planejamento. Para produtos tributados, a renda mensal é reduzida pela alíquota de IR do prazo médio informado.</li>
-          <li><b>Limitações:</b> a taxa do capital é constante (ou segue a curva Focus, se marcada); CET e reajustes são os informados, sem variação de TR/IPCA no financiamento; o lance de consórcio pode não ser vencedor na data simulada; não considera ITBI, escritura, IPVA ou manutenção do bem.</li>
+          <li><b>Limitações:</b> a taxa do capital é constante (ou segue a curva Focus, se marcada); a TR do financiamento e o reajuste do consórcio ficam constantes nos valores informados; o IR de produtos tributados é aplicado mês a mês sobre a renda (simplificação); o lance de consórcio pode não ser vencedor na data simulada; não considera ITBI, escritura, IPVA ou manutenção do bem.</li>
         </ul>
       </div>
 
@@ -583,6 +651,31 @@ function mesAno(t){
   return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][d.getMonth()] + '/' + d.getFullYear();
 }
 
+/* ---------- datas ---------- */
+const mesAtualStr = () => HOJE.getFullYear() + '-' + String(HOJE.getMonth()+1).padStart(2,'0');
+/** meses entre o mês atual e 'aaaa-mm' (0 = este mês; negativo = passado; NaN se vazio) */
+function mesesAte(str){
+  const m = /^(\d{4})-(\d{2})/.exec(str || '');
+  if(!m) return NaN;
+  return (parseInt(m[1],10) - HOJE.getFullYear())*12 + (parseInt(m[2],10) - 1 - HOJE.getMonth());
+}
+/** idade em meses completos hoje, a partir de 'aaaa-mm-dd' */
+function idadeMeses(str){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || '');
+  if(!m) return NaN;
+  let meses = (HOJE.getFullYear() - parseInt(m[1],10))*12 + (HOJE.getMonth() - (parseInt(m[2],10)-1));
+  if(HOJE.getDate() < parseInt(m[3],10)) meses -= 1;
+  return meses;
+}
+const dataBR = str => (str || '').split('-').reverse().join('/');
+
+/* ---------- seguro MIP por faixa de idade (proposta Sicoob/Tokio Marine, 23/10/2026) ---------- */
+const MIP_PADRAO = [[45,0.0244],[50,0.0424],[55,0.0655],[60,0.0915],[65,0.1329],[70,0.2170],[75,0.3588],[80,0.5835]];
+function renderMip(){
+  $('mipGrid').innerHTML = MIP_PADRAO.map(([a,t],k) => '<div class="field"><label for="mip' + k + '" style="font-size:11.5px;">' + (k === 0 ? 'até ' + a + ' anos' : (MIP_PADRAO[k-1][0]+1) + ' a ' + a + ' anos') + '</label><div class="row-input"><input type="number" id="mip' + k + '" value="' + t + '" min="0" step="0.0001"><span class="suffix">%</span></div></div>').join('');
+}
+const lerMip = () => MIP_PADRAO.map(([a], k) => ({idadeAte: a, taxa: num('mip' + k)/100}));
+
 /* ---------- entrada de moeda (mesma máscara do simulador) ---------- */
 function lerMoeda(el){ const n = parseFloat(String(el.value||'0').replace(/\./g,'').replace(',','.')); return isNaN(n) ? 0 : n; }
 function mascara(el){
@@ -599,7 +692,7 @@ const money = id => lerMoeda($(id));
 
 /* ---------- caminhos ---------- */
 const CAM = {
-  financiamento: {nome:'Financiamento', cor:'--l-turq', txt:'--gold', desc:'Entrada + parcelas pelo CET'},
+  financiamento: {nome:'Financiamento', cor:'--l-turq', txt:'--gold', desc:'Entrada + parcelas da proposta'},
   consorcio:     {nome:'Consórcio', cor:'--l-roxo', txt:'--blue', desc:'Carta de crédito com lance'},
   avista:        {nome:'Capital próprio', cor:'--l-verde', txt:'--teal', desc:'Compra à vista'}
 };
@@ -608,7 +701,7 @@ const BEM = {imovel:'imóvel', carro:'carro', terreno:'terreno', outro:'bem'};
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
 /* ---------- estado de UI ---------- */
-const seg = {modal:'embutido', modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
+const seg = {finModo:'proposta', modal:'embutido', modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
 function ligarSeg(id, chave, cb){
   $(id).querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
     seg[chave] = b.dataset.v;
@@ -687,10 +780,15 @@ function lerEntradas(){
     capital, valorBem, aporteMensal: money('aporte'), reservaMinima: money('reserva'),
     valorizacaoAnual: valorizacao, ipcaAnual: ipca, custoEsperaMensal: money('custoEspera'),
     horizonteMeses: Math.round(num('horizonte')*12), taxaMes,
-    financiamento: {ativo: $('onFin').checked, valorFinanciado: money('finValor'), cetAnual: num('finCet')/100, prazoMeses: Math.round(num('finPrazo')), sistema: seg.sistema},
+    mesCompra: Math.max(0, mesesAte($('dataCompra').value) || 0),
+    financiamento: Object.assign({ativo: $('onFin').checked, modo: seg.finModo, valorFinanciado: money('finValor'), cetAnual: num('finCet')/100,
+      prazoMeses: Math.round(num('finPrazo')), sistema: seg.sistema, mesInicio: Math.max(0, mesesAte($('dataCompra').value) || 0)},
+      seg.finModo === 'proposta' ? {jurosNominalAnual: num('finJuros')/100, trMensal: num('finTr')/100, tabelaMIP: lerMip(),
+        idadeMesesHoje: idadeMeses($('finNasc').value), dfiMensal: num('finDfi')/100, tacMensal: money('finTac'), despesasIniciais: money('finDesp'),
+        dataProposta: $('finData').value} : {}),
     consorcio: {ativo: $('onCons').checked, modalidade: seg.modal, carta: seg.modal === 'bem' ? valorBem : money('consCarta'), prazoMeses: Math.round(num('consPrazo')),
       taxaAdm: num('consAdm')/100, fundoReserva: num('consFr')/100, seguroMensal: num('consSeg')/100, reajusteAnual: num('consReaj')/100,
-      lanceTotal: num('consLance')/100, lanceEmbutido: seg.modal === 'bem' ? 0 : num('consEmb')/100, lanceReduz: seg.reduz, mesContemplacao: Math.round(num('consMes'))},
+      lanceTotal: num('consLance')/100, lanceEmbutido: seg.modal === 'bem' ? 0 : num('consEmb')/100, lanceReduz: seg.reduz, mesContemplacao: mesesAte($('consMes').value) + 1},
     avista: {ativo: $('onAv').checked}
   };
   const extraErros = [];
@@ -701,6 +799,19 @@ function lerEntradas(){
   if(e.financiamento.ativo && e.financiamento.valorFinanciado > valorBem) extraErros.push('Financiamento: o valor financiado não pode passar do valor do bem.');
   if(!(num('horizonte') >= 1 && num('horizonte') <= 50)) extraErros.push('Horizonte: de 1 a 50 anos.');
   if(!e.financiamento.ativo && !e.consorcio.ativo && !e.avista.ativo) extraErros.push('Inclua pelo menos um caminho de compra.');
+  const dc = mesesAte($('dataCompra').value);
+  if(isNaN(dc)) extraErros.push('Informe a data prevista da compra.');
+  else if(dc < 0) extraErros.push('A data prevista da compra não pode ser anterior a este mês.');
+  if(e.consorcio.ativo){
+    const dk = mesesAte($('consMes').value);
+    if(isNaN(dk)) extraErros.push('Consórcio: informe a contemplação prevista.');
+    else if(dk < 0) extraErros.push('Consórcio: a contemplação não pode ser anterior a este mês.');
+  }
+  if(e.financiamento.ativo && seg.finModo === 'proposta'){
+    const im = idadeMeses($('finNasc').value);
+    if(!(im >= 18*12 && im < 100*12)) extraErros.push('Financiamento: informe a data de nascimento do 1º proponente.');
+    if(lerMip().some(x => !(x.taxa >= 0))) extraErros.push('Financiamento: revise a tabela do seguro MIP.');
+  }
   return {e, info, taxaMesInicial, extraErros, tipo: $('tipoBem').value};
 }
 
@@ -717,6 +828,11 @@ function renderDicas(inp){
     $('hintProduto').innerHTML = 'Rendimento líquido do capital: <strong>' + fmtPct(taxaMesInicial,3) + ' a.m.</strong> = <strong>' + fmtPct(aa) + ' a.a.</strong> · renda líquida hoje ≈ <strong>' + fmtBRL0(e.capital * taxaMesInicial) + '/mês</strong>' +
       (info.focus ? ' (muda a cada ano pela curva Focus).' : '.');
   }
+  const prop = seg.finModo === 'proposta';
+  $('finProposta').hidden = !prop;
+  $('hintCet').textContent = prop ? 'Informativo: pela regra do Banco Central, o CET não inclui a TR futura. O app calcula o custo com a TR projetada.' : 'Usado como taxa de juros, sem TR, seguros ou tarifas à parte. Prefira os dados da proposta.';
+  const k = mesesAte($('consMes').value);
+  if(!isNaN(k) && k >= 0) $('hintConsMes').textContent = (k === 0 ? 'Contemplação neste mês (1ª assembleia): compra imediata.' : 'Contemplação na ' + (k+1) + 'ª assembleia, daqui a ' + fmtPrazo(k) + '. Até lá, as parcelas saem do capital, que segue rendendo.') + ' Sem lance vencedor, a data é incerta.';
   const ent = e.valorBem - e.financiamento.valorFinanciado;
   $('hintEntrada').innerHTML = 'Entrada (sai do capital): <strong>' + fmtBRL0(Math.max(0, ent)) + '</strong>';
   // resumo do consórcio
@@ -788,7 +904,7 @@ function recalcular(){
   const base = [0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14];
   const taxas = base.filter(t => Math.abs(t - atualAA) > 0.002).concat([atualAA]).sort((a,b)=>a-b);
   const sens = E.sensibilidade(inp.e, taxas, H);
-  ultimo = {inp, r, eq, sens, atualAA, ativos};
+  ultimo = {inp, r, eq, sens, atualAA, ativos, taxaMesInicialRef: inp.taxaMesInicial};
   renderDicas(inp);
   renderTudo();
 }
@@ -848,6 +964,38 @@ function renderCards(){
 }
 
 /* ---------- conclusão em linguagem de conversa ---------- */
+function respostaDe(id, c, H){
+  if(id === 'avista') return {cls:'mid', txt: c.mesCompra === null ? 'Não alcança o preço do bem' : 'Sem parcela'};
+  if(c.mesCompra === null || c.mesCompra > H) return {cls:'mid', txt:'Não chega a comprar no período'};
+  const cob = c.periodo.cobertura;
+  if(cob !== null && cob >= 0.999) return {cls:'ok', txt:'Sim, paga toda a parcela'};
+  if(c.mesEsgota !== null && c.mesEsgota <= H) return {cls:'no', txt:'Não: a parcela consome o capital'};
+  return {cls:'mid', txt:'Em parte: paga ' + fmtPct(cob || 0, 0) + ' das parcelas'};
+}
+function renderResposta(){
+  const {inp, r} = ultimo;
+  const H = inp.e.horizonteMeses, anos = Math.round(H/12);
+  const C = r.cenarios;
+  const linha = (k, v) => '<div class="lrow"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
+  $('answer').innerHTML = ORDEM.filter(id => C[id]).map(id => {
+    const c = C[id], k = CAM[id], a = respostaDe(id, c, H);
+    let rows = '';
+    if(id === 'avista'){
+      if(c.mesCompra !== null){
+        const antes = (c.mesCompra === 0 ? inp.e.capital : c.serie[c.mesCompra - 1].capital) * ultimo.taxaMesInicialRef;
+        rows += linha('Renda que deixa de existir', fmtBRL0(Math.max(0, antes - c.rendaInicial)) + '/mês');
+        rows += linha('Fica investido', fmtBRL0(c.capitalAposCompra));
+      }
+    } else if(c.mesCompra !== null && c.mesCompra <= H){
+      const p = c.periodo;
+      rows += linha('1º mês após a compra', 'renda ' + fmtBRL0(c.rendaInicial) + ' × parcela ' + fmtBRL0(c.parcelaInicial));
+      rows += linha('Em ' + fmtAnos(anos) + ', a renda pagou', fmtBRL0(p.rendaUsada) + ' de ' + fmtBRL0(p.somaParcelas) + '<small>' + fmtPct(p.cobertura || 0, 0) + ' das parcelas</small>');
+      rows += linha('Saiu do capital para completar', '<span class="' + (p.retiradoDoCapital > 0.5 ? 'no-t' : 'ok-t') + '">' + fmtBRL0(p.retiradoDoCapital) + '</span>');
+      rows += linha('Meses em que a renda cobriu a parcela', p.mesesCobertos + ' de ' + p.mesesComParcela);
+    }
+    return '<div class="ans" style="--cl:var(' + k.cor + ')"><h4>' + k.nome + '</h4><div class="big ' + a.cls + '">' + a.txt + '</div>' + rows + '</div>';
+  }).join('');
+}
 function textoConclusao(){
   const {inp, r, eq, atualAA} = ultimo;
   const H = inp.e.horizonteMeses, anos = Math.round(H/12);
@@ -856,14 +1004,14 @@ function textoConclusao(){
   let head;
   const sustenta = id => C[id] && C[id].mesCompra !== null && C[id].mesCompra <= H && (C[id].mesEsgota === null);
   const viaveis = ORDEM.filter(sustenta);
-  if(r.melhor){
-    head = 'Em ' + fmtAnos(anos) + ', <b>' + CAM[r.melhor].nome + '</b> deixa o cliente com o maior patrimônio';
-    const outros = ORDEM.filter(id => C[id] && id !== r.melhor && C[id].mesCompra !== null);
-    if(outros.length){
-      const dif = outros.map(id => fmtBRL0(C[r.melhor].horizonte.patrimonio - C[id].horizonte.patrimonio) + ' a mais que ' + nome(id)).join(' e ');
-      head += ': ' + dif + '.';
-    } else head += '.';
-  } else head = 'Nenhum caminho compra o bem dentro de ' + fmtAnos(anos) + ' com esses dados.';
+  const difs = id => ORDEM.filter(x => C[x] && x !== id && C[x].mesCompra !== null && C[x].mesCompra <= H)
+    .map(x => fmtBRL0(C[id].horizonte.patrimonio - C[x].horizonte.patrimonio) + ' a mais que ' + nome(x)).join(' e ');
+  if(!r.melhor) head = 'Nenhum caminho compra o bem dentro de ' + fmtAnos(anos) + ' com esses dados.';
+  else if(r.melhor === 'avista') head = 'Neste cenário, <b>não compensa</b> manter o capital investido e pagar parcelas: comprar com capital próprio deixa o cliente com o maior patrimônio em ' + fmtAnos(anos) + (difs('avista') ? ' (' + difs('avista') + ').' : '.');
+  else {
+    const pagou = C[r.melhor].periodo.cobertura !== null && C[r.melhor].periodo.cobertura >= 0.999;
+    head = 'Neste cenário, <b>compensa</b> manter o capital investido: o ' + nome(r.melhor) + (pagou ? ', com a renda do investimento pagando a parcela,' : '') + ' deixa o cliente com o maior patrimônio em ' + fmtAnos(anos) + (difs(r.melhor) ? ' (' + difs(r.melhor) + ').' : '.');
+  }
   // por caminho
   if(C.financiamento){
     const f = C.financiamento;
@@ -885,9 +1033,15 @@ function textoConclusao(){
   }
   if(C.consorcio && C.consorcio.mesCompra !== null){
     const cc = inp.e.consorcio;
-    p.push('<b>Atenção à contemplação:</b> o consórcio foi simulado com contemplação na assembleia ' + cc.mesContemplacao + (cc.lanceTotal > 0 ? ' com lance de ' + fmtPct(cc.lanceTotal,0) + ' da carta' : ' sem lance') + '. Isso é uma hipótese, não uma garantia: confira o histórico de lances vencedores do grupo e simule também uma contemplação mais tarde.');
+    p.push('<b>Atenção à contemplação:</b> o consórcio foi simulado com contemplação em ' + mesAno(cc.mesContemplacao - 1) + (cc.lanceTotal > 0 ? ' com lance de ' + fmtPct(cc.lanceTotal,0) + ' da carta' : ' sem lance') + '. Isso é uma hipótese, não uma garantia: confira o histórico de lances vencedores do grupo e simule também uma contemplação mais tarde.');
   }
-  if(eq.finAv != null) p.push('<b>Atenção ao CDI:</b> o financiamento só vence a compra à vista enquanto o capital render mais de <b>' + fmtPct(eq.finAv) + ' a.a. líquidos</b>' + cdiEq(eq.finAv) + '. Hoje rende ' + fmtPct(atualAA) + '.');
+  const parEq = {financiamento: eq.finAv, consorcio: eq.consAv};
+  const refEq = r.melhor && r.melhor !== 'avista' ? r.melhor : (C.financiamento ? 'financiamento' : null);
+  if(refEq && parEq[refEq] != null){
+    const folga = atualAA - parEq[refEq];
+    p.push('<b>Atenção ao CDI:</b> o ' + nome(refEq) + ' só vence a compra à vista enquanto o capital render mais de <b>' + fmtPct(parEq[refEq]) + ' a.a. líquidos</b>' + cdiEq(parEq[refEq]) + '. Hoje rende ' + fmtPct(atualAA) +
+      (folga >= 0 ? ', uma folga de ' + fmtPct(folga) + ' (pontos percentuais).' : ', abaixo desse ponto.'));
+  }
   return {head, p, viaveis};
 }
 function cdiEq(t){
@@ -942,7 +1096,12 @@ function renderCusto(){
   h += linha('Crédito usado', (c, id) => id === 'avista' ? '—' : fmtBRL0(c.creditoUtil));
   h += linha('Total pago ao credor', (c, id) => id === 'avista' ? '—' : fmtBRL0(id === 'financiamento' ? c.totalPago - c.desembolsoCompra : c.totalPago));
   h += linha('Custo do crédito (juros e taxas)', (c, id) => id === 'avista' ? '—' : fmtBRL0(c.custoCredito));
-  h += linha('Custo efetivo', (c, id) => id === 'avista' ? 'custo de oportunidade' : (c.custoEfetivoAnual === null ? '—' : fmtPct(c.custoEfetivoAnual) + ' a.a.'));
+  if(C.financiamento && C.financiamento.modo === 'proposta'){
+    const f = C.financiamento;
+    h += linha('… juros · correção TR · seguros · tarifas', (c, id) => id === 'financiamento' ? fmtBRL0(f.juros) + ' · ' + fmtBRL0(f.correcao) + ' · ' + fmtBRL0(f.seguros) + ' · ' + fmtBRL0(f.tarifas + f.despesas) : '—');
+  }
+  h += linha('Custo efetivo', (c, id) => id === 'avista' ? 'custo de oportunidade' : (c.custoEfetivoAnual === null ? '—' : fmtPct(c.custoEfetivoAnual) + ' a.a.' +
+    (id === 'financiamento' && c.modo === 'proposta' ? '<small style="color:var(--ink-faint)">com TR projetada · CET da proposta ' + fmtPct(ultimo.inp.e.financiamento.cetAnual) + ' (sem TR)</small>' : '')));
   h += linha('Fim do contrato', (c, id) => id === 'avista' ? '—' : fmtPrazo(c.fimContrato + (id === 'consorcio' ? 1 : 0)) + ' <small style="color:var(--ink-faint)">' + mesAno(c.fimContrato) + '</small>');
   $('tabCusto').innerHTML = h;
 }
@@ -1067,7 +1226,7 @@ function ligarTooltip(){
 
 function renderTudo(){
   if(!ultimo) return;
-  renderConclusao(); renderCards(); renderEstresse(); renderCusto(); renderFluxo(); desenharGrafico();
+  renderConclusao(); renderResposta(); renderCards(); renderEstresse(); renderCusto(); renderFluxo(); desenharGrafico();
 }
 
 /* ---------- navegação ---------- */
@@ -1146,8 +1305,11 @@ function gerarPdf(){
     linha('IPCA previsto', fmtPct(e.ipcaAnual) + ' a.a.') +
     linha('Horizonte da comparação', fmtAnos(anos));
   const f = e.financiamento, c = e.consorcio;
-  const cond = (f.ativo ? linha('Financiamento', fmtBRL0(f.valorFinanciado) + ' · CET ' + fmtPct(f.cetAnual) + ' a.a. · ' + f.prazoMeses + ' meses · ' + (f.sistema === 'SAC' ? 'SAC' : 'Price')) : '') +
-    (c.ativo ? linha('Consórcio', (c.modalidade === 'bem' ? 'Carta no valor do bem' : 'Carta com lance embutido') + ' · ' + fmtBRL0(c.carta) + ' · ' + c.prazoMeses + ' meses · adm ' + fmtPct(c.taxaAdm,1) + ' · fundo de reserva ' + fmtPct(c.fundoReserva,1) + ' · seguro ' + fmtPct(c.seguroMensal,3) + ' a.m. · reajuste ' + fmtPct(c.reajusteAnual,1) + ' a.a. (' + $('consIndice').value + ') · lance ' + fmtPct(c.lanceTotal,0) + ' (' + fmtPct(c.lanceEmbutido,0) + ' embutido), ' + (c.lanceReduz === 'prazo' ? 'reduz o prazo' : 'reduz a parcela') + ' · contemplação na assembleia ' + c.mesContemplacao) : '');
+  const cond = linha('Data prevista da compra', mesAno(e.mesCompra)) +
+    (f.ativo ? linha('Financiamento', fmtBRL0(f.valorFinanciado) + ' · ' + f.prazoMeses + ' meses · ' + (f.sistema === 'SAC' ? 'SAC' : 'Price') +
+      (f.modo === 'proposta' ? ' · juros ' + fmtPct(f.jurosNominalAnual) + ' a.a. nominais · TR projetada ' + fmtPct(f.trMensal,4) + ' a.m. · DFI ' + fmtPct(f.dfiMensal,5) + ' a.m. · TAC ' + fmtBRL(f.tacMensal) + '/mês · despesas ' + fmtBRL0(f.despesasIniciais) + ' · CET ' + fmtPct(f.cetAnual) + ' a.a. (sem TR) · condições conforme proposta Sicoob de ' + dataBR(f.dataProposta)
+        : ' · CET ' + fmtPct(f.cetAnual) + ' a.a. usado como taxa (sem a proposta detalhada)')) : '') +
+    (c.ativo ? linha('Consórcio', (c.modalidade === 'bem' ? 'Carta no valor do bem' : 'Carta com lance embutido') + ' · ' + fmtBRL0(c.carta) + ' · ' + c.prazoMeses + ' meses · adm ' + fmtPct(c.taxaAdm,1) + ' · fundo de reserva ' + fmtPct(c.fundoReserva,1) + ' · seguro ' + fmtPct(c.seguroMensal,3) + ' a.m. · reajuste ' + fmtPct(c.reajusteAnual,1) + ' a.a. (' + $('consIndice').value + ') · lance ' + fmtPct(c.lanceTotal,0) + ' (' + fmtPct(c.lanceEmbutido,0) + ' embutido), ' + (c.lanceReduz === 'prazo' ? 'reduz o prazo' : 'reduz a parcela') + ' · contemplação prevista em ' + mesAno(c.mesContemplacao - 1)) : '');
 
   const statusTxt = (id, x) => statusDe(id, x, inp).map(s => '<span class="' + (s.cls === 'no' ? 'no' : s.cls === 'ok' ? 'ok' : '') + '">' + s.txt + '</span>').join('<br>');
   const tab = '<table>' + head +
@@ -1158,6 +1320,9 @@ function gerarPdf(){
     '<tr><td>Renda do capital no 1º mês</td>' + col(x => x.mesCompra === null ? '—' : fmtBRL0(x.rendaInicial)) + '</tr>' +
     '<tr><td>Parcela no 1º mês após a compra</td>' + col((x, id) => id === 'avista' ? '—' : fmtBRL0(x.parcelaInicial)) + '</tr>' +
     '<tr><td>Renda ÷ parcela</td>' + col((x, id) => id === 'avista' || x.cobertura === null ? '—' : '<span class="' + (x.cobertura >= 1 ? 'ok' : 'no') + '">' + fmtPct(x.cobertura,0) + '</span>') + '</tr>' +
+    '<tr><td><strong>A renda paga a parcela?</strong></td>' + col((x, id) => { const a = respostaDe(id, x, H); return '<span class="' + (a.cls === 'ok' ? 'ok' : a.cls === 'no' ? 'no' : '') + '">' + a.txt + '</span>'; }) + '</tr>' +
+    '<tr><td>Renda pagou das parcelas em ' + fmtAnos(anos) + '</td>' + col((x, id) => id === 'avista' || !x.periodo || x.periodo.somaParcelas === 0 ? '—' : fmtBRL0(x.periodo.rendaUsada) + ' de ' + fmtBRL0(x.periodo.somaParcelas) + ' (' + fmtPct(x.periodo.cobertura,0) + ')') + '</tr>' +
+    '<tr><td>Saiu do capital para pagar parcelas</td>' + col((x, id) => id === 'avista' || !x.periodo ? '—' : fmtBRL0(x.periodo.retiradoDoCapital)) + '</tr>' +
     '<tr><td>Capital zera</td>' + col(x => x.mesEsgota === null ? 'não zera' : '<span class="no">em ' + fmtPrazo(x.mesEsgota) + '</span>') + '</tr>' +
     '<tr><td>Custo efetivo do crédito</td>' + col((x, id) => id === 'avista' ? '—' : (x.custoEfetivoAnual === null ? '—' : fmtPct(x.custoEfetivoAnual) + ' a.a.')) + '</tr>' +
     '<tr><td><strong>Patrimônio líquido em ' + fmtAnos(anos) + '</strong></td>' + col((x, id) => '<strong class="' + (r.melhor === id ? 'ok' : '') + '">' + fmtBRL0(x.horizonte.patrimonio) + '</strong>') + '</tr>' +
@@ -1198,6 +1363,9 @@ $('btnTema').addEventListener('click', () => { Tema.alternar(); atualizarBotaoTe
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(desenharGrafico, 150); });
 
 /* ---------- ligações ---------- */
+renderMip();
+$('dataCompra').value = mesAtualStr();
+$('consMes').value = mesAtualStr();
 document.querySelectorAll('.money').forEach(mascara);
 document.querySelectorAll('#step-1 input, #step-1 select, #step-2 input, #step-2 select').forEach(el => {
   el.addEventListener('input', agendar); el.addEventListener('change', agendar);
@@ -1206,6 +1374,7 @@ ligarSeg('segModo', 'modo', () => { $('modoRenda').hidden = seg.modo !== 'renda'
 ligarSeg('segSistema', 'sistema', agendar);
 ligarSeg('segReduz', 'reduz', agendar);
 ligarSeg('segModal', 'modal', agendar);
+ligarSeg('segFinModo', 'finModo', agendar);
 ligarSeg('segSerie', 'serie', desenharGrafico);
 ligarSeg('segJanela', 'janela', desenharGrafico);
 $('valIpca').addEventListener('change', () => { $('valOutraBox').hidden = $('valIpca').checked; });
