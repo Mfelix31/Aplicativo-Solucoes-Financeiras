@@ -75,7 +75,13 @@
   }
 
   /* ---------- financiamento ---------- */
-  function lerFinanciamento(linhas) {
+  /**
+   * opcoes.idadeAnos: idade do 1º proponente na data da proposta, usada quando o PDF
+   * não traz a data de nascimento. A data de nascimento, se houver no PDF, só serve
+   * para calcular a idade e NÃO é devolvida (o app não guarda dados pessoais).
+   */
+  function lerFinanciamento(linhas, opcoes) {
+    opcoes = opcoes || {};
     const t = linhas.join('\n');
     const out = { tipo: 'financiamento', avisos: [] };
     const m1 = /Valor Financiamento Solicitado:\s+R\$\s*([\d.,]+)/.exec(t);
@@ -90,7 +96,7 @@
     out.cetAnual = cet ? dec(cet[1]) / 100 : NaN;
     const pz = perto(linhas, /Prazo meses/, /^\s*(\d{1,3})\s*$/);
     const nasc = /Data de Nascimento do 1[ºo°] Proponente:\s+(\d{2}\/\d{2}\/\d{4})/.exec(t);
-    out.nascimento = nasc ? dataISO(nasc[1]) : '';
+    const nascimento = nasc ? dataISO(nasc[1]) : '';
     const emissao = /(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}:\d{2}/.exec(t);
     out.dataProposta = emissao ? dataISO(emissao[1]) : '';
     const tac = /TAC\s*:\s+R\$\s*([\d.,]+)/.exec(t.slice(t.search(/1[ºo°] Encargo/) >= 0 ? t.search(/1[ºo°] Encargo/) : 0));
@@ -127,16 +133,21 @@
         const ult = segs[segs.length - 1];
         if (!ult || Math.abs(x.taxa - ult.taxa) / Math.max(ult.taxa, 1e-9) > 0.01) segs.push({ inicio: x.n, taxa: x.taxa });
       });
-      if (out.nascimento && out.dataProposta) {
-        const [ya, ma, da] = out.nascimento.split('-').map(Number);
+      let idade0 = null;
+      if (nascimento && out.dataProposta) {
+        const [ya, ma, da] = nascimento.split('-').map(Number);
         const [yp, mp, dp] = out.dataProposta.split('-').map(Number);
-        let idade0 = (yp - ya) * 12 + (mp - ma); if (dp < da) idade0 -= 1;
+        idade0 = (yp - ya) * 12 + (mp - ma); if (dp < da) idade0 -= 1;
+      } else if (opcoes.idadeAnos > 0) idade0 = Math.round(opcoes.idadeAnos * 12);
+      if (idade0 !== null) {
+        out.idadeAnos = Math.floor(idade0 / 12);        // idade em anos completos na data da proposta
+        out.idadeMesesExtra = idade0 % 12;              // meses desde o último aniversário (para as faixas do MIP)
         const idade = n => Math.floor((idade0 + n) / 12);
         out.tabelaMIP = segs.map((sg, i) => ({
           idadeAte: i < segs.length - 1 ? idade(segs[i + 1].inicio) - 1 : Math.max(80, idade(rows[rows.length - 1].n)),
           taxa: sg.taxa
         }));
-      } else out.avisos.push('Sem data de nascimento ou data da proposta: a tabela do seguro MIP não foi montada.');
+      } else out.avisos.push('O PDF não traz a idade do proponente: a tabela do seguro MIP não foi montada. Informe a idade e importe de novo, ou ajuste a tabela.');
     } else out.avisos.push('Não encontrei a tabela de evolução do saldo devedor.');
     return out;
   }
@@ -181,9 +192,9 @@
     return out;
   }
 
-  function ler(linhas) {
+  function ler(linhas, opcoes) {
     const tipo = identificar(linhas);
-    if (tipo === 'financiamento') return lerFinanciamento(linhas);
+    if (tipo === 'financiamento') return lerFinanciamento(linhas, opcoes);
     if (tipo === 'consorcio') return lerConsorcio(linhas);
     return { tipo: null, avisos: ['Este PDF não parece uma simulação de financiamento ou de consórcio do Sicoob.'] };
   }

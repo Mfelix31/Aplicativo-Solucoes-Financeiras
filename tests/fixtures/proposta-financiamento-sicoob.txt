@@ -1,7 +1,7 @@
 Relatório da Simulação de Financiamento
 Informações
 R$ 600.000,00   R$ 0,00
-Data de Nascimento do 1º Proponente:      Renda Total do 1º Proponente:
+Data de Nascimento do 1º Proponente:   Renda Total do 1º Proponente:
 Instituição do   Funding FGTS
 Financiamento:
 Instituição do   Aquisição - Imóveis - Pró-Cotista   As opções apresentadas não valem como proposta e representam apenas uma

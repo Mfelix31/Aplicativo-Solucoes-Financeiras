@@ -361,9 +361,9 @@
               <div class="hint">A da proposta. A TR real muda todo mês.</div>
             </div>
             <div class="field">
-              <label for="finNasc">Nascimento do 1º proponente</label>
-              <div class="row-input"><input type="date" id="finNasc" value=""></div>
-              <div class="hint">Define a faixa do seguro MIP. Fica só no navegador.</div>
+              <label for="finIdade">Idade do 1º proponente</label>
+              <div class="row-input"><input type="number" id="finIdade" value="45" min="18" max="99" step="1"><span class="suffix">anos</span></div>
+              <div class="hint">Só para a faixa do seguro MIP, que sobe com a idade.</div>
             </div>
             <div class="field">
               <label for="finDfi">Seguro DFI</label>
@@ -610,14 +610,9 @@ function mesesAte(str){
   if(!m) return NaN;
   return (parseInt(m[1],10) - HOJE.getFullYear())*12 + (parseInt(m[2],10) - 1 - HOJE.getMonth());
 }
-/** idade em meses completos hoje, a partir de 'aaaa-mm-dd' */
-function idadeMeses(str){
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || '');
-  if(!m) return NaN;
-  let meses = (HOJE.getFullYear() - parseInt(m[1],10))*12 + (HOJE.getMonth() - (parseInt(m[2],10)-1));
-  if(HOJE.getDate() < parseInt(m[3],10)) meses -= 1;
-  return meses;
-}
+/* meses desde o último aniversário do proponente, vindos da proposta importada (0 se digitado à mão);
+   não é exibido nem guardado — só posiciona a troca de faixa do seguro MIP */
+let idadeMesesExtra = 0;
 const dataBR = str => (str || '').split('-').reverse().join('/');
 
 /* ---------- seguro MIP por faixa de idade (proposta Sicoob/Tokio Marine, 23/10/2026) ---------- */
@@ -717,7 +712,7 @@ function lerEntradas(){
     financiamento: Object.assign({ativo: $('onFin').checked, modo: seg.finModo, valorFinanciado: money('finValor'), cetAnual: num('finCet')/100,
       prazoMeses: Math.round(num('finPrazo')), sistema: seg.sistema, mesInicio: Math.max(0, mesesAte($('dataCompra').value) || 0)},
       seg.finModo === 'proposta' ? {jurosNominalAnual: num('finJuros')/100, trMensal: num('finTr')/100, tabelaMIP: lerMip(),
-        idadeMesesHoje: idadeMeses($('finNasc').value), dfiMensal: num('finDfi')/100, tacMensal: money('finTac'), despesasIniciais: money('finDesp'),
+        idadeMesesHoje: Math.round(num('finIdade')) * 12 + idadeMesesExtra, dfiMensal: num('finDfi')/100, tacMensal: money('finTac'), despesasIniciais: money('finDesp'),
         dataProposta: $('finData').value} : {}),
     consorcio: {ativo: $('onCons').checked, modalidade: seg.modal, carta: seg.modal === 'bem' ? valorBem : money('consCarta'), prazoMeses: Math.round(num('consPrazo')),
       taxaAdm: num('consAdm')/100, fundoReserva: num('consFr')/100, seguroValor: money('consSeg'), reajusteAnual: num('consReaj')/100,
@@ -743,8 +738,8 @@ function lerEntradas(){
     else if(dk < 0) extraErros.push('Consórcio: a contemplação não pode ser anterior a este mês.');
   }
   if(e.financiamento.ativo && seg.finModo === 'proposta'){
-    const im = idadeMeses($('finNasc').value);
-    if(!(im >= 18*12 && im < 100*12)) extraErros.push('Financiamento: informe a data de nascimento do 1º proponente.');
+    const id = num('finIdade');
+    if(!(id >= 18 && id < 100)) extraErros.push('Financiamento: informe a idade do 1º proponente (18 a 99 anos).');
     if(lerMip().some(x => !(x.taxa >= 0))) extraErros.push('Financiamento: revise a tabela do seguro MIP.');
   }
   return {e, info, taxaMesInicial, extraErros, tipo: $('tipoBem').value};
@@ -1252,7 +1247,7 @@ async function lerPdfSicoob(arquivo){
   const doc = await lib.getDocument({data: new Uint8Array(await arquivo.arrayBuffer())}).promise;
   const paginas = [];
   for(let p = 1; p <= doc.numPages; p++) paginas.push((await (await doc.getPage(p)).getTextContent()).items);
-  return PropostasSicoob.ler(PropostasSicoob.linhasDeItens(paginas));
+  return PropostasSicoob.ler(PropostasSicoob.linhasDeItens(paginas), {idadeAnos: num('finIdade')});
 }
 const moedaBR = Formato.moeda;
 function setSeg(id, chave, v){
@@ -1271,7 +1266,7 @@ function aplicarFinanciamento(r){
   if(pos(r.dfiMensal)){ $('finDfi').value = +(r.dfiMensal*100).toFixed(5); feitos.push('DFI'); }
   if(pos(r.tacMensal)){ $('finTac').value = moedaBR(r.tacMensal); feitos.push('tarifa mensal'); }
   if(pos(r.despesasIniciais)){ $('finDesp').value = moedaBR(r.despesasIniciais); feitos.push('despesas'); }
-  if(r.nascimento){ $('finNasc').value = r.nascimento; feitos.push('nascimento'); }
+  if(pos(r.idadeAnos)){ $('finIdade').value = r.idadeAnos; idadeMesesExtra = r.idadeMesesExtra || 0; feitos.push('idade'); }
   if(r.dataProposta){ $('finData').value = r.dataProposta; }
   if(r.sistema) setSeg('segSistema', 'sistema', r.sistema);
   setSeg('segFinModo', 'finModo', 'proposta');
@@ -1336,6 +1331,7 @@ renderMip();
 $('dataCompra').value = mesAtualStr();
 $('consMes').value = mesAtualStr();
 document.querySelectorAll('.money').forEach(mascara);
+$('finIdade').addEventListener('input', () => { idadeMesesExtra = 0; });
 document.querySelectorAll('#step-1 input, #step-1 select, #step-2 input, #step-2 select').forEach(el => {
   el.addEventListener('input', agendar); el.addEventListener('change', agendar);
 });

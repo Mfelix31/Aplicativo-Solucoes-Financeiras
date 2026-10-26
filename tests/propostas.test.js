@@ -1,6 +1,7 @@
 // Testes da leitura das propostas do Sicoob em PDF. Rodar: node --test tests/*.test.js
-// As fixtures são as linhas que o pdf.js extrai dos PDFs reais (a data de nascimento
-// do proponente foi trocada por , que cai nas mesmas faixas de idade).
+// As fixtures são as linhas que o pdf.js extrai dos PDFs reais, sem nenhum dado pessoal
+// (a data de nascimento do proponente foi apagada; a idade entra como opção).
+const IDADE = {idadeAnos: 45};
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -27,7 +28,7 @@ test('números no formato brasileiro', () => {
 });
 
 test('proposta de financiamento: campos principais', () => {
-  const r = P.ler(fin);
+  const r = P.ler(fin, IDADE);
   assert.equal(r.tipo, 'financiamento');
   assert.deepEqual(r.avisos, []);
   assert.equal(r.valorFinanciado, 600000);
@@ -39,7 +40,8 @@ test('proposta de financiamento: campos principais', () => {
   assert.equal(r.parcelas, 420);
   assert.equal(r.tacMensal, 25);
   assert.equal(r.despesasIniciais, 2140);
-  assert.equal(r.nascimento, '');
+  assert.equal(r.nascimento, undefined, 'a data de nascimento nunca é devolvida');
+  assert.equal(r.idadeAnos, 45);
   assert.equal(r.dataProposta, '2026-10-23');
   assert.ok(Math.abs(r.trMensal - 0.001661) < 1e-9);
   assert.ok(Math.abs(r.dfiMensal - 0.0000608) < 1e-10);
@@ -47,17 +49,17 @@ test('proposta de financiamento: campos principais', () => {
 });
 
 test('proposta de financiamento: tabela do seguro MIP por faixa de idade', () => {
-  const r = P.ler(fin);
+  const r = P.ler(fin, IDADE);
   assert.deepEqual(r.tabelaMIP.map(x => x.idadeAte), [45, 50, 55, 60, 65, 70, 75, 80]);
   assert.deepEqual(r.tabelaMIP.map(x => x.taxa), [0.000244, 0.000424, 0.000655, 0.000915, 0.001329, 0.00217, 0.003588, 0.005835]);
 });
 
 test('proposta lida → motor reproduz o 1º encargo do relatório', () => {
-  const r = P.ler(fin);
+  const r = P.ler(fin, IDADE);
   const e = {
     capital: 650000, valorBem: r.valorImovel, horizonteMeses: 12, taxaMes: 0.01, avista: { ativo: false },
     financiamento: { ativo: true, modo: 'proposta', valorFinanciado: r.valorFinanciado, jurosNominalAnual: r.jurosNominalAnual,
-      trMensal: r.trMensal, prazoMeses: r.prazoMeses, sistema: r.sistema, tabelaMIP: r.tabelaMIP, idadeMesesHoje: 45 * 12 + 9,
+      trMensal: r.trMensal, prazoMeses: r.prazoMeses, sistema: r.sistema, tabelaMIP: r.tabelaMIP, idadeMesesHoje: r.idadeAnos * 12 + r.idadeMesesExtra,
       dfiMensal: r.dfiMensal, tacMensal: r.tacMensal, despesasIniciais: r.despesasIniciais, mesInicio: 0 }
   };
   const f = E.analisar(e).cenarios.financiamento;
@@ -97,4 +99,15 @@ test('simulação de consórcio lida → motor reproduz a parcela após o lance'
   };
   const c = E.analisar(e).cenarios.consorcio;
   assert.ok(Math.abs(c.parcelaInicial - 845.50) < 0.15, c.parcelaInicial);
+});
+
+test('sem a idade, a tabela do MIP não é montada e o aviso explica', () => {
+  const r = P.ler(fin);
+  assert.equal(r.tabelaMIP, undefined);
+  assert.ok(r.avisos.some(a => /idade/.test(a)));
+});
+
+test('nenhuma data de nascimento nas fixtures nem no código', () => {
+  const textos = [fin.join('\n'), cons.join('\n'), fs.readFileSync(path.join(__dirname, '..', 'aquisicao.html'), 'utf8')];
+  for (const t of textos) assert.ok(!/Proponente:\s+\d{2}\/\d{2}\/\d{4}/.test(t) && !/1981-\d{2}-\d{2}/.test(t));
 });
