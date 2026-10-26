@@ -205,3 +205,17 @@ test('Caminhos desligados não aparecem', () => {
   assert.equal(r.cenarios.consorcio, undefined);
   assert.ok(r.cenarios.financiamento && r.cenarios.avista);
 });
+
+test('Consórcio com lance embutido e carta dimensionada (bem ÷ (1 − embutido)): sem sobra nem complemento', () => {
+  const c = E.analisar(caso({ consorcio: { carta: 700000 / 0.75 } })).cenarios.consorcio;
+  perto(c.creditoRecebido, 700000, 1e-6);
+  perto(c.excedenteAbatido, 0, 1e-6);
+  perto(c.complemento, 0, 1e-6);
+});
+
+test('Consórcio com carta no valor do bem (sem embutido): lance livre sai todo do capital', () => {
+  const c = E.analisar(caso({ consorcio: { carta: 700000, lanceTotal: 0.30, lanceEmbutido: 0 } })).cenarios.consorcio;
+  perto(c.creditoRecebido, 700000, 1e-6);
+  perto(c.lanceProprio, 210000, 1e-6);
+  perto(c.desembolsoCompra, 210000, 1e-6);
+});

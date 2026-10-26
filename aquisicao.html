@@ -399,10 +399,18 @@
         <label class="switch"><input type="checkbox" id="onCons" checked> incluir</label></h2>
       <div class="path-body">
         <p class="sub">Preencha conforme a carta: taxas, seguro e reajuste mudam de grupo para grupo.</p>
+        <div class="seg-wrap">
+          <span class="lbl">Modalidade</span>
+          <div class="seg" id="segModal">
+            <button type="button" data-v="bem">Carta no valor do bem</button>
+            <button type="button" data-v="embutido" class="active">Carta maior, com lance embutido</button>
+          </div>
+        </div>
         <div class="grid">
           <div class="field">
             <label for="consCarta">Valor da carta de crédito</label>
-            <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="consCarta" class="money" value="1.000.000,00"></div>
+            <div class="row-input" id="consCartaBox"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="consCarta" class="money" value="1.000.000,00"></div>
+            <div class="hint" id="hintCarta"></div>
           </div>
           <div class="field">
             <label for="consPrazo">Prazo do grupo</label>
@@ -429,10 +437,10 @@
         </div>
         <div class="grid">
           <div class="field">
-            <label for="consLance">Lance total</label>
+            <label for="consLance" id="lblLance">Lance total</label>
             <div class="row-input"><input type="number" id="consLance" value="80" min="0" max="100" step="1"><span class="suffix">% da carta</span></div>
           </div>
-          <div class="field">
+          <div class="field" id="embBox">
             <label for="consEmb">… dos quais embutido</label>
             <div class="row-input"><input type="number" id="consEmb" value="25" min="0" max="100" step="1"><span class="suffix">% da carta</span></div>
             <div class="hint">Sai do próprio crédito: o cliente recebe menos, mas paga as taxas sobre a carta cheia.</div>
@@ -600,7 +608,7 @@ const BEM = {imovel:'imóvel', carro:'carro', terreno:'terreno', outro:'bem'};
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
 /* ---------- estado de UI ---------- */
-const seg = {modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
+const seg = {modal:'embutido', modo:'renda', sistema:'SAC', reduz:'parcela', serie:'patrimonio', janela:'h', fluxo:'financiamento'};
 function ligarSeg(id, chave, cb){
   $(id).querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
     seg[chave] = b.dataset.v;
@@ -680,9 +688,9 @@ function lerEntradas(){
     valorizacaoAnual: valorizacao, ipcaAnual: ipca, custoEsperaMensal: money('custoEspera'),
     horizonteMeses: Math.round(num('horizonte')*12), taxaMes,
     financiamento: {ativo: $('onFin').checked, valorFinanciado: money('finValor'), cetAnual: num('finCet')/100, prazoMeses: Math.round(num('finPrazo')), sistema: seg.sistema},
-    consorcio: {ativo: $('onCons').checked, carta: money('consCarta'), prazoMeses: Math.round(num('consPrazo')),
+    consorcio: {ativo: $('onCons').checked, modalidade: seg.modal, carta: seg.modal === 'bem' ? valorBem : money('consCarta'), prazoMeses: Math.round(num('consPrazo')),
       taxaAdm: num('consAdm')/100, fundoReserva: num('consFr')/100, seguroMensal: num('consSeg')/100, reajusteAnual: num('consReaj')/100,
-      lanceTotal: num('consLance')/100, lanceEmbutido: num('consEmb')/100, lanceReduz: seg.reduz, mesContemplacao: Math.round(num('consMes'))},
+      lanceTotal: num('consLance')/100, lanceEmbutido: seg.modal === 'bem' ? 0 : num('consEmb')/100, lanceReduz: seg.reduz, mesContemplacao: Math.round(num('consMes'))},
     avista: {ativo: $('onAv').checked}
   };
   const extraErros = [];
@@ -717,11 +725,33 @@ function renderDicas(inp){
     const P = 1 + (c.taxaAdm||0) + (c.fundoReserva||0);
     const cred = c.carta * (1 - (c.lanceEmbutido||0));
     const proprio = c.carta * Math.max(0, (c.lanceTotal||0) - (c.lanceEmbutido||0));
+    const sobra = cred - e.valorBem;
     $('consResumo').innerHTML =
       '<div>Parcela original<b>' + fmtBRL0(P / c.prazoMeses * c.carta) + '</b></div>' +
-      '<div>Crédito líquido (após embutido)<b>' + fmtBRL0(cred) + '</b></div>' +
+      '<div>' + (c.modalidade === 'bem' ? 'Crédito recebido' : 'Crédito líquido (após embutido)') + '<b>' + fmtBRL0(cred) + '</b></div>' +
       '<div>Lance com recursos próprios<b>' + fmtBRL0(proprio) + '</b></div>' +
-      '<div>Total devido ao grupo<b>' + fmtBRL0(P * c.carta) + '</b></div>';
+      '<div>Total devido ao grupo<b>' + fmtBRL0(P * c.carta) + '</b></div>' +
+      (Math.abs(sobra) >= 1 ? '<div style="grid-column:1/-1">' + (sobra > 0
+        ? 'Sobra de crédito frente ao bem de hoje<b>' + fmtBRL0(sobra) + ' → abate o saldo devedor</b>'
+        : 'Crédito abaixo do bem de hoje<b>' + fmtBRL0(-sobra) + ' → sai do capital na compra</b>') + '</div>' : '');
+  }
+  // modalidade
+  const modoBem = seg.modal === 'bem';
+  $('embBox').hidden = modoBem;
+  $('consCarta').readOnly = modoBem;
+  $('consCartaBox').style.opacity = modoBem ? .7 : 1;
+  $('lblLance').textContent = modoBem ? 'Lance com recursos próprios' : 'Lance total';
+  if(modoBem){
+    $('consCarta').value = e.valorBem.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+    $('hintCarta').innerHTML = 'Igual ao valor do bem hoje. Contemplado mais tarde, a diferença para o bem valorizado sai do capital, a menos que a carta seja reajustada.';
+  } else {
+    const emb = num('consEmb')/100;
+    const ideal = emb < 1 ? e.valorBem / (1 - emb) : 0;
+    $('hintCarta').innerHTML = emb > 0 && ideal > 0
+      ? 'Para o crédito líquido cobrir exatamente o bem: carta de <strong>' + fmtBRL0(ideal) + '</strong>. <button type="button" class="ghost" id="btnCartaIdeal" style="padding:3px 8px; font-size:11.5px;">usar</button>'
+      : 'Informe o percentual embutido para ver a carta que cobre o bem.';
+    const b = $('btnCartaIdeal');
+    if(b) b.onclick = () => { $('consCarta').value = (Math.ceil(ideal/1000)*1000).toLocaleString('pt-BR',{minimumFractionDigits:2}); agendar(); };
   }
   const avMeses = (() => { const r = ultimo && ultimo.r && ultimo.r.cenarios.avista; return r ? r.mesCompra : undefined; })();
   $('avResumo').innerHTML =
@@ -852,6 +882,10 @@ function textoConclusao(){
     const a = C.avista;
     if(a.mesCompra === null) p.push('<b>Capital próprio:</b> o capital não alcança o preço do bem no período simulado.');
     else p.push('<b>Capital próprio:</b> ' + (a.mesCompra === 0 ? 'compra hoje' : 'compra em ' + fmtPrazo(a.mesCompra) + ', pagando ' + fmtBRL0(a.desembolsoCompra) + ' pelo bem já valorizado') + ', sem parcela, mas fica com ' + fmtBRL0(a.capitalAposCompra) + ' investidos' + (inp.e.reservaMinima > 0 && a.capitalAposCompra < inp.e.reservaMinima ? ' — abaixo da reserva mínima de ' + fmtBRL0(inp.e.reservaMinima) + '.' : '.'));
+  }
+  if(C.consorcio && C.consorcio.mesCompra !== null){
+    const cc = inp.e.consorcio;
+    p.push('<b>Atenção à contemplação:</b> o consórcio foi simulado com contemplação na assembleia ' + cc.mesContemplacao + (cc.lanceTotal > 0 ? ' com lance de ' + fmtPct(cc.lanceTotal,0) + ' da carta' : ' sem lance') + '. Isso é uma hipótese, não uma garantia: confira o histórico de lances vencedores do grupo e simule também uma contemplação mais tarde.');
   }
   if(eq.finAv != null) p.push('<b>Atenção ao CDI:</b> o financiamento só vence a compra à vista enquanto o capital render mais de <b>' + fmtPct(eq.finAv) + ' a.a. líquidos</b>' + cdiEq(eq.finAv) + '. Hoje rende ' + fmtPct(atualAA) + '.');
   return {head, p, viaveis};
@@ -1113,7 +1147,7 @@ function gerarPdf(){
     linha('Horizonte da comparação', fmtAnos(anos));
   const f = e.financiamento, c = e.consorcio;
   const cond = (f.ativo ? linha('Financiamento', fmtBRL0(f.valorFinanciado) + ' · CET ' + fmtPct(f.cetAnual) + ' a.a. · ' + f.prazoMeses + ' meses · ' + (f.sistema === 'SAC' ? 'SAC' : 'Price')) : '') +
-    (c.ativo ? linha('Consórcio', 'Carta ' + fmtBRL0(c.carta) + ' · ' + c.prazoMeses + ' meses · adm ' + fmtPct(c.taxaAdm,1) + ' · fundo de reserva ' + fmtPct(c.fundoReserva,1) + ' · seguro ' + fmtPct(c.seguroMensal,3) + ' a.m. · reajuste ' + fmtPct(c.reajusteAnual,1) + ' a.a. (' + $('consIndice').value + ') · lance ' + fmtPct(c.lanceTotal,0) + ' (' + fmtPct(c.lanceEmbutido,0) + ' embutido), ' + (c.lanceReduz === 'prazo' ? 'reduz o prazo' : 'reduz a parcela') + ' · contemplação na assembleia ' + c.mesContemplacao) : '');
+    (c.ativo ? linha('Consórcio', (c.modalidade === 'bem' ? 'Carta no valor do bem' : 'Carta com lance embutido') + ' · ' + fmtBRL0(c.carta) + ' · ' + c.prazoMeses + ' meses · adm ' + fmtPct(c.taxaAdm,1) + ' · fundo de reserva ' + fmtPct(c.fundoReserva,1) + ' · seguro ' + fmtPct(c.seguroMensal,3) + ' a.m. · reajuste ' + fmtPct(c.reajusteAnual,1) + ' a.a. (' + $('consIndice').value + ') · lance ' + fmtPct(c.lanceTotal,0) + ' (' + fmtPct(c.lanceEmbutido,0) + ' embutido), ' + (c.lanceReduz === 'prazo' ? 'reduz o prazo' : 'reduz a parcela') + ' · contemplação na assembleia ' + c.mesContemplacao) : '');
 
   const statusTxt = (id, x) => statusDe(id, x, inp).map(s => '<span class="' + (s.cls === 'no' ? 'no' : s.cls === 'ok' ? 'ok' : '') + '">' + s.txt + '</span>').join('<br>');
   const tab = '<table>' + head +
@@ -1171,6 +1205,7 @@ document.querySelectorAll('#step-1 input, #step-1 select, #step-2 input, #step-2
 ligarSeg('segModo', 'modo', () => { $('modoRenda').hidden = seg.modo !== 'renda'; $('modoProduto').hidden = seg.modo !== 'produto'; agendar(); });
 ligarSeg('segSistema', 'sistema', agendar);
 ligarSeg('segReduz', 'reduz', agendar);
+ligarSeg('segModal', 'modal', agendar);
 ligarSeg('segSerie', 'serie', desenharGrafico);
 ligarSeg('segJanela', 'janela', desenharGrafico);
 $('valIpca').addEventListener('change', () => { $('valOutraBox').hidden = $('valIpca').checked; });
