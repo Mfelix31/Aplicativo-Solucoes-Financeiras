@@ -192,8 +192,31 @@ ul.alertas b{color:var(--ink);}
 .arquivo-bar .hint.erro{color:var(--red);}
 /* campos mostrados conforme o regime de bens (o atributo hidden vence o display dos componentes) */
 #step-1 [hidden]{display:none !important;}
-/* quatro indicadores do custo de não planejar: 4 colunas, 2 em telas médias, 1 no celular */
-#baseCards{grid-template-columns:repeat(4,1fr);}
-@media(max-width:1100px){#baseCards{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:600px){#baseCards{grid-template-columns:1fr;}}
+/* quatro quadros do custo de não planejar: pergunta, valor, explicação, visual e conta */
+.q-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:18px;}
+@media(max-width:760px){.q-grid{grid-template-columns:1fr;}}
+.q-card{background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:16px 18px; display:flex; flex-direction:column; gap:8px;}
+.q-top{display:flex; align-items:flex-start; gap:10px;}
+.q-n{flex:0 0 auto; width:26px; height:26px; border-radius:50%; background:var(--ink); color:var(--bg); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+.q-p{font-size:14.5px; font-weight:700; color:var(--ink); line-height:1.35; padding-top:3px;}
+.q-v{font-size:26px; font-weight:700; color:var(--destaque); line-height:1.2;}
+.q-v small{font-size:13px; font-weight:400; color:var(--ink-muted);}
+.q-o{font-size:13px; color:var(--ink); margin:0; line-height:1.5;}
+.q-c{font-size:11.5px; color:var(--ink-muted); margin:auto 0 0; padding-top:8px; border-top:1px dashed var(--line); line-height:1.5;}
+.qbar{display:flex; height:12px; border-radius:6px; overflow:hidden; background:var(--line); margin:4px 0 2px;}
+.qbar span{width:var(--w); height:100%;}
+.p-meta{background:var(--l-turq);} .p-sus{background:var(--l-roxo);} .p-resto{background:var(--line);}
+.p-est{background:var(--l-verde);} .p-trava{background:var(--l-red);}
+.p-meacao{background:var(--l-roxo);} .p-leg{background:var(--l-turq);} .p-disp{background:var(--hl);}
+ul.qleg{list-style:none; margin:0; padding:0; font-size:12.5px;}
+ul.qleg li{display:flex; align-items:center; gap:8px; padding:2px 0;}
+ul.qleg li::before{content:''; width:10px; height:10px; border-radius:2px; flex:0 0 auto; background:var(--sw); border:1px solid var(--line);}
+ul.qleg li span{flex:1; color:var(--ink-muted);} ul.qleg li b{color:var(--ink); font-weight:600;}
+ul.qleg li{background:none;}
+ul.qleg li.p-meta{--sw:var(--l-turq);} ul.qleg li.p-sus{--sw:var(--l-roxo);} ul.qleg li.p-resto{--sw:var(--line);} ul.qleg li.p-est{--sw:var(--l-verde);}
+ul.qleg li.p-meacao{--sw:var(--l-roxo);} ul.qleg li.p-leg{--sw:var(--l-turq);} ul.qleg li.p-disp{--sw:var(--hl);}
+.qtempo{display:flex; flex-direction:column; gap:6px; font-size:12.5px;}
+.qtempo > div{display:grid; grid-template-columns:150px 1fr 90px; align-items:center; gap:8px;}
+.qtempo span{color:var(--ink-muted);} .qtempo b{color:var(--ink); text-align:right; font-weight:600;}
+@media(max-width:600px){.qtempo > div{grid-template-columns:1fr 80px;} .qtempo > div > span{grid-column:1 / -1;}}
 .lbl-campo{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:6px;}

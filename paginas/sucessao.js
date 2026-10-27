@@ -256,15 +256,53 @@ function renderDestaques(){
 function renderBase(){
   const {r} = ultimo, b = r.base, e = r.entrada;
   const total = e.imoveis + e.aplicacoes + e.empresa + e.exterior;
-  $('baseSub').textContent = 'Se o falecimento fosse hoje, sem nenhum planejamento: ' + fmtBRL0(total) + ' iriam a inventário em ' + T.ESTADOS[e.uf].nome + ', ' + ({cartorio:'em cartório', judicial:'na Justiça', litigio:'na Justiça, com conflito'})[e.tipoInventario] + '.';
-  $('baseCards').innerHTML =
-    '<div class="eq-card"><div class="k">Meta de liquidez</div><div class="v">' + fmtBRL0(b.metaHoje) + '</div><div class="s">' +
-      (b.sustentoHoje > 0 ? pct0(e.premissas.metaLiquidez) + ' para o inventário (' + fmtBRL0(b.metaInventarioHoje) + ') + ' + e.sustento.meses + ' meses de despesas da família (' + fmtBRL0(b.sustentoHoje) + ').'
-        : pct0(e.premissas.metaLiquidez) + ' do patrimônio: o que previdência ou seguro precisam pagar, sozinhos.') + '</div></div>' +
-    '<div class="eq-card"><div class="k">Estimativa por componentes</div><div class="v">' + fmtBRL0(b.custoHoje.total) + '</div><div class="s">' + pct1(b.custoHoje.pct) + ' do patrimônio que vai a inventário.</div></div>' +
-    '<div class="eq-card"><div class="k">Tempo com os bens travados</div><div class="v">' + PRAZO_INV[e.tipoInventario] + '</div><div class="s">Previdência e seguro chegam em dias.</div></div>' +
-    '<div class="eq-card"><div class="k">Herança (sem a meação)</div><div class="v">' + fmtBRL0(b.heranca) + '</div><div class="s">' +
-      (b.meacao > 0 ? 'Meação do cônjuge: ' + fmtBRL0(b.meacao) + '. ' : '') + 'Legítima ' + fmtBRL0(b.legitima) + ' · parte disponível para testamento ou doação ' + fmtBRL0(b.disponivel) + '.</div></div>';
+  $('baseSub').innerHTML = 'Quatro respostas para a pergunta: <b>se o falecimento fosse hoje, sem planejamento nenhum, o que aconteceria?</b> ' + fmtBRL0(total) + ' iriam a inventário em ' + T.ESTADOS[e.uf].nome + ', ' + ({cartorio:'em cartório', judicial:'na Justiça', litigio:'na Justiça, com conflito'})[e.tipoInventario] + '.';
+  const pat = total, mil = v => fmtCurto(v);
+  const barra = partes => '<div class="qbar">' + partes.filter(x => x.v > 0).map(x => '<span class="' + x.c + '" style="--w:' + Math.max(1.5, x.v * 100).toFixed(2) + '%" title="' + esc(x.t) + '"></span>').join('') + '</div>';
+  const legenda = itens => '<ul class="qleg">' + itens.filter(x => x.mostra !== false).map(x => '<li class="' + x.c + '"><span>' + x.t + '</span><b>' + x.v + '</b></li>').join('') + '</ul>';
+  const card = (n, pergunta, valor, oque, visual, conta) => '<div class="q-card">' +
+    '<div class="q-top"><span class="q-n">' + n + '</span><span class="q-p">' + pergunta + '</span></div>' +
+    '<div class="q-v">' + valor + '</div><p class="q-o">' + oque + '</p>' + visual +
+    '<p class="q-c"><b>Como foi calculado:</b> ' + conta + '</p></div>';
+  // 1. quanto a família precisa ter em dinheiro
+  const c1 = card(1, 'Quanto a família precisa ter em dinheiro logo após o falecimento?', fmtBRL0(b.metaHoje),
+    'É a <b>meta de liquidez</b>: o valor para pagar todo o inventário sem vender bens' + (b.sustentoHoje > 0 ? ' e manter a família enquanto ele corre' : '') +
+      '. Previdência e whole life são dimensionados para pagar esse valor sozinhos.',
+    barra([{ c: 'p-meta', v: b.metaInventarioHoje / pat, t: 'Inventário' }, { c: 'p-sus', v: b.sustentoHoje / pat, t: 'Sustento' }, { c: 'p-resto', v: Math.max(0, 1 - b.metaHoje / pat), t: 'Restante do patrimônio' }]) +
+    legenda([{ c: 'p-meta', t: pct0(e.premissas.metaLiquidez) + ' para o inventário', v: fmtBRL0(b.metaInventarioHoje) },
+      { c: 'p-sus', t: e.sustento.meses + ' meses de despesas', v: fmtBRL0(b.sustentoHoje), mostra: b.sustentoHoje > 0 },
+      { c: 'p-resto', t: 'restante do patrimônio', v: fmtBRL0(Math.max(0, pat - b.metaHoje)) }]),
+    pct0(e.premissas.metaLiquidez) + ' de ' + fmtBRL0(pat) + ' (média de mercado de todo o trâmite: cartório, advogado, contador, ITCMD)' +
+      (b.sustentoHoje > 0 ? ' + ' + fmtBRL0(e.sustento.despesaMensal) + ' × ' + e.sustento.meses + ' meses' : '') + '.');
+  // 2. quanto o inventário custaria pela conta item a item
+  const folga = b.metaInventarioHoje - b.custoHoje.total;
+  const c2 = card(2, 'Quanto o inventário custaria, item por item, pela lei e pelas tabelas?', fmtBRL0(b.custoHoje.total),
+    'É uma <b>conferência</b> da meta, com a lei do estado. ' + (folga >= 0
+      ? 'A meta de ' + pct0(e.premissas.metaLiquidez) + ' fica ' + fmtBRL0(folga) + ' acima: cobre também multas, avaliações, atrasos e imprevistos que a conta não vê.'
+      : '<b>A conta passou da meta em ' + fmtBRL0(-folga) + ':</b> considere aumentar a meta de liquidez.'),
+    barra([{ c: 'p-est', v: Math.min(1, b.custoHoje.total / Math.max(1, b.metaInventarioHoje)), t: 'Estimativa' }, { c: 'p-resto', v: Math.max(0, 1 - b.custoHoje.total / Math.max(1, b.metaInventarioHoje)), t: 'Folga da meta' }]) +
+    legenda([{ c: 'p-est', t: 'estimativa (' + pct1(b.custoHoje.pct) + ' do patrimônio)', v: fmtBRL0(b.custoHoje.total) },
+      { c: 'p-resto', t: 'folga até a meta de ' + pct0(e.premissas.metaLiquidez), v: fmtBRL0(Math.max(0, folga)) }]),
+    'ITCMD ' + mil(b.custoHoje.itcmd) + ' + honorários ' + mil(b.custoHoje.honorarios) + ' + ' + (e.tipoInventario === 'cartorio' ? 'escritura ' : 'custas ') + mil(b.custoHoje.cartorio) +
+      ' + registro ' + mil(b.custoHoje.registro) + ' + certidões ' + mil(b.custoHoje.certidoes) + (b.custoHoje.multa > 0 ? ' + multa ' + mil(b.custoHoje.multa) : '') + '. Detalhe na tabela abaixo.');
+  // 3. quanto tempo os bens ficam travados
+  const diasInv = { cartorio: 90, judicial: 1095, litigio: 1460 }[e.tipoInventario], diasLiq = 30;
+  const c3 = card(3, 'Quanto tempo a família fica sem poder usar os bens?', PRAZO_INV[e.tipoInventario],
+    'Enquanto o inventário não termina, os bens ficam <b>travados</b>: não podem ser vendidos nem divididos, e as contas do falecido ficam bloqueadas. Previdência e seguro não entram no inventário e chegam aos beneficiários em dias.',
+    '<div class="qtempo"><div><span>Inventário ' + ({cartorio:'em cartório', judicial:'judicial', litigio:'com conflito'})[e.tipoInventario] + '</span><div class="qbar"><span class="p-trava" style="--w:100%"></span></div><b>' + PRAZO_INV[e.tipoInventario] + '</b></div>' +
+      '<div><span>Previdência e seguro</span><div class="qbar"><span class="p-meta" style="--w:' + Math.max(3, diasLiq / diasInv * 100).toFixed(1) + '%"></span></div><b>até 30 dias</b></div></div>',
+    'prazo usual do tipo de inventário escolhido na etapa 1 (cartório: herdeiros de acordo e maiores; judicial: menores, incapazes ou desacordo).');
+  // 4. de quem é o patrimônio
+  const c4 = card(4, 'Quanto é herança e quanto já é do cônjuge?', fmtBRL0(b.heranca) + ' <small>de herança</small>',
+    (b.meacao > 0 ? 'A <b>meação</b> (' + fmtBRL0(b.meacao) + ') já é do cônjuge pelo regime de bens: não é herança e não paga ITCMD. ' : 'Não há meação neste regime de bens. ') +
+      'Da herança, a <b>legítima</b> fica obrigatoriamente com os herdeiros necessários; a <b>parte disponível</b> pode ir para quem o cooperado quiser, por testamento ou doação.',
+    barra([{ c: 'p-meacao', v: b.meacao / pat, t: 'Meação' }, { c: 'p-leg', v: b.legitima / pat, t: 'Legítima' }, { c: 'p-disp', v: b.disponivel / pat, t: 'Disponível' }]) +
+    legenda([{ c: 'p-meacao', t: 'meação do cônjuge', v: fmtBRL0(b.meacao), mostra: b.meacao > 0 },
+      { c: 'p-leg', t: 'legítima (herdeiros necessários)', v: fmtBRL0(b.legitima) },
+      { c: 'p-disp', t: 'parte disponível (testamento ou doação)', v: fmtBRL0(b.disponivel) }]),
+    'patrimônio ' + fmtBRL0(pat) + (b.meacao > 0 ? ' − meação ' + fmtBRL0(b.meacao) : '') + ' = herança ' + fmtBRL0(b.heranca) + '; metade legítima, metade disponível (Código Civil, arts. 1.789 e 1.846)' +
+      (e.partilha.conjugeHerdeiro ? '. O cônjuge também herda ' + pct1(e.partilha.fracConjuge) + ' da herança junto com os filhos' : '') + '.');
+  $('baseCards').innerHTML = c1 + c2 + c3 + c4;
   const rg = b.regimes, linhaT = (k, f) => '<tr><td>' + k + '</td>' + ['vigente','reforma','estresse'].map(x => '<td>' + fmtBRL0(f(rg[x])) + '</td>').join('') + '</tr>';
   $('tabInventario').innerHTML = '<tr><th>Componente</th><th>Lei vigente</th><th>Adequação à reforma</th><th>Estresse 16%</th></tr>' +
     linhaT('ITCMD (por quinhão)', c => c.itcmd) + linhaT('Honorários', c => c.honorarios) +
