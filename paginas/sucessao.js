@@ -26,7 +26,7 @@ const E = window.SucessaoEngine;
 const T = window.ItcmdUF;
 const $ = id => document.getElementById(id);
 const HOJE = new Date();
-const {brl0: fmtBRL0, pct: fmtPct, curto: fmtCurto, anos: fmtAnos, esc, lerMoeda, moeda, mascara} = Formato;
+const {brl: fmtBRL, brl0: fmtBRL0, pct: fmtPct, curto: fmtCurto, anos: fmtAnos, esc, lerMoeda, moeda, mascara} = Formato;
 const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? NaN : v; };
 const money = id => lerMoeda($(id));
 const pctCampo = id => num(id) / 100;
@@ -66,13 +66,17 @@ let ultimo = null;          // { inp, r }
 let timer = null;
 let ufHonorarios = null;    // estado cujos honorários de referência estão nos campos
 let itbiTocado = false;     // enquanto o planejador não editar o ITBI, ele segue a regra automática
+let mesesTocado = false;    // idem para os meses de sustento (padrão pelo tipo de inventário)
+const LIMITE_MESES_TABELA = 6;   // tabela de ITCMD com referência mais antiga que isso gera alerta
 
 /* =========================================================================
  * 4. Entradas
  * ========================================================================= */
 function lerEntradas(){
   return {
-    idade: num('idade'), uf: $('uf').value, herdeiros: num('herdeiros'), meacaoPct: pctCampo('meacao'), tipoInventario: $('tipoInv').value,
+    idade: num('idade'), uf: $('uf').value, herdeiros: num('herdeiros'), tipoInventario: $('tipoInv').value,
+    conjuge: { regime: $('regimeBens').value, pctComuns: pctCampo('pctComuns'), ascendenteComum: $('ascComum').checked },
+    sustento: { despesaMensal: money('despesaFamilia'), meses: num('mesesSustento') },
     regime: seg.regime,
     imoveis: money('imoveis'), nImoveis: num('nImoveis') || 0, aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'),
     previdencia: money('previdencia'), previdenciaAportado: money('previdencia') > 0 ? Math.min(money('prevAportado') || money('previdencia'), money('previdencia')) : 0,
@@ -87,7 +91,8 @@ function lerEntradas(){
     holding: { juridicoPct: pctCampo('hJur'), juridicoMin: money('hJurMin'), cartorioPct: pctCampo('hCart'), itbiPct: pctCampo('hItbi'), laudo: money('hLaudo'),
       contabilMensal: money('hContab'), anosDoacaoGradual: num('hAnos') || 10, incluirEmpresa: $('hEmpresa').checked },
     aluguelOpcoes: { lc224: $('hLc224').checked, opcao487: $('h487').checked, aliqRefIVA: pctCampo('hIva') },
-    wholeLife: { parcelaPor100k: money('wlParcela'), basicaPor100k: money('wlBasica'), ganhoReal: pctCampo('wlGanho') },
+    wholeLife: { parcelaPor100k: money('wlParcela'), basicaPor100k: money('wlBasica'), ganhoReal: pctCampo('wlGanho'),
+      idadeReferencia: num('wlIdadeRef'), ajustarIdade: $('wlAjustar').checked },
     offshore: { limiar: money('oLimiar'), abertura: money('oAbertura'), manutencaoAnual: money('oManut'),
       custoSucessaoExteriorPct: pctCampo('oCustoExt'), impostoExteriorPct: pctCampo('oImpExt') },
     sinais: { incapaz: $('sinIncapaz').checked, conflito: $('sinConflito').checked, empresa: $('sinEmpresa').checked }
@@ -97,7 +102,7 @@ function lerEntradas(){
 /** erros de campo que o motor não vê (campos numéricos vazios ou fora do intervalo) */
 function errosDeCampo(inp){
   const e = [];
-  const campos = [['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Meta de liquidez'],['honCart','Honorários'],['hJur','Jurídico da holding']];
+  const campos = [['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade da proposta de referência'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Meta de liquidez'],['honCart','Honorários'],['hJur','Jurídico da holding']];
   campos.forEach(([id, nome]) => { if(!isFinite(num(id))) e.push(nome + ': preencha o campo.'); });
   if(inp.nResidenciais > inp.nImoveisAlugados) e.push('Os imóveis residenciais não podem passar dos alugados.');
   if(inp.wholeLife.basicaPor100k > inp.wholeLife.parcelaPor100k) e.push('A cobertura básica do whole life não pode passar da parcela.');
@@ -127,6 +132,33 @@ function atualizarDicas(){
     ufHonorarios = uf;
   }
   const alug = money('aluguel') > 0;
+  // regime de bens
+  const rb = $('regimeBens').value, nH = Math.max(1, Math.round(num('herdeiros') || 1));
+  $('campoComuns').hidden = rb === 'sem' || rb === 'universal' || rb === 'obrigatoria';
+  $('lblComuns').hidden = rb !== 'parcial';
+  $('lblFiliacao').hidden = rb === 'parcial';
+  $('pctComuns').closest('.row-input').hidden = rb !== 'parcial';
+  $('pctComuns').closest('.field').querySelector('.hint').hidden = rb !== 'parcial';
+  const part = E.partilha({ herdeiros: nH, regime: rb, pctComuns: pctCampo('pctComuns'), ascendenteComum: $('ascComum').checked });
+  $('campoAsc').hidden = !part.conjugeHerdeiro;
+  $('hintRegimeBens').textContent = ({
+    sem: 'Toda a herança vai aos filhos.',
+    parcial: 'Meação de metade dos bens comuns; o cônjuge também herda sobre os bens particulares (CC, art. 1.829, I).',
+    universal: 'Meação de metade de tudo; o cônjuge não herda junto com os filhos.',
+    separacao: 'Sem meação; o cônjuge herda junto com os filhos sobre todos os bens.',
+    obrigatoria: 'Sem meação nem herança do cônjuge (a Súmula 377 do STF não está modelada).'
+  })[rb] + (isFinite(part.meacaoPct) ? ' Meação: ' + pct0(part.meacaoPct) + ' do patrimônio' + (part.conjugeHerdeiro ? '; cônjuge com ' + pct1(part.fracConjuge) + ' da herança.' : '.') : '');
+  // sustento: meses seguem o tipo de inventário até o planejador editar
+  const tipo = $('tipoInv').value;
+  if(!mesesTocado) $('mesesSustento').value = E.MESES_SUSTENTO[tipo];
+  $('hintSustento').textContent = 'Padrão: 3 meses em cartório, 24 no judicial, 36 com conflito. ' +
+    (money('despesaFamilia') > 0 && isFinite(num('mesesSustento')) ? 'Soma ' + fmtBRL0(money('despesaFamilia') * num('mesesSustento')) + ' à meta (R$ de hoje).' : '');
+  // whole life pela idade
+  const wlRef = num('wlIdadeRef');
+  if($('wlAjustar').checked && isFinite(idade) && isFinite(wlRef) && money('wlParcela') > 0){
+    const f = E.fatorIdadeWholeLife(idade, { idadeReferencia: wlRef, parcelaPor100k: money('wlParcela'), ganhoReal: pctCampo('wlGanho') });
+    $('hintWlIdade').textContent = 'Aos ' + idade + ' anos: ' + fmtBRL(money('wlParcela') * f.fator) + ' por R$ 100 mil (fator ' + f.fator.toLocaleString('pt-BR', {maximumFractionDigits:3}) + ').';
+  } else $('hintWlIdade').textContent = 'Parcela fixa da proposta, para qualquer idade.';
   if(!itbiTocado) $('hItbi').value = alug ? 2 : 0;
   $('hintItbi').textContent = alug ? 'Com aluguéis, a holding tende a ter atividade imobiliária preponderante e pagar ITBI integral (2% a 3% conforme o município).' : 'Imune quando a atividade preponderante não é imobiliária (STF, Tema 796: até o valor do capital).';
 }
@@ -224,16 +256,21 @@ function renderBase(){
   const total = e.imoveis + e.aplicacoes + e.empresa + e.exterior;
   $('baseSub').textContent = 'Se o falecimento fosse hoje, sem nenhum planejamento: ' + fmtBRL0(total) + ' iriam a inventário em ' + T.ESTADOS[e.uf].nome + ', ' + ({cartorio:'em cartório', judicial:'na Justiça', litigio:'na Justiça, com conflito'})[e.tipoInventario] + '.';
   $('baseCards').innerHTML =
-    '<div class="eq-card"><div class="k">Meta de liquidez (' + pct0(e.premissas.metaLiquidez) + ')</div><div class="v">' + fmtBRL0(b.metaHoje) + '</div><div class="s">O que previdência ou seguro precisam pagar, sozinhos.</div></div>' +
+    '<div class="eq-card"><div class="k">Meta de liquidez</div><div class="v">' + fmtBRL0(b.metaHoje) + '</div><div class="s">' +
+      (b.sustentoHoje > 0 ? pct0(e.premissas.metaLiquidez) + ' para o inventário (' + fmtBRL0(b.metaInventarioHoje) + ') + ' + e.sustento.meses + ' meses de despesas da família (' + fmtBRL0(b.sustentoHoje) + ').'
+        : pct0(e.premissas.metaLiquidez) + ' do patrimônio: o que previdência ou seguro precisam pagar, sozinhos.') + '</div></div>' +
     '<div class="eq-card"><div class="k">Estimativa por componentes</div><div class="v">' + fmtBRL0(b.custoHoje.total) + '</div><div class="s">' + pct1(b.custoHoje.pct) + ' do patrimônio que vai a inventário.</div></div>' +
-    '<div class="eq-card"><div class="k">Tempo com os bens travados</div><div class="v">' + PRAZO_INV[e.tipoInventario] + '</div><div class="s">Previdência e seguro chegam em dias.</div></div>';
+    '<div class="eq-card"><div class="k">Tempo com os bens travados</div><div class="v">' + PRAZO_INV[e.tipoInventario] + '</div><div class="s">Previdência e seguro chegam em dias.</div></div>' +
+    '<div class="eq-card"><div class="k">Herança (sem a meação)</div><div class="v">' + fmtBRL0(b.heranca) + '</div><div class="s">' +
+      (b.meacao > 0 ? 'Meação do cônjuge: ' + fmtBRL0(b.meacao) + '. ' : '') + 'Legítima ' + fmtBRL0(b.legitima) + ' · parte disponível para testamento ou doação ' + fmtBRL0(b.disponivel) + '.</div></div>';
   const rg = b.regimes, linhaT = (k, f) => '<tr><td>' + k + '</td>' + ['vigente','reforma','estresse'].map(x => '<td>' + fmtBRL0(f(rg[x])) + '</td>').join('') + '</tr>';
   $('tabInventario').innerHTML = '<tr><th>Componente</th><th>Lei vigente</th><th>Adequação à reforma</th><th>Estresse 16%</th></tr>' +
     linhaT('ITCMD (por quinhão)', c => c.itcmd) + linhaT('Honorários', c => c.honorarios) +
     linhaT(e.tipoInventario === 'cartorio' ? 'Escritura' : 'Custas judiciais', c => c.cartorio) + linhaT('Registro dos imóveis', c => c.registro) +
     linhaT('Certidões', c => c.certidoes) + (e.custos.multaPctImposto > 0 ? linhaT('Multa por atraso', c => c.multa) : '') +
     '<tr class="now"><td>Total</td>' + ['vigente','reforma','estresse'].map(x => '<td>' + fmtBRL0(rg[x].total) + ' <small class="suave inline">(' + pct1(rg[x].pct) + ')</small></td>').join('') + '</tr>';
-  $('baseNota').textContent = 'A meta de ' + pct0(e.premissas.metaLiquidez) + ' é maior que a estimativa porque cobre o que ela deixa de fora: inventário judicial, multas, avaliações e o tempo com bens travados. ' +
+  $('baseNota').textContent = 'A meta de ' + pct0(e.premissas.metaLiquidez) + ' é a média de mercado de todo o trâmite (cartório, advogado, contador, ITCMD, avaliações, certidões); a estimativa por componentes é só uma conferência e não substitui a meta. ' +
+    (e.partilha.conjugeHerdeiro ? 'O ITCMD considera o cônjuge como herdeiro, com ' + pct1(e.partilha.fracConjuge) + ' da herança. ' : '') +
     (T.ESTADOS[e.uf].reformaIgualVigente ? '' : 'Adequação à reforma: ' + T.ESTADOS[e.uf].reforma.hipotese);
 }
 
@@ -273,6 +310,10 @@ function renderSeguro(){
   if(!s) return;
   const e = r.entrada;
   const cabe = v => v === null ? '' : ' · ' + pct1(v) + ' da renda';
+  const wl = e.wholeLife;
+  $('seguroSub').textContent = wl.fatorIdade !== 1
+    ? 'Parcela da proposta Sicoob aos ' + wl.idadeReferencia + ' anos (' + fmtBRL(wl.parcelaReferencia) + ' por R$ 100 mil), ajustada para ' + e.idade + ' anos pelo fator atuarial ' + wl.fatorIdade.toLocaleString('pt-BR', {maximumFractionDigits:3}) + ': ' + fmtBRL(wl.parcelaPor100k) + ' por R$ 100 mil. A proposta real pode ser diferente.'
+    : 'Parcela da proposta Sicoob (' + fmtBRL(wl.parcelaPor100k) + ' por R$ 100 mil), proporcional ao capital. A proposta real pode ser diferente.';
   $('seguroCards').innerHTML =
     '<div class="eq-card"><div class="k">Capital segurado (' + CAM[s.caminho].nome + ')</div><div class="v">' + fmtBRL0(s.capital) + '</div><div class="s">Corrigido a IPCA + ' + fmtPct(e.wholeLife.ganhoReal, 1) + ' ao ano, vitalício.</div></div>' +
     '<div class="eq-card"><div class="k">A parcela cabe?</div><div class="v">' + fmtBRL0(s.parcelaInicial) + '/mês</div><div class="s">No 1º ano' + cabe(s.pctRenda) + '. No 10º ano: ' + fmtBRL0(s.parcela10) + '/mês' + cabe(s.pctRenda10) + '.</div></div>' +
@@ -317,11 +358,18 @@ function renderHolding(){
 function renderAlertas(){
   const {r, inp} = ultimo, e = r.entrada, s = inp.sinais, v = venc(r), out = [];
   const total = e.imoveis + e.aplicacoes + e.previdencia + e.empresa + e.exterior;
+  void total;
+  const est = T.ESTADOS[e.uf], idadeTab = mesesDesde(est.revisadoEm);
+  if(idadeTab > LIMITE_MESES_TABELA) out.push('<b>Tabela de ITCMD revisada há ' + idadeTab + ' meses:</b> a última conferência de ' + est.nome + ' foi em ' + est.revisadoEm.split('-').reverse().join('/') + '. Confira se a lei ou a unidade fiscal mudaram antes de apresentar.');
   if(v && (v.cfg.X > 0 || e.previdencia > 0)){
     const prev = e.previdencia + (v.cfg.X || 0);
-    out.push('<b>Previdência e legítima:</b> metade do patrimônio é dos herdeiros necessários (Código Civil, art. 1.846). Previdência com beneficiários diferentes dos herdeiros, ou aportes grandes perto do falecimento, pode ser questionada.' +
-      (prev > total * 0.5 ? ' <b>Aqui a previdência passaria de 50% do patrimônio.</b>' : ''));
+    out.push('<b>Previdência e legítima:</b> metade da herança (' + fmtBRL0(r.base.legitima) + ') é dos herdeiros necessários (Código Civil, art. 1.846). Previdência com beneficiários diferentes deles, ou aportes grandes perto do falecimento, pode ser questionada.' +
+      (prev > r.base.disponivel ? ' <b>Aqui a previdência (' + fmtBRL0(prev) + ') passaria da parte disponível (' + fmtBRL0(r.base.disponivel) + '):</b> indique os herdeiros necessários como beneficiários.' : ''));
   }
+  if(e.partilha.conjugeHerdeiro) out.push('<b>O cônjuge é herdeiro junto com os filhos</b> (CC, art. 1.829, I)' + (e.conjuge.regime === 'parcial' ? ', só sobre os bens particulares' : '') + ': recebe ' + pct1(e.partilha.fracConjuge) + ' da herança' + (e.conjuge.ascendenteComum && e.herdeiros >= 3 ? ', com o mínimo de 1/4 por ser pai ou mãe de todos (art. 1.832)' : '') + '. Previdência e seguro podem indicá-lo como beneficiário à parte.');
+  if(e.conjuge.regime === 'obrigatoria') out.push('<b>Separação obrigatória:</b> pela Súmula 377 do STF, os bens adquiridos com esforço comum podem ser partilhados como meação. A simulação considera meação zero; confirme com o advogado.');
+  if(e.conjuge.regime === 'universal' || e.conjuge.regime === 'parcial') out.push('<b>Doação de bens comuns</b> precisa da concordância do cônjuge, que também doa a sua meação.');
+  if(e.wholeLife.fatorIdade !== 1 && e.idade >= 65 && r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life aos ' + e.idade + ' anos:</b> as seguradoras limitam a idade de entrada e o capital sem exames; a parcela usada é estimada pela tábua do IBGE a partir da proposta de ' + e.wholeLife.idadeReferencia + ' anos. Peça a cotação antes de apresentar.');
   if(r.caminhos.some(c => c.cfg.doaImoveis || c.cfg.holding)) out.push('<b>Doação a filhos é adiantamento da herança</b> (CC, arts. 544 e 2.002) e vai à colação, salvo se sair da parte disponível; a parte que passa da disponível é nula (art. 549). Cláusulas de inalienabilidade sobre a legítima exigem justa causa (art. 1.848).');
   if(s.incapaz) out.push('<b>Herdeiro menor ou incapaz:</b> o inventário em cartório só é possível nas condições da Res. CNJ 571/2024 (parte ideal em cada bem e concordância do Ministério Público); senão, é judicial.');
   if(s.conflito) out.push('<b>Risco de conflito:</b> testamento e regras de governança reduzem disputas. Uma holding com acordo de sócios pode compensar mesmo sem vencer nos números; avalie com advogado.');
@@ -330,7 +378,7 @@ function renderAlertas(){
   if(e.uf === 'MS') out.push('<b>MS ainda não adotou o ITCMD progressivo</b> exigido pela LC 227/2026. Enquanto a lei não muda, doar custa 3% contra 6% na herança; uma lei nova só vale no ano seguinte e após 90 dias.');
   if(e.uf === 'RO') out.push('<b>RO aplica a alíquota da faixa sobre o quinhão inteiro;</b> a LC 227/2026 exige faixas sucessivas. Pode haver discussão sobre qual regra prevalece.');
   if(e.uf === 'PA') out.push('<b>PA:</b> a lei aplica as faixas de forma sucessiva (art. 8º, § 1º), mas há quem leia de outro modo; confirme o cálculo com a Sefa-PA.');
-  if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; a parcela usada é a média da planilha Sicoob.');
+  if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; a parcela usada vem da planilha Sicoob' + (e.wholeLife.fatorIdade !== 1 ? ', ajustada pela idade' : '') + '.');
   if(e.exterior > 0) out.push('<b>Bens no exterior:</b> desde 2026 pagam ITCMD no estado de domicílio (LC 227/2026) e os rendimentos pagam IR de 15% ao ano (Lei 14.754/2023).');
   out.push('<b>Testamento</b> organiza a parte disponível e reduz conflitos em qualquer caminho; não evita o inventário.');
   out.push('<b>Imposto da herança é o da data do falecimento; o da doação, o da data da doação</b> (LC 227/2026, art. 156, § 1º). Quem antecipa trava a regra de hoje.');
@@ -340,10 +388,12 @@ function renderAlertas(){
 function renderFontes(){
   const {r} = ultimo, est = T.ESTADOS[r.entrada.uf];
   $('fontes').innerHTML = '<h3>Premissas e fontes</h3><ul>' + [
-    'ITCMD de ' + est.nome + ': ' + est.lei + ' (referência ' + est.dataRef.split('-').reverse().join('/') + '; ' + est.unidade.nome + (est.unidade.valor !== 1 ? ' = R$ ' + est.unidade.valor.toLocaleString('pt-BR', {maximumFractionDigits:4}) : '') + '). Normas gerais: LC 227/2026.',
+    'ITCMD de ' + est.nome + ': ' + est.lei + ' (unidade de ' + est.dataRef.split('-').reverse().join('/') + ', revisado em ' + est.revisadoEm.split('-').reverse().join('/') + '; ' + est.unidade.nome + (est.unidade.valor !== 1 ? ' = R$ ' + est.unidade.valor.toLocaleString('pt-BR', {maximumFractionDigits:4}) : '') + '). Normas gerais: LC 227/2026.',
     'Honorários: ' + E.honorariosPadrao(r.entrada.uf).fonte,
     'Expectativa de vida: IBGE, Tábua Completa de Mortalidade 2024 (ambos os sexos).',
-    'Whole life: média da planilha "Sicoob - Seguro Whole Life" (R$ ' + r.entrada.wholeLife.parcelaPor100k.toLocaleString('pt-BR', {minimumFractionDigits:2}) + '/mês por R$ 100 mil).',
+    'Whole life: planilha "Sicoob - Seguro Whole Life" (R$ ' + r.entrada.wholeLife.parcelaReferencia.toLocaleString('pt-BR', {minimumFractionDigits:2}) + '/mês por R$ 100 mil aos ' + r.entrada.wholeLife.idadeReferencia + ' anos)' +
+      (r.entrada.wholeLife.fatorIdade !== 1 ? '; fator de idade pela Tábua IBGE 2024 (Gompertz), juros técnicos implícitos de ' + fmtPct(r.entrada.wholeLife.taxaTecnica, 2) + ' a.a. reais.' : '.'),
+    'Partilha: Código Civil, arts. 1.658 a 1.688 (regimes), 1.829, 1.832 e 1.846; STJ, REsp 1.368.123 e 1.382.170.',
     'Aluguéis: Lei 15.270/2025 (IR e dividendos), LC 214/2025 (IBS/CBS na locação), LC 224/2025 (presumido).',
     'Custos de holding, cartório e offshore: referências de mercado, editáveis. Simulação gerada em ' + HOJE.toLocaleDateString('pt-BR') + '.'
   ].map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
@@ -412,7 +462,10 @@ function gerarPdf(){
   if(!ultimo) return;
   const {r} = ultimo, e = r.entrada;
   const tr = (k, val) => '<tr><td class="k">' + k + '</td><td class="v">' + val + '</td></tr>';
-  const dados = tr('Idade · estado · herdeiros', e.idade + ' anos · ' + T.ESTADOS[e.uf].nome + ' · ' + e.herdeiros) +
+  const REG = { sem: 'sem cônjuge', parcial: 'comunhão parcial', universal: 'comunhão universal', separacao: 'separação convencional', obrigatoria: 'separação obrigatória' };
+  const dados = tr('Idade · estado · filhos herdeiros', e.idade + ' anos · ' + T.ESTADOS[e.uf].nome + ' · ' + e.herdeiros) +
+    tr('Regime de bens', REG[e.conjuge.regime] + (e.meacaoPct > 0 ? ' · meação ' + pct0(e.meacaoPct) : '') + (e.partilha.conjugeHerdeiro ? ' · cônjuge herdeiro (' + pct1(e.partilha.fracConjuge) + ')' : '')) +
+    (e.sustento.despesaMensal > 0 ? tr('Despesas da família na meta', fmtBRL0(e.sustento.despesaMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
     tr('Imóveis · aplicações', fmtBRL0(e.imoveis) + ' · ' + fmtBRL0(e.aplicacoes)) +
     (e.empresa ? tr('Participações em empresas', fmtBRL0(e.empresa)) : '') + (e.exterior ? tr('Bens no exterior', fmtBRL0(e.exterior)) : '') +
     (e.previdencia ? tr('Previdência existente', fmtBRL0(e.previdencia)) : '') + (e.seguroExistente ? tr('Seguro existente', fmtBRL0(e.seguroExistente)) : '') +
@@ -423,7 +476,8 @@ function gerarPdf(){
       ['proximo','dez','expectativa'].map(h => '<td class="n">' + fmtBRL0(valorEm(c, h)) + '</td>').join('') +
       '<td class="n ' + (c.protegeJa ? 'ok' : 'no') + '">' + (isFinite(c.coberturaAno1) ? pct0(Math.min(c.coberturaAno1, 9.99)) : '—') + '</td></tr>').join('') + '</table>';
   const b = r.base;
-  const inv = '<table>' + tr('Meta de liquidez', fmtBRL0(b.metaHoje)) + tr('Estimativa por componentes (lei vigente)', fmtBRL0(b.regimes.vigente.total) + ' (' + pct1(b.regimes.vigente.pct) + ')') +
+  const inv = '<table>' + tr('Meta de liquidez', fmtBRL0(b.metaHoje) + (b.sustentoHoje > 0 ? ' (inventário ' + fmtBRL0(b.metaInventarioHoje) + ' + família ' + fmtBRL0(b.sustentoHoje) + ')' : '')) +
+    tr('Herança · legítima · parte disponível', fmtBRL0(b.heranca) + ' · ' + fmtBRL0(b.legitima) + ' · ' + fmtBRL0(b.disponivel)) + tr('Estimativa por componentes (lei vigente)', fmtBRL0(b.regimes.vigente.total) + ' (' + pct1(b.regimes.vigente.pct) + ')') +
     tr('Com a adequação à reforma · estresse 16%', fmtBRL0(b.regimes.reforma.total) + ' · ' + fmtBRL0(b.regimes.estresse.total)) + '</table>';
   const destaques = semHtml($('destaques').innerHTML.replace(/<\/(p|h4|div)>/g, ' ')).replace(/\s+/g, ' ').trim();
   const img = graficoParaImpressao();
@@ -444,6 +498,61 @@ function gerarPdf(){
       'Não constitui consultoria jurídica, tributária ou de seguros, oferta ou recomendação. Consulte advogado, contador e corretor habilitado antes de decidir.</div>' +
     '<div class="pr-footer">' + [...document.querySelectorAll('footer p')].map(p => '<p>' + esc(p.textContent) + '</p>').join('') + '</div>';
   setTimeout(() => window.print(), 120);
+}
+
+/* =========================================================================
+ * 9b. Salvar e abrir simulação (arquivo .json só com os campos da tela)
+ * ========================================================================= */
+const VERSAO_ARQUIVO = 1;
+function mesesDesde(ref){
+  const [a, m] = String(ref).split('-').map(Number);
+  return (HOJE.getFullYear() - a) * 12 + (HOJE.getMonth() + 1 - m);
+}
+function camposDaTela(){
+  return [...document.querySelectorAll('#step-1 input[id], #step-1 select[id], #step-2 input[id], #step-2 select[id]')];
+}
+function salvarArquivo(){
+  const campos = {};
+  camposDaTela().forEach(el => { campos[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+  const dados = { modulo: 'sucessao', versao: VERSAO_ARQUIVO, salvoEm: HOJE.toISOString().slice(0, 10),
+    regime: seg.regime, tocados: { itbi: itbiTocado, meses: mesesTocado }, campos };
+  const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'simulacao-sucessao-' + dados.salvoEm + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  msgArquivo('Simulação salva no arquivo ' + a.download + '.', 'ok');
+}
+function msgArquivo(t, cls){ const m = $('arquivoMsg'); m.textContent = t; m.className = 'hint' + (cls ? ' ' + cls : ''); }
+function abrirArquivo(arquivo){
+  if(!arquivo) return;
+  if(arquivo.size > 200000){ msgArquivo('Arquivo grande demais para uma simulação.', 'erro'); return; }
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    let d;
+    try { d = JSON.parse(leitor.result); } catch(err){ msgArquivo('O arquivo não é uma simulação válida.', 'erro'); return; }
+    if(!d || d.modulo !== 'sucessao' || typeof d.campos !== 'object'){ msgArquivo('Este arquivo não é uma simulação do Planejamento Sucessório.', 'erro'); return; }
+    let aplicados = 0;
+    camposDaTela().forEach(el => {
+      if(!Object.prototype.hasOwnProperty.call(d.campos, el.id)) return;
+      const v = d.campos[el.id];
+      if(el.type === 'checkbox') el.checked = v === true;
+      else if(el.tagName === 'SELECT'){ if([...el.options].some(o => o.value === String(v))) el.value = String(v); else return; }
+      else el.value = String(v).slice(0, 40);
+      aplicados++;
+    });
+    itbiTocado = !!(d.tocados && d.tocados.itbi); mesesTocado = !!(d.tocados && d.tocados.meses);
+    ufHonorarios = $('uf').value;   // mantém os honorários do arquivo
+    if(['vigente', 'reforma', 'estresse'].includes(d.regime)){
+      seg.regime = d.regime;
+      $('segRegime').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === d.regime));
+    }
+    $('segCenario').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === $('rentab').value));
+    recalcular();
+    msgArquivo('Simulação de ' + (d.salvoEm || 'data não informada').split('-').reverse().join('/') + ' aberta (' + aplicados + ' campos).', 'ok');
+  };
+  leitor.readAsText(arquivo);
 }
 
 /* =========================================================================
@@ -484,6 +593,10 @@ function iniciar(){
   // whole life: a parcela e a básica aceitam centavos já formatados
   ['wlParcela', 'wlBasica'].forEach(id => { $(id).value = moeda(lerMoeda($(id))); });
   $('hItbi').addEventListener('input', () => { itbiTocado = true; });
+  $('mesesSustento').addEventListener('input', () => { mesesTocado = true; });
+  $('btnSalvar').addEventListener('click', salvarArquivo);
+  $('btnAbrir').addEventListener('click', () => $('arqAbrir').click());
+  $('arqAbrir').addEventListener('change', ev => { abrirArquivo(ev.target.files[0]); ev.target.value = ''; });
   $('btnPdf').addEventListener('click', gerarPdf);
   Tema.ligarBotao($('btnTema'), () => setTimeout(desenharGrafico, 30));
   let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(desenharGrafico, 150); });

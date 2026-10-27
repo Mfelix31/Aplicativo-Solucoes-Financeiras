@@ -16,6 +16,9 @@
  * Isenção 'tudoOuNada': valor até o limite não paga; acima, paga sobre tudo.
  * Faixas e limites em REAIS (convertidos pela unidade fiscal da data de
  * referência); a unidade e a conversão ficam registradas para atualização.
+ * dataRef = mês da unidade fiscal usada; revisadoEm = mês da última conferência
+ * da lei e da unidade (é o que conta para os alertas de tabela vencida).
+ * Revisão trimestral: scripts/verificar-dados.js e .github/workflows/revisao-dados.yml.
  * Base de cálculo: valor de mercado do quinhão de cada herdeiro (herança)
  * ou do bem doado a cada donatário (doação) — LC 227/2026, arts. 148 e 152.
  */
@@ -41,6 +44,7 @@
       nome: 'Mato Grosso',
       lei: 'Lei nº 7.850/2002, art. 19 (redação da Lei nº 10.488/2016)',
       dataRef: '2026-09',
+      revisadoEm: '2026-10',
       unidade: { nome: 'UPF/MT', valor: UPF_MT },
       somaDoacoes: 'Doações do mesmo doador ao mesmo donatário no ano civil são somadas (art. 19, § 5º).',
       multa: 'Inventário protocolado após 120 dias do óbito: multa de 5% do imposto; após 240 dias, 10%.',
@@ -55,6 +59,7 @@
       nome: 'Mato Grosso do Sul',
       lei: 'Lei nº 1.810/1997, arts. 121 a 143',
       dataRef: '2026-10',
+      revisadoEm: '2026-10',
       unidade: { nome: 'R$', valor: 1 },
       somaDoacoes: 'Sem regra estadual de soma; a LC 227/2026 autoriza o estado a criar.',
       multa: 'Inventário requerido após 2 meses do óbito: multa de 20% do imposto.',
@@ -73,6 +78,7 @@
       nome: 'Rondônia',
       lei: 'Lei nº 959/2000, arts. 5º e 6º',
       dataRef: '2026-10',
+      revisadoEm: '2026-10',
       unidade: { nome: 'UPF/RO', valor: UPF_RO },
       somaDoacoes: 'Sem regra estadual de soma; a LC 227/2026 autoriza o estado a criar.',
       multa: 'Inventário aberto após 60 dias: multa de 10% do imposto; após 120 dias, 20%.',
@@ -91,6 +97,7 @@
       nome: 'Pará',
       lei: 'Lei nº 5.529/1989, art. 8º (redação da Lei nº 8.868/2019)',
       dataRef: '2026-01',
+      revisadoEm: '2026-10',
       unidade: { nome: 'UPF-PA', valor: UPF_PA },
       somaDoacoes: 'Doações do mesmo doador ao mesmo donatário no ano civil são somadas (art. 8º, § 2º).',
       multa: 'Inventário não requerido em 2 meses: multa fixa de 300 UPF-PA.',

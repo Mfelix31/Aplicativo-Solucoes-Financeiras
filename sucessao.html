@@ -27,6 +27,13 @@
     <button class="step-btn" data-step="3" role="tab"><span class="n">03</span>Análise</button>
   </nav>
 
+  <div class="arquivo-bar">
+    <button class="ghost" type="button" id="btnSalvar">Salvar simulação</button>
+    <button class="ghost" type="button" id="btnAbrir">Abrir simulação</button>
+    <input type="file" id="arqAbrir" accept=".json,application/json" hidden>
+    <span class="hint" id="arquivoMsg">O arquivo guarda só os números desta tela (idade, valores e premissas), sem nome ou documento.</span>
+  </div>
+
   <div class="err-banner" id="errBanner"></div>
 
   <!-- ========================= ETAPA 1 ========================= -->
@@ -49,14 +56,27 @@
           <div class="hint" id="hintUf"></div>
         </div>
         <div class="field">
-          <label for="herdeiros">Número de herdeiros</label>
+          <label for="herdeiros">Filhos (ou netos) herdeiros</label>
           <div class="row-input"><input type="number" id="herdeiros" value="2" min="1" step="1"></div>
-          <div class="hint">Quem divide a herança. O ITCMD é calculado sobre o quinhão de cada um.</div>
+          <div class="hint">O ITCMD é calculado sobre o quinhão de cada um. O cônjuge entra sozinho quando o regime o torna herdeiro.</div>
         </div>
         <div class="field">
-          <label for="meacao">Parte do patrimônio que é meação do cônjuge</label>
-          <div class="row-input"><input type="number" id="meacao" value="0" min="0" max="99" step="1"><span class="suffix">%</span></div>
-          <div class="hint">Pelo regime de bens. A meação não é herança e não paga ITCMD.</div>
+          <label for="regimeBens">Cônjuge ou companheiro — regime de bens</label>
+          <div class="row-input"><select id="regimeBens">
+            <option value="sem">Sem cônjuge ou companheiro</option>
+            <option value="parcial" selected>Comunhão parcial (ou união estável)</option>
+            <option value="universal">Comunhão universal</option>
+            <option value="separacao">Separação convencional (pacto)</option>
+            <option value="obrigatoria">Separação obrigatória (legal)</option>
+          </select></div>
+          <div class="hint" id="hintRegimeBens"></div>
+        </div>
+        <div class="field" id="campoComuns">
+          <label for="pctComuns" id="lblComuns">Bens comuns (adquiridos durante a união)</label>
+          <span class="lbl-campo" id="lblFiliacao">Filhos do casal</span>
+          <div class="row-input"><input type="number" id="pctComuns" value="100" min="0" max="100" step="5"><span class="suffix">% do patrimônio</span></div>
+          <div class="hint">O restante é particular: de antes da união, herdado ou recebido em doação.</div>
+          <label class="inline-check small" id="campoAsc"><input type="checkbox" id="ascComum" checked> o cônjuge é pai ou mãe de todos os herdeiros</label>
         </div>
         <div class="field">
           <label for="tipoInv">Inventário provável</label>
@@ -65,6 +85,16 @@
             <option value="judicial">Judicial sem conflito</option>
             <option value="litigio">Judicial com conflito</option>
           </select></div>
+        </div>
+        <div class="field">
+          <label for="despesaFamilia">Despesas mensais da família</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="despesaFamilia" class="money" value="0,00"><span class="suffix">/mês</span></div>
+          <div class="hint">Para a família viver enquanto os bens estão travados no inventário.</div>
+        </div>
+        <div class="field">
+          <label for="mesesSustento">Meses a cobrir</label>
+          <div class="row-input"><input type="number" id="mesesSustento" value="3" min="0" max="120" step="1"><span class="suffix">meses</span></div>
+          <div class="hint" id="hintSustento"></div>
         </div>
       </div>
       <div class="checks">
@@ -189,7 +219,7 @@
         <div class="field">
           <label for="meta">Meta de liquidez para o inventário</label>
           <div class="row-input"><input type="number" id="meta" value="18" min="1" max="99" step="0.5"><span class="suffix">% do patrimônio</span></div>
-          <div class="hint">Valor que previdência e seguro precisam pagar, sozinhos, do patrimônio que vai a inventário.</div>
+          <div class="hint">Cartório, advogado, contador, ITCMD e trâmites do inventário. Previdência e seguro precisam pagar esse valor sozinhos, mais as despesas da família.</div>
         </div>
         <div class="field">
           <label for="taxaAdm">Taxa de administração da previdência</label>
@@ -258,9 +288,11 @@
     </section>
 
     <section class="panel">
-      <h2>Whole life <span class="opcional">(média da planilha Sicoob)</span></h2>
+      <h2>Whole life <span class="opcional">(planilha Sicoob, ajustada pela idade)</span></h2>
       <div class="grid">
-        <div class="field"><label for="wlParcela">Parcela mensal por R$ 100 mil de capital</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlParcela" class="money" value="637,15"></div><div class="hint">Corrigida pelo IPCA por 10 anos.</div></div>
+        <div class="field"><label for="wlIdadeRef">Idade da proposta de referência</label><div class="row-input"><input type="number" id="wlIdadeRef" value="48" min="18" max="90" step="1"><span class="suffix">anos</span></div>
+          <label class="inline-check small"><input type="checkbox" id="wlAjustar" checked> ajustar a parcela pela idade do cooperado</label><div class="hint" id="hintWlIdade"></div></div>
+        <div class="field"><label for="wlParcela">Parcela mensal por R$ 100 mil, na idade de referência</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlParcela" class="money" value="637,15"></div><div class="hint">Corrigida pelo IPCA por 10 anos.</div></div>
         <div class="field"><label for="wlBasica">… dos quais cobertura básica</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlBasica" class="money" value="397,23"></div><div class="hint">Forma a reserva (valor resgatável).</div></div>
         <div class="field"><label for="wlGanho">Ganho real atuarial</label><div class="row-input"><input type="number" id="wlGanho" value="2.5" step="0.1"><span class="suffix">% a.a. + IPCA</span></div></div>
       </div>
@@ -317,7 +349,7 @@
 
       <div class="block" id="blocoSeguro">
         <h3>Whole life: a parcela cabe? O prêmio é bom?</h3>
-        <p class="sub">Parcela pela média da planilha Sicoob, proporcional ao capital. A proposta real pode ser diferente.</p>
+        <p class="sub" id="seguroSub"></p>
         <div class="eq" id="seguroCards"></div>
         <div class="table-scroll"><table class="t" id="tabSeguro"></table></div>
         <div class="hint nota" id="seguroNota"></div>

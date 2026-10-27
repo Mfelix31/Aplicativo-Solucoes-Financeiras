@@ -198,3 +198,85 @@ test('validação: estado, idade, herdeiros e patrimônio', () => {
   assert.equal(r.ok, false);
   assert.ok(r.erros.length >= 3);
 });
+
+/* ---------- whole life por idade (conferido em Python: numpy.polyfit + scipy.brentq) ---------- */
+test('whole life: fator por idade calibrado na proposta aos 48 anos', () => {
+  const f = x => S.fatorIdadeWholeLife(x).fator;
+  perto(f(48), 1, 1e-9);
+  perto(S.fatorIdadeWholeLife(48).taxaTecnica, 0.0386565, 1e-6, 'juros técnicos implícitos');
+  perto(f(30), 0.7953, 5e-4); perto(f(55), 1.0950, 5e-4); perto(f(70), 1.3632, 5e-4); perto(f(80), 1.6672, 5e-4);
+  for (let x = 25; x < 85; x += 5) assert.ok(f(x + 5) > f(x), 'cresce com a idade');
+});
+
+test('whole life: parcela ajustada entra na análise; desligar mantém a planilha', () => {
+  const a48 = S.normalizar(caso({ idade: 48 })).wholeLife;
+  assert.equal(a48.parcelaPor100k, 637.15);
+  const a70 = S.normalizar(caso({ idade: 70 })).wholeLife;
+  perto(a70.parcelaPor100k, 637.15 * 1.3632, 0.5);
+  perto(a70.basicaPor100k, 397.23 * 1.3632, 0.5);
+  assert.equal(a70.parcelaReferencia, 637.15);
+  const fixo = S.normalizar(caso({ idade: 70, wholeLife: { ajustarIdade: false } })).wholeLife;
+  assert.equal(fixo.parcelaPor100k, 637.15);
+  const r = S.analisar(caso({ idade: 70 }));
+  perto(r.seguro.parcelaInicial, 637.15 * 1.3632 * r.seguro.capital / 1e5, 1);
+});
+
+/* ---------- regime de bens (contas à mão) ---------- */
+test('partilha: meação e concorrência do cônjuge por regime', () => {
+  const u = S.partilha({ herdeiros: 2, regime: 'universal' });
+  assert.equal(u.meacaoPct, 0.5); assert.equal(u.conjugeHerdeiro, false);
+  const p1 = S.partilha({ herdeiros: 2, regime: 'parcial', pctComuns: 1 });
+  assert.equal(p1.meacaoPct, 0.5); assert.equal(p1.conjugeHerdeiro, false);
+  // parcial, metade comum: herança = 0,25 (comum) + 0,5 (particular) = 0,75; cônjuge 1/3 do particular
+  const p = S.partilha({ herdeiros: 2, regime: 'parcial', pctComuns: 0.5 });
+  perto(p.meacaoPct, 0.25, 1e-12);
+  perto(p.fracConjuge, (0.5 / 3) / 0.75, 1e-12);
+  perto(p.quinhoes[0], (0.125 + 0.5 * (2 / 3) / 2) / 0.75, 1e-12);
+  perto(p.quinhoes.reduce((a, b) => a + b, 0), 1, 1e-12);
+  // separação convencional, 4 filhos comuns: cônjuge com 1/4 (art. 1.832), filhos 3/16 cada
+  const s4 = S.partilha({ herdeiros: 4, regime: 'separacao' });
+  assert.equal(s4.meacaoPct, 0); perto(s4.fracConjuge, 0.25, 1e-12); perto(s4.quinhoes[0], 0.1875, 1e-12);
+  const s4b = S.partilha({ herdeiros: 4, regime: 'separacao', ascendenteComum: false });
+  perto(s4b.fracConjuge, 0.2, 1e-12);
+  const ob = S.partilha({ herdeiros: 2, regime: 'obrigatoria' });
+  assert.equal(ob.meacaoPct, 0); assert.equal(ob.conjugeHerdeiro, false);
+  assert.equal(S.partilha({ herdeiros: 2, regime: 'sem', meacaoPct: 0.3 }).meacaoPct, 0.3);
+});
+
+test('ITCMD por quinhão quando o cônjuge herda (MT, separação, 2 filhos, R$ 3 milhões)', () => {
+  const tab = T.tabela('MT', 'vigente').heranca;
+  const esperado = 3 * S.itcmdValor(1e6, tab);   // três quinhões de R$ 1 milhão
+  const inv = S.custoInventario({ monte: 3e6, imoveis: 0, meacaoPct: 0, herdeiros: 2, quinhoes: [1 / 3, 1 / 3, 1 / 3], uf: 'MT', tipo: 'cartorio' });
+  perto(inv.itcmd, esperado, 1e-6);
+  assert.ok(inv.itcmd < S.itcmdDividido(3e6, 2, 'MT', 'vigente', 'heranca'), 'mais quinhões, menos imposto progressivo');
+  const r = S.analisar(caso({ conjuge: { regime: 'separacao' } }));
+  assert.equal(r.entrada.partilha.quinhoes.length, 3);
+});
+
+test('legítima e parte disponível: metade da herança cada', () => {
+  const r = S.analisar(caso({ conjuge: { regime: 'universal' } }));
+  perto(r.base.meacao, 2.5e6, 1e-6);
+  perto(r.base.heranca, 2.5e6, 1e-6);
+  perto(r.base.legitima, 1.25e6, 1e-6); perto(r.base.disponivel, 1.25e6, 1e-6);
+});
+
+/* ---------- sustento da família durante o inventário ---------- */
+test('sustento: meses de despesas somados à meta, com padrão por tipo de inventário', () => {
+  assert.equal(S.normalizar(caso({ tipoInventario: 'judicial', sustento: { despesaMensal: 20000 } })).sustento.meses, 24);
+  assert.equal(S.normalizar(caso({ sustento: { despesaMensal: 20000, meses: 6 } })).sustento.meses, 6);
+  const sem = S.analisar(caso({ tipoInventario: 'judicial' }));
+  const com = S.analisar(caso({ tipoInventario: 'judicial', sustento: { despesaMensal: 20000 } }));
+  perto(com.base.metaHoje - sem.base.metaHoje, 480000, 1e-6);
+  const a1 = com.caminhos.find(c => c.id === 'inventario').sim.anos[0];
+  perto(a1.sustento, 480000 * 1.04, 1e-6);
+  assert.ok(com.previdencia.X > sem.previdencia.X, 'previdência maior para cobrir o sustento');
+  assert.equal(S.analisar(caso({ sustento: { despesaMensal: -1 } })).ok, false);
+});
+
+test('dados: todo estado tem lei, unidade, mês da unidade e mês da última revisão', () => {
+  for (const [uf, e] of Object.entries(T.ESTADOS)) {
+    assert.match(e.dataRef, /^\d{4}-\d{2}$/, uf);
+    assert.match(e.revisadoEm, /^\d{4}-\d{2}$/, uf);
+    assert.ok(e.lei && e.unidade && e.unidade.valor > 0, uf);
+  }
+});

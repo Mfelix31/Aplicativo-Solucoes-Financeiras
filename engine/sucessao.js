@@ -21,15 +21,18 @@
  *   com custo de oportunidade), IR da previdência no pagamento e IR
  *   latente das aplicações; em R$ de hoje (deflacionado pelo IPCA).
  * - Meta de liquidez (decisão do usuário): 18% do patrimônio que vai a
- *   inventário. Cobertura = (previdência líquida de IR + capital de seguro)
+ *   inventário (cartório, advogado, contador, ITCMD e trâmites), mais as
+ *   despesas da família durante o inventário (meses × despesa mensal). Cobertura = (previdência líquida de IR + capital de seguro)
  *   ÷ meta. Previdência e seguro não entram no inventário nem pagam ITCMD
  *   (LC 227/2026, art. 150, III); indenização de seguro é isenta de IR.
  * - Regra de recomendação: só concorre quem cobre 100% já no 1º ano; vence
  *   o maior VCF na expectativa de vida; diferença menor que a margem
  *   (padrão 3%) favorece o mais simples.
  * - Whole life: reproduz a planilha "Sicoob - Seguro Whole Life.xlsx"
- *   (parcela por R$ 100 mil = média de várias idades, corrigida por IPCA
+ *   (parcela por R$ 100 mil da proposta aos 48 anos, corrigida por IPCA
  *   por 10 anos; capital × (1+IPCA)(1+2,5%) ao ano; reserva pela curva atuarial).
+ *   Em outras idades, parcela e cobertura básica são escaladas por um fator
+ *   atuarial (ver fatorIdadeWholeLife).
  * - Arredondamento só na apresentação.
  */
 (function (root, factory) {
@@ -84,8 +87,9 @@
   function honorariosPadrao(uf) { return ITCMD.HONORARIOS[uf] || ITCMD.HONORARIOS.padrao; }
 
   /**
-   * @param a { monte, imoveis, meacaoPct, herdeiros, uf, regime, tipo ('cartorio'|'judicial'|'litigio'), custos }
+   * @param a { monte, imoveis, meacaoPct, herdeiros, quinhoes?, uf, regime, tipo ('cartorio'|'judicial'|'litigio'), custos }
    * monte = bens que vão a inventário (sem previdência e seguro), a valor de mercado.
+   * quinhoes = fração da herança de cada herdeiro (soma 1); sem ela, divisão igual entre `herdeiros`.
    */
   function custoInventario(a) {
     const c = Object.assign({}, CUSTOS_PADRAO, a.custos || {});
@@ -93,7 +97,9 @@
     const monte = Math.max(0, a.monte || 0);
     if (monte === 0) return { itcmd: 0, honorarios: 0, cartorio: 0, registro: 0, certidoes: 0, multa: 0, total: 0, pct: 0, heranca: 0 };
     const heranca = monte * (1 - (a.meacaoPct || 0));
-    const itcmd = itcmdDividido(heranca, a.herdeiros, a.uf, a.regime || 'vigente', 'heranca');
+    const itcmd = a.quinhoes && a.quinhoes.length
+      ? a.quinhoes.reduce((t, f) => t + itcmdValor(heranca * f, ITCMD.tabela(a.uf, a.regime || 'vigente').heranca), 0)
+      : itcmdDividido(heranca, a.herdeiros, a.uf, a.regime || 'vigente', 'heranca');
     const tipo = a.tipo || 'cartorio';
     const honorarios = Math.max(c.honorarioMin, heranca * hon[tipo]);
     const cartorio = tipo === 'cartorio'
@@ -127,7 +133,61 @@
     1.010766580123, 1.010426738494, 1.009729782685, 1.009254456637, 1.008486202062, 1.008182773547, 1.007363765654, 1.007230075812,
     1.00719156258, 1.006885611642, 1.006585607506, 1.006291984413, 1.006004892678, 1.00572476209, 1.005451909824, 1.005186611438,
     1.004928930089];
-  const WL_PADRAO = { parcelaPor100k: 637.15, basicaPor100k: 397.23, ganhoReal: 0.025, anosPagamento: 10 };
+  const WL_PADRAO = { parcelaPor100k: 637.15, basicaPor100k: 397.23, ganhoReal: 0.025, anosPagamento: 10,
+    idadeReferencia: 48, ajustarIdade: true };
+
+  /*
+   * Parcela por idade. A planilha Sicoob traz a parcela de uma proposta aos 48 anos
+   * (aba Premissas). Para outras idades, a parcela é escalada pelo fator atuarial
+   *   f(x) = P(x) / P(idade de referência)
+   * em que P(x) é o prêmio nivelado (real) de um seguro vitalício pago em 10 anos, com
+   * capital crescendo 2,5% real ao ano:
+   *   P(x) = Σ_t  tp_x · q_(x+t) · v^(t+1) · 1,025^t   ÷   Σ_(t<10) tp_x · v^t
+   * Mortalidade: Gompertz (q_x = e^(a + b·x)) ajustada à Tábua IBGE 2024 (idades 35–85),
+   * com q_x obtido de e(x) por e_x = p_x (1 + e_(x+1)) + q_x / 2.
+   * Juros técnicos: a taxa real implícita que faz P(48) bater com a parcela da proposta
+   * (≈ 3,9% a.a. com R$ 637,15 por R$ 100 mil). Assim o fator só usa o formato da tábua;
+   * o nível de preço continua sendo o da proposta Sicoob. Simplificações: tábua da
+   * população (não a de segurados BR-EMS), ambos os sexos, sem carregamentos.
+   */
+  const GOMPERTZ_IBGE = (function () {
+    const e = TABUA_IBGE_2024;
+    let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let x = 35; x <= 85; x++) {
+      const q = (1 + e[x + 1] - e[x]) / (0.5 + e[x + 1]);
+      if (!(q > 0)) continue;
+      const y = Math.log(q);
+      n++; sx += x; sy += y; sxx += x * x; sxy += x * y;
+    }
+    const b = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+    return { a: (sy - b * sx) / n, b };
+  })();
+  const qGompertz = x => Math.min(1, Math.exp(GOMPERTZ_IBGE.a + GOMPERTZ_IBGE.b * x));
+  /** Prêmio nivelado anual por unidade de capital (real), idade x, juros reais i. */
+  function premioNivelado(x, i, ganhoReal, anosPagamento) {
+    const v = 1 / (1 + i);
+    let A = 0, ann = 0, tp = 1;
+    for (let t = 0; x + t < 121 && tp > 1e-12; t++) {
+      const q = qGompertz(x + t);
+      A += tp * q * Math.pow(v, t + 1) * Math.pow(1 + ganhoReal, t);
+      if (t < anosPagamento) ann += tp * Math.pow(v, t);
+      tp *= 1 - q;
+    }
+    return A / ann;
+  }
+  /** { fator, taxaTecnica } para a idade, calibrado na parcela da idade de referência. */
+  function fatorIdadeWholeLife(idade, o) {
+    const p = Object.assign({}, WL_PADRAO, o);
+    const alvo = p.parcelaPor100k * 12 / 100000;
+    let lo = -0.02, hi = 0.20;
+    for (let k = 0; k < 80; k++) {
+      const m = (lo + hi) / 2;
+      if (premioNivelado(p.idadeReferencia, m, p.ganhoReal, p.anosPagamento) > alvo) lo = m; else hi = m;
+    }
+    const i = (lo + hi) / 2;
+    const fator = premioNivelado(idade, i, p.ganhoReal, p.anosPagamento) / premioNivelado(p.idadeReferencia, i, p.ganhoReal, p.anosPagamento);
+    return { fator, taxaTecnica: i };
+  }
 
   /**
    * Projeção ano a ano, igual às abas "Base Projeção"/"Projeção" da planilha.
@@ -261,11 +321,61 @@
     contabilMensal: 1000, anosDoacaoGradual: 10, incluirEmpresa: true };
   const OFFSHORE_PADRAO = { limiar: 2000000, abertura: 20000, manutencaoAnual: 25000, custoSucessaoExteriorPct: 0.05, impostoExteriorPct: 0 };
 
+  /*
+   * Partilha pelo regime de bens (Código Civil). `herdeiros` = descendentes.
+   *  - comunhão universal: meação de 50% de tudo; cônjuge não herda (art. 1.829, I);
+   *  - comunhão parcial (e união estável, STF RE 878.694): meação de 50% dos bens comuns;
+   *    o cônjuge herda só sobre os bens particulares (STJ, REsp 1.368.123);
+   *  - separação convencional: sem meação; o cônjuge herda sobre tudo (STJ, REsp 1.382.170);
+   *  - separação obrigatória: sem meação nem herança (art. 1.829, I; Súmula 377 do STF não modelada).
+   * Quota do cônjuge herdeiro igual à de cada descendente, nunca menor que 1/4 se for
+   * ascendente de todos eles (art. 1.832). Legítima = 50% da herança (art. 1.846).
+   */
+  const REGIMES_BENS = ['sem', 'parcial', 'universal', 'separacao', 'obrigatoria'];
+  function partilha(o) {
+    const n = Math.max(1, Math.round(o.herdeiros || 1));
+    const reg = o.regime || 'sem';
+    const pc = Math.max(0, Math.min(1, o.pctComuns === undefined ? 1 : o.pctComuns));
+    if (reg === 'sem') return { regime: reg, meacaoPct: Math.max(0, o.meacaoPct || 0), conjugeHerdeiro: false, quinhoes: null, fracConjuge: 0, n };
+    let meacao = 0, comumHerdado = 0, particular = 1, herda = false;
+    if (reg === 'universal') { meacao = 0.5; comumHerdado = 0.5; particular = 0; }
+    else if (reg === 'parcial') { meacao = 0.5 * pc; comumHerdado = 0.5 * pc; particular = 1 - pc; herda = particular > 0; }
+    else if (reg === 'separacao') { herda = true; }
+    const H = comumHerdado + particular;
+    if (!herda) return { regime: reg, meacaoPct: meacao, conjugeHerdeiro: false, quinhoes: null, fracConjuge: 0, n };
+    const qc = o.ascendenteComum === false ? 1 / (n + 1) : Math.max(1 / (n + 1), 0.25);
+    const desc = (comumHerdado / n + particular * (1 - qc) / n) / H;
+    const conj = particular * qc / H;
+    return { regime: reg, meacaoPct: meacao, conjugeHerdeiro: true, fracConjuge: conj, n,
+      quinhoes: Array.from({ length: n }, () => desc).concat([conj]) };
+  }
+  /** Meses de despesas da família cobertos pela liquidez enquanto o inventário corre (padrão por tipo). */
+  const MESES_SUSTENTO = { cartorio: 3, judicial: 24, litigio: 36 };
+
+  /** Parcela e cobertura básica ajustadas à idade (a proposta de referência fica em parcelaReferencia/basicaReferencia). */
+  function wholeLifeDaIdade(idade, o) {
+    const wl = Object.assign({}, WL_PADRAO, o || {});
+    wl.parcelaReferencia = wl.parcelaPor100k; wl.basicaReferencia = wl.basicaPor100k;
+    wl.fatorIdade = 1; wl.taxaTecnica = null;
+    if (wl.ajustarIdade && isFinite(idade) && idade !== wl.idadeReferencia && wl.parcelaPor100k > 0) {
+      const f = fatorIdadeWholeLife(idade, wl);
+      wl.fatorIdade = f.fator; wl.taxaTecnica = f.taxaTecnica;
+      wl.parcelaPor100k *= f.fator; wl.basicaPor100k *= f.fator;
+    }
+    return wl;
+  }
+
   function normalizar(e) {
     const pr = Object.assign({}, PREMISSAS_PADRAO, e.premissas || {});
     if (pr.rentabilidadeBruta) pr.rentabilidade = pr.rentabilidade - pr.taxaAdmPrevidencia;
     const h = Object.assign({}, HOLDING_PADRAO, e.holding || {});
     if (h.itbiPct === null || h.itbiPct === undefined) h.itbiPct = (e.aluguelMensal || 0) > 0 ? 0.02 : 0;
+    const tipo = e.tipoInventario || 'cartorio';
+    const cj = Object.assign({ regime: 'sem', pctComuns: 1, ascendenteComum: true }, e.conjuge || {});
+    const part = partilha({ herdeiros: e.herdeiros === undefined ? 2 : e.herdeiros, meacaoPct: e.meacaoPct, regime: cj.regime,
+      pctComuns: cj.pctComuns, ascendenteComum: cj.ascendenteComum });
+    const sus = Object.assign({ despesaMensal: 0, meses: null }, e.sustento || {});
+    if (typeof sus.meses !== 'number' || !(sus.meses >= 0)) sus.meses = MESES_SUSTENTO[tipo] || 0;   // null >= 0 é true em JS
     return Object.assign({
       idade: 55, uf: 'MT', herdeiros: 2, meacaoPct: 0, tipoInventario: 'cartorio', regime: 'vigente',
       imoveis: 0, nImoveis: 0, aplicacoes: 0, previdencia: 0, previdenciaAportado: null, previdenciaAnos: 10,
@@ -273,9 +383,9 @@
       aluguelMensal: 0, deducoesAluguelMensal: 0, nImoveisAlugados: 0, nResidenciais: 0, outrasRendasMensais: 0,
       doacaoCustoPct: 0.01
     }, e, {
-      premissas: pr, holding: h,
+      premissas: pr, holding: h, conjuge: cj, partilha: part, meacaoPct: part.meacaoPct, sustento: sus,
       custos: Object.assign({}, CUSTOS_PADRAO, e.custos || {}),
-      wholeLife: Object.assign({}, WL_PADRAO, e.wholeLife || {}),
+      wholeLife: wholeLifeDaIdade(e.idade === undefined ? 55 : e.idade, e.wholeLife),
       offshore: Object.assign({}, OFFSHORE_PADRAO, e.offshore || {}),
       aluguelOpcoes: Object.assign({}, e.aluguelOpcoes || {})   // lc224, opcao487, aliqRefIVA (opcionais)
     });
@@ -349,20 +459,21 @@
       const imovInv = (cfg.holding || cfg.doaImoveis) ? 0 : imov;
       const empInv = (cfg.holding && hp.incluirEmpresa) ? 0 : emp;
       const monte = imovInv + empInv + cotasInv + aplic + ext;
-      const inv = custoInventario({ monte, imoveis: imovInv, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, uf: e.uf,
-        regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
+      const inv = custoInventario({ monte, imoveis: imovInv, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes,
+        uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
       const custoExterior = cfg.offshore ? 0 : ext * (of.custoSucessaoExteriorPct + of.impostoExteriorPct);
       const irPrevV = aliquotaIRPrevidencia(e.previdenciaAnos + t) * Math.max(0, prevV - prevVBase);
       const irPrevN = aliquotaIRPrevidencia(t) * Math.max(0, prevN - prevNBase);
       const previdenciaLiquida = prevV + prevN - irPrevV - irPrevN;
       const seguro = (e.seguroExistente || 0) + capitalSeguro(C, t, ipca, wl.ganhoReal);
       const irLatente = pr.irAplicacoes * Math.max(0, aplic - Math.max(0, aplicBase));
-      const meta = s * Math.max(0, monte);
+      const sustento = e.sustento.despesaMensal * e.sustento.meses * Math.pow(1 + ipca, t);
+      const meta = s * Math.max(0, monte) + sustento;
       const liquidez = previdenciaLiquida + seguro;
       const familia = monte - inv.total - custoExterior - irLatente + doadoValor + previdenciaLiquida + seguro;
       const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + seguro);
       anos.push({
-        ano: t, monte, inventario: inv, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
+        ano: t, monte, inventario: inv, sustento, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
         cobertura: meta > 0 ? liquidez / meta : Infinity, aplicacoes: aplic, familia,
         familiaReal: familia / Math.pow(1 + ipca, t), travado: Math.max(0, monte) / brutoFamilia,
         custosReais: custoRealAcum, faltaRecurso: aplic < 0
@@ -457,16 +568,21 @@
     const sem = caminhos.find(c => c.id === 'inventario');
     const hoje = sem.sim.anos[0];
     const custoHoje = custoInventario({ monte: e.imoveis + e.aplicacoes + e.empresa + e.exterior, imoveis: e.imoveis,
-      meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
+      meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
     const regimes = ['vigente', 'reforma', 'estresse'].reduce((o, rg) => {
       o[rg] = custoInventario({ monte: e.imoveis + e.aplicacoes + e.empresa + e.exterior, imoveis: e.imoveis, meacaoPct: e.meacaoPct,
-        herdeiros: e.herdeiros, uf: e.uf, regime: rg, tipo: e.tipoInventario, custos: e.custos });
+        herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: rg, tipo: e.tipoInventario, custos: e.custos });
       return o;
     }, {});
 
     return {
       ok: true, entrada: e, Texp, H, hipoteses, caminhos, recomendacao: rec, estabilidade,
-      base: { custoHoje, metaHoje: e.premissas.metaLiquidez * (e.imoveis + e.aplicacoes + e.empresa + e.exterior), regimes, anoHoje: hoje },
+      base: { custoHoje, metaInventarioHoje: e.premissas.metaLiquidez * (e.imoveis + e.aplicacoes + e.empresa + e.exterior),
+        sustentoHoje: e.sustento.despesaMensal * e.sustento.meses,
+        metaHoje: e.premissas.metaLiquidez * (e.imoveis + e.aplicacoes + e.empresa + e.exterior) + e.sustento.despesaMensal * e.sustento.meses,
+        regimes, anoHoje: hoje,
+        heranca: custoHoje.heranca, legitima: custoHoje.heranca / 2, disponivel: custoHoje.heranca / 2,
+        meacao: (e.imoveis + e.aplicacoes + e.empresa + e.exterior) * e.meacaoPct },
       holding: avaliarHolding(e, caminhos, rec, Texp),
       seguroDesnecessario: Xp !== null,
       previdencia: { X: Xp, disponivel: disp, metaFormula: e.premissas.metaLiquidez / (1 + e.premissas.metaLiquidez) },
@@ -541,6 +657,9 @@
       if (!(e[k] >= 0)) erros.push('Valores não podem ser negativos.');
     });
     if (!(e.meacaoPct >= 0 && e.meacaoPct < 1)) erros.push('A meação precisa estar entre 0% e 99%.');
+    if (REGIMES_BENS.indexOf(e.conjuge.regime) < 0) erros.push('Regime de bens desconhecido.');
+    if (!(e.conjuge.pctComuns >= 0 && e.conjuge.pctComuns <= 1)) erros.push('Os bens comuns precisam estar entre 0% e 100% do patrimônio.');
+    if (!(e.sustento.despesaMensal >= 0) || !(e.sustento.meses >= 0 && e.sustento.meses <= 120)) erros.push('Despesas da família: valor não negativo e até 120 meses.');
     const pr = e.premissas;
     if (!(pr.rentabilidade > -0.5 && pr.rentabilidade < 1)) erros.push('Rentabilidade fora do intervalo aceito.');
     if (!(pr.metaLiquidez > 0 && pr.metaLiquidez < 1)) erros.push('A meta de liquidez precisa estar entre 0% e 100%.');
@@ -549,8 +668,8 @@
 
   return {
     TABUA_IBGE_2024, CURVA_ATUARIAL, PREMISSAS_PADRAO, CUSTOS_PADRAO, HOLDING_PADRAO, OFFSHORE_PADRAO, WL_PADRAO,
-    expectativaSobrevida, itcmdValor, itcmdDividido, custoInventario, honorariosPadrao, aliquotaIRPrevidencia,
-    projetarWholeLife, capitalSeguro, anoEquilibrioSeguro, irpfMensal, irpfm, faseIBS, tributacaoAluguel,
+    expectativaSobrevida, itcmdValor, itcmdDividido, custoInventario, partilha, MESES_SUSTENTO, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
+    projetarWholeLife, fatorIdadeWholeLife, wholeLifeDaIdade, capitalSeguro, anoEquilibrioSeguro, irpfMensal, irpfm, faseIBS, tributacaoAluguel,
     normalizar, simular, analisar, recomendar, validar
   };
 });

@@ -1,0 +1,32 @@
+# Lembrete trimestral para revisar as tabelas de ITCMD e custos do Planejamento Sucessório.
+# Abre uma issue com a lista do que conferir (se ainda não houver uma aberta).
+# Também pode ser disparado à mão em Actions → "Revisão das tabelas" → Run workflow.
+name: Revisão das tabelas
+on:
+  schedule:
+    - cron: '17 13 2 1,4,7,10 *'   # dia 2 de jan, abr, jul e out, 9h17 em Cuiabá
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - id: relatorio
+        run: node scripts/verificar-dados.js > relatorio.md
+      - name: Abrir issue de revisão
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create revisao-dados --color C9D200 --description "Revisão periódica das tabelas" 2>/dev/null || true
+          abertas=$(gh issue list --label revisao-dados --state open --json number --jq 'length')
+          if [ "$abertas" = "0" ]; then
+            gh issue create --title "Revisar tabelas do Planejamento Sucessório ($(date +%m/%Y))" --label revisao-dados --body-file relatorio.md
+          else
+            echo "Já existe uma issue de revisão aberta."
+          fi

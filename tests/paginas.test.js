@@ -47,7 +47,7 @@ for (const pagina of PAGINAS) {
 }
 
 test('todos os arquivos JavaScript têm sintaxe válida', () => {
-  const pastas = ['assets', 'dados', 'engine', 'paginas'];
+  const pastas = ['assets', 'dados', 'engine', 'paginas', 'scripts'];
   for (const pasta of pastas) {
     for (const f of fs.readdirSync(path.join(RAIZ, pasta)).filter(f => f.endsWith('.js'))) {
       assert.doesNotThrow(() => new vm.Script(ler(path.join(pasta, f)), { filename: f }), `${pasta}/${f}`);
