@@ -84,6 +84,7 @@ function lerEntradas(){
     sobraMensal: money('sobraMensal'), sucessaoCasal: $('sucessaoCasal').checked,
     regime: seg.regime,
     imoveis: money('imoveis'), nImoveis: num('nImoveis') || 0, aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'),
+    previdenciaTipo: $('prevTipo').value,
     previdencia: money('previdencia'), previdenciaAportado: money('previdencia') > 0 ? Math.min(money('prevAportado') || money('previdencia'), money('previdencia')) : 0,
     previdenciaAnos: num('prevAnos') || 0, seguroExistente: money('seguroExist'),
     rendaMensal: money('rendaMensal'), outrasRendasMensais: money('outrasRendas'),
@@ -138,6 +139,7 @@ function atualizarDicas(){
     ufHonorarios = uf;
   }
   const alug = money('aluguel') > 0;
+  $('hintPrevTipo').textContent = $('prevTipo').value === 'pgbl' ? 'PGBL: o IR incide sobre todo o saldo; o valor aportado não muda a conta.' : 'VGBL: o IR do beneficiário incide só sobre o rendimento.';
   // regime de bens
   const rb = $('regimeBens').value, nH = Math.max(1, Math.round(num('herdeiros') || 1));
   $('campoComuns').hidden = rb === 'sem' || rb === 'obrigatoria';
@@ -235,11 +237,14 @@ function motivos(v, r){
   if(v.protegeJa) out.push('<b>Protege desde já:</b> a família recebe ' + fmtBRL0(v.em.proximo.liquidez) + ' em dias, o suficiente para pagar todo o inventário' + (e.sustento.despesaMensal > 0 ? ' e as despesas da família' : '') + ' sem vender bens.');
   else out.push('<b>Cobre ' + pct0(v.coberturaAno1) + ' do inventário no 1º ano</b>, a maior cobertura possível com o que foi informado.');
   const outros = rec.ordem.filter(id => id !== v.id).map(porId).filter(Boolean);
+  if(rec.nivel === 2) out.push('<b>Vale pagar uma parte por fora:</b> pede até ' + fmtBRL0(v.pagamento.externoMensalMax) + '/mês além da sobra e das aplicações' + (e.rendaMensal > 0 ? ' (' + pct0(v.pagamento.externoMensalMax / e.rendaMensal) + ' da renda, dentro do limite de ' + pct0(e.premissas.comprometimentoRenda) + ')' : '') + '; mesmo descontando esse dinheiro, entrega mais à família' + (rec.alternativaSemAParte ? ' (' + fmtBRL0(rec.alternativaSemAParte.perda) + ' a mais que a melhor opção sem pagar à parte)' : '') + '.');
   if(rec.porSimplicidade) out.push('<b>Mais simples, quase o mesmo valor:</b> ' + nomeId(rec.maiorValor) + ' entregaria só ' + fmtBRL0(valorEm(porId(rec.maiorValor), 'expectativa') - valorEm(v, 'expectativa')) + ' a mais (menos de ' + pct0(e.premissas.margemEmpate) + ').');
   else if(outros.length) out.push('<b>Entrega mais à família:</b> das ' + nTest + ' combinações testadas, é a de maior valor na expectativa de vida; a 2ª melhor (' + nomeDe(outros[0]) + ') entrega ' + fmtBRL0(valorEm(v, 'expectativa') - valorEm(outros[0], 'expectativa')) + ' a menos.');
   const ganho = valorEm(v, 'expectativa') - valorEm(inv, 'expectativa');
   if(v.id !== 'inventario' && ganho >= 0) out.push('<b>Vale a pena fazer:</b> ' + fmtBRL0(ganho) + ' a mais do que não planejar nada (R$ de hoje, já descontados todos os custos).');
-  else if(v.id !== 'inventario') out.push('<b>Custo da proteção:</b> a família recebe ' + fmtBRL0(-ganho) + ' a menos do que sem planejar, por causa do dinheiro pago à parte. Em troca, tem ' + fmtBRL0(r.base.metaHoje) + ' em dinheiro para o inventário; sem isso, precisaria vender bens ou esperar a partilha.');
+  else if(v.id !== 'inventario') out.push('<b>Custo da proteção:</b> a família recebe ' + fmtBRL0(-ganho) + ' a menos do que sem planejar, ' +
+    (v.pagamento.externo >= 1 ? 'por causa do dinheiro pago à parte' : 'porque ' + (v.cfg.C > 0 ? 'as parcelas do seguro' : 'os custos') + ' somam mais do que a solução devolve na expectativa de vida') +
+    '. Em troca, tem ' + fmtBRL0(r.base.metaHoje) + ' em dinheiro para o inventário logo após o falecimento; sem isso, precisaria vender bens ou esperar a partilha.');
   if(v.cfg.holding || v.cfg.doaImoveis){
     const a1 = v.sim.pagamentos[1] && v.sim.pagamentos[1].itens.aluguel;
     out.push('<b>' + (v.cfg.holding ? 'Holding' : 'Doação') + ':</b> os imóveis saem do inventário' + (e.meacaoPct > 0 && e.sucessaoCasal ? ' do cooperado e do cônjuge' : '') + (v.cfg.holding && a1 < 0 ? ', e a holding paga ' + fmtBRL0(-a1) + ' a menos de imposto sobre os aluguéis por ano' : '') + '. A doação feita agora trava o ITCMD de hoje.');
@@ -251,6 +256,22 @@ function motivos(v, r){
     const pq = !m ? 'não traz vantagem neste caso' : m.id === 'numeros' ? 'a melhor opção com holding (' + nomeDe(h) + ') entregaria ' + fmtBRL0(m.diferenca) + ' a menos'
       : m.id === 'caixa' ? 'não cabe no orçamento (' + porqueNao(h, v, r) + ')' : m.id === 'financeiro' ? 'o patrimônio é principalmente financeiro' : m.id === 'poucosImoveis' ? 'há poucos imóveis' : 'pagaria mais imposto sobre os aluguéis';
     out.push('<b>Sem holding:</b> ' + pq + '. Deixar de abrir evita ' + fmtBRL0(r.holding.custoEvitado) + ' de custo.');
+  }
+  const sn = ultimo.inp.sinais;
+  if((sn.conflito || sn.empresa) && r.holding.aplicavel && !r.holding.recomendada){
+    const h = r.caminhos.filter(c => (c.estrutura === 'holdingGradual' || c.estrutura === 'holdingTotal') && c.protegeJa)
+      .sort((a, b) => (a.cabe === 'nao') - (b.cabe === 'nao') || valorEm(b, 'expectativa') - valorEm(a, 'expectativa'))[0];
+    if(h && h.id !== v.id){
+      const d = valorEm(v, 'expectativa') - valorEm(h, 'expectativa');
+      const quem = [sn.conflito ? 'risco de conflito' : '', sn.empresa ? 'empresa operacional' : ''].filter(Boolean).join(' e ');
+      let comp;
+      if(h.cabe === 'nao') comp = 'não cabe no orçamento informado (' + porqueNao(h, v, r) + ')';
+      else if(d > 0) comp = 'entrega ' + fmtBRL0(d) + ' a menos (' + pct1(d / Math.max(1, valorEm(v, 'expectativa'))) + ')';
+      else if(h.cabe === 'aParte' && v.cabe === 'sim') comp = 'entrega ' + fmtBRL0(-d) + ' a mais, mas precisa de até ' + fmtBRL0(h.pagamento.externoMensalMax) + '/mês à parte, enquanto a solução cabe no orçamento';
+      else comp = 'entrega ' + fmtBRL0(-d) + ' a mais, mas a diferença fica abaixo de ' + pct0(e.premissas.margemEmpate) + ' e a regra favorece o caminho mais simples';
+      out.push('<b>Governança:</b> há ' + quem + '. A melhor opção com holding (' + nomeDe(h) + ') ' + comp +
+        '. Em troca, organiza quem decide e evita condomínio entre herdeiros: avalie com o advogado se esse benefício compensa.');
+    }
   }
   const est = r.estabilidade, av = [];
   if(est.proximo) av.push('se o falecimento for no próximo ano, ' + nomeId(est.proximo) + ' entregaria mais');
@@ -325,9 +346,15 @@ function passos(v, r){
     'Escolher a jurisdição e abrir a empresa com o especialista.',
     'Transferir os bens no exterior para a empresa.',
     'Declarar à Receita e pagar o IR anual de 15% (Lei 14.754/2023).'] });
+  if(e.previdencia > 0 || e.seguroExistente > 0) out.push({ titulo: 'Previdência e seguro que já existem', quem: 'Sicoob / seguradora', itens: [
+    'Confirmar que os beneficiários são os herdeiros: ' + [e.previdencia > 0 ? fmtBRL0(e.previdencia) + ' de previdência' : '', e.seguroExistente > 0 ? fmtBRL0(e.seguroExistente) + ' de seguro' : ''].filter(Boolean).join(' e ') + ' já entram no pagamento do inventário.',
+    'Conferir se o seguro existente é vitalício; seguro com prazo pode acabar antes do falecimento.'] });
+  const sn = ultimo.inp.sinais;
   out.push({ titulo: 'Testamento (recomendado em qualquer solução)', quem: 'Advogado + cartório de notas', itens: [
-    'Fazer testamento público para organizar a parte disponível (' + fmtBRL0(r.base.disponivel) + ') e evitar disputas.',
-    'Revisar o planejamento a cada 2 anos ou quando a família ou a lei mudarem.'] });
+    'Fazer testamento público para organizar a parte disponível (' + fmtBRL0(r.base.disponivel) + ') e evitar disputas.']
+    .concat(sn.incapaz ? ['Nomear no testamento um tutor para o filho menor ou incapaz (CC, art. 1.729) e quem administra os bens até a maioridade.',
+      'Valores de seguro e previdência para beneficiário menor são administrados pelo responsável legal e podem exigir autorização judicial: alinhe isso com o advogado.'] : [])
+    .concat(['Revisar o planejamento a cada 2 anos ou quando a família ou a lei mudarem.']) });
   return out;
 }
 
@@ -368,15 +395,16 @@ function renderVerdict(){
   const grupo = c => !c.protegeJa ? 3 : c.cabe === 'sim' ? 0 : c.cabe === 'aParte' ? 1 : 2;
   const alt = r.caminhos.filter(c => c.id !== v.id && c.id !== 'inventario')
     .sort((a, b) => grupo(a) - grupo(b) || valorEm(b, 'expectativa') - valorEm(a, 'expectativa')).slice(0, 4);
-  const altAParte = rec.alternativaAParte ? '<li><b>' + nomeId(rec.alternativaAParte.id) + '</b>: entregaria ' + fmtBRL0(rec.alternativaAParte.ganho) + ' a mais se o cooperado puder pagar até ' + fmtBRL0(rec.alternativaAParte.externoMensalMax) + '/mês à parte.</li>' : '';
+  const altAParte = rec.alternativaSemAParte ? '<li><b>Sem pagar nada à parte:</b> a melhor opção seria ' + nomeId(rec.alternativaSemAParte.id) + ', que entrega ' + fmtBRL0(rec.alternativaSemAParte.perda) + ' a menos à família.</li>' : '';
   $('verdict').innerHTML =
     '<div class="sol-top"><span class="sol-eyebrow">Solução para este caso</span><span class="status ' + nv.cls + '">' + nv.t + '</span></div>' +
     '<h2 class="sol-nome">' + nomeDe(v) + '</h2>' +
+    (!(e.sobraMensal > 0) && e.rendaMensal > 0 && v.pagamento.custo > 0.5 ? '<p class="sol-aviso"><b>Sobra mensal não informada:</b> a simulação considera que nada da renda (' + fmtBRL0(e.rendaMensal) + '/mês) sobra para o planejamento, e os custos saem das aplicações ou à parte. Informe a sobra na etapa 1 para um resultado mais fiel.</p>' : '') +
     '<div class="sol-chips">' + chips + '</div>' +
     '<div class="sol-kpis">' +
       kpi('Chega à família', fmtBRL0(valorEm(v, 'expectativa')), 'na expectativa de vida (' + Math.round(e.idade + r.Texp) + ' anos), em R$ de hoje') +
       (ganho >= 0 || v.id === 'inventario' ? kpi('A mais que não planejar', v.id === 'inventario' ? '—' : fmtBRL0(ganho), 'já descontados todos os custos')
-        : kpi('Custo da proteção', fmtBRL0(-ganho), 'a menos que sem planejar, pelo dinheiro pago à parte')) +
+        : kpi('Custo da proteção', fmtBRL0(-ganho), 'a menos que sem planejar' + (v.pagamento.externo >= 1 ? ', pelo dinheiro pago à parte' : ', em troca da liquidez imediata'))) +
       kpi('Inventário pago no 1º ano', coberturaTxt(v.coberturaAno1), 'meta: ' + fmtBRL0(r.base.metaHoje)) +
     '</div>' +
     '<div class="sol-grid">' +
@@ -485,7 +513,7 @@ function renderCards(){
       '<td class="' + (c.protegeJa ? 'ok-t' : 'no-t') + '">' + coberturaTxt(c.coberturaAno1) + '</td>' +
       '<td>' + caixa(c) + '</td>' +
       ['proximo', 'dez', 'expectativa'].map(h => '<td class="' + (c.protegeJa && c.cabe !== 'nao' && Math.abs(valorEm(c, h) - melhor(h)) < 1 ? 'win' : '') + '">' + fmtBRL0(valorEm(c, h)) + '</td>').join('') +
-      '<td>' + fmtBRL0(c.em.expectativa.custosReais) + '</td></tr>').join('');
+      '<td>' + (c.em.expectativa.custosReais < 0 ? 'economia de ' + fmtBRL0(-c.em.expectativa.custosReais) : fmtBRL0(c.em.expectativa.custosReais)) + '</td></tr>').join('');
 }
 
 function renderSeguro(){

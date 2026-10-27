@@ -147,7 +147,12 @@
         <div class="field">
           <label for="prevAportado">… dos quais foi aportado</label>
           <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="prevAportado" class="money" value="0,00"></div>
-          <div class="hint">O IR do beneficiário incide só sobre o rendimento (VGBL).</div>
+          <div class="hint" id="hintPrevTipo">VGBL: o IR do beneficiário incide só sobre o rendimento.</div>
+        </div>
+        <div class="field">
+          <label for="prevTipo">Tipo do plano</label>
+          <div class="row-input"><select id="prevTipo"><option value="vgbl">VGBL</option><option value="pgbl">PGBL</option></select></div>
+          <div class="hint">No PGBL, o IR incide sobre todo o saldo.</div>
         </div>
         <div class="field">
           <label for="prevAnos">Há quantos anos foi aplicado</label>

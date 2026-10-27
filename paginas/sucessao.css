@@ -253,3 +253,4 @@ table.comb tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--ink);}
 table.comb td:first-child{white-space:nowrap;}
 table.comb .dot{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--c); margin-right:7px;}
 .best-tag.inline{position:static; display:inline-block; margin-left:6px; vertical-align:middle;}
+.sol-aviso{margin:0; font-size:13px; background:var(--panel-2); border-left:3px solid var(--l-red); padding:8px 12px; border-radius:4px; color:var(--ink);}

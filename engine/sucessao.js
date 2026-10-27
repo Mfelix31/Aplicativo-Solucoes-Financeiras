@@ -376,7 +376,7 @@
     if (typeof sus.meses !== 'number' || !(sus.meses >= 0)) sus.meses = MESES_SUSTENTO[tipo] || 0;   // null >= 0 é true em JS
     return Object.assign({
       idade: 55, uf: 'MT', herdeiros: 2, meacaoPct: 0, tipoInventario: 'cartorio', regime: 'vigente',
-      imoveis: 0, nImoveis: 0, aplicacoes: 0, previdencia: 0, previdenciaAportado: null, previdenciaAnos: 10,
+      imoveis: 0, nImoveis: 0, aplicacoes: 0, previdencia: 0, previdenciaAportado: null, previdenciaAnos: 10, previdenciaTipo: 'vgbl',
       seguroExistente: 0, empresa: 0, exterior: 0, rendaMensal: 0,
       aluguelMensal: 0, deducoesAluguelMensal: 0, nImoveisAlugados: 0, nResidenciais: 0, outrasRendasMensais: 0,
       doacaoCustoPct: 0.01, sobraMensal: 0, sucessaoCasal: true
@@ -409,7 +409,8 @@
     const X = Math.max(0, cfg.X || 0), C = Math.max(0, cfg.C || 0);
     let imov = e.imoveis, emp = e.empresa, ext = e.exterior;
     let aplic = e.aplicacoes, aplicBase = e.aplicacoes;
-    let prevV = e.previdencia, prevVBase = e.previdenciaAportado === null ? e.previdencia : e.previdenciaAportado;
+    // PGBL: o IR incide sobre todo o saldo (as contribuições foram deduzidas do IR); VGBL: só sobre o rendimento
+    let prevV = e.previdencia, prevVBase = e.previdenciaTipo === 'pgbl' ? 0 : (e.previdenciaAportado === null ? e.previdencia : e.previdenciaAportado);
     let prevN = 0, prevNBase = 0;
     let externoFV = 0;                       // dinheiro de fora, corrigido pela rentabilidade (custo de oportunidade)
     const tirar = v => {                     // tira v das aplicações (custo proporcional); devolve o que não havia
@@ -679,41 +680,41 @@
 
   /**
    * Regra de recomendação — sempre devolve uma solução:
-   *   nível 1: protege desde o 1º ano e cabe no caixa (sobra + aplicações);
-   *   nível 2: protege e precisa de dinheiro à parte dentro do limite de comprometimento da renda;
-   *   nível 3: protege, mas o dinheiro à parte passa do limite (vence o que pede menos de fora);
+   *   nível 1/2: protege desde o 1º ano e cabe no caixa — sem dinheiro de fora (1) ou com dinheiro de fora
+   *              dentro do limite de comprometimento da renda (2). Os dois concorrem juntos pelo valor à
+   *              família, que já desconta o custo do dinheiro de fora; empate abaixo da margem favorece
+   *              quem não pede dinheiro de fora e, depois, o mais simples;
+   *   nível 3: protege, mas o dinheiro de fora passa do limite (vence o que pede menos de fora);
    *   nível 4: nada protege desde o 1º ano (vence a maior cobertura).
-   * Dentro do nível: maior valor à família na hipótese; empate abaixo da margem favorece o mais simples.
    */
   function recomendar(caminhos, margem, hipotese) {
     const h = hipotese || 'expectativa';
     const v = c => c.em[h].familiaReal;
     const prot = caminhos.filter(c => c.protegeJa);
-    const n1 = prot.filter(c => c.cabe === 'sim'), n2 = prot.filter(c => c.cabe === 'aParte');
-    let nivel, aptos;
-    if (n1.length) { nivel = 1; aptos = n1; }
-    else if (n2.length) { nivel = 2; aptos = n2; }
+    const cabem = prot.filter(c => c.cabe === 'sim' || c.cabe === 'aParte');
+    let aptos;
+    if (cabem.length) aptos = cabem;
     else if (prot.length) {
-      nivel = 3;
       const menor = Math.min(...prot.map(c => c.pagamento.externo));
       aptos = prot.filter(c => c.pagamento.externo <= menor * 1.05 + 1);
     } else {
-      nivel = 4;
       const maior = Math.max(...caminhos.map(c => c.coberturaAno1));
       aptos = caminhos.filter(c => c.coberturaAno1 >= maior - 1e-9);
     }
     const melhor = Math.max(...aptos.map(v));
     const empatados = aptos.filter(c => v(c) >= melhor - Math.abs(melhor) * margem);
-    empatados.sort((a, b) => a.complexidade - b.complexidade || v(b) - v(a));
+    empatados.sort((a, b) => (a.cabe !== 'sim') - (b.cabe !== 'sim') || a.complexidade - b.complexidade || v(b) - v(a));
     const ordem = aptos.slice().sort((a, b) => v(b) - v(a)).map(c => c.id);
     const venc = empatados[0];
-    // alternativa que pede dinheiro à parte (dentro do limite) e entrega bem mais
-    let alternativaAParte = null;
-    if (nivel === 1 && n2.length) {
-      const m2 = n2.slice().sort((a, b) => v(b) - v(a))[0];
-      if (v(m2) > v(venc) * (1 + margem)) alternativaAParte = { id: m2.id, ganho: v(m2) - v(venc), externoMensalMax: m2.pagamento.externoMensalMax };
+    const nivel = cabem.length ? (venc.cabe === 'sim' ? 1 : 2) : prot.length ? 3 : 4;
+    // quando a solução pede dinheiro de fora: qual seria a melhor sem pedir nada?
+    let alternativaSemAParte = null;
+    if (nivel === 2) {
+      const s1 = prot.filter(c => c.cabe === 'sim').sort((a, b) => v(b) - v(a))[0];
+      if (s1) alternativaSemAParte = { id: s1.id, perda: v(venc) - v(s1) };
     }
-    return { vencedor: venc.id, nivel, maiorValor: ordem[0], porSimplicidade: venc.id !== ordem[0], ordem, melhorValor: melhor, hipotese: h, alternativaAParte };
+    return { vencedor: venc.id, nivel, maiorValor: ordem[0], porSimplicidade: venc.id !== ordem[0], ordem, melhorValor: melhor, hipotese: h,
+      alternativaAParte: null, alternativaSemAParte };
   }
 
   function avaliarHolding(e, caminhos, rec, Texp) {
@@ -777,6 +778,7 @@
     if (REGIMES_BENS.indexOf(e.conjuge.regime) < 0) erros.push('Regime de bens desconhecido.');
     if (!(e.conjuge.pctComuns >= 0 && e.conjuge.pctComuns <= 1)) erros.push('Os bens comuns precisam estar entre 0% e 100% do patrimônio.');
     if (!(e.sobraMensal >= 0)) erros.push('A sobra mensal não pode ser negativa.');
+    if (['vgbl', 'pgbl'].indexOf(e.previdenciaTipo) < 0) erros.push('Tipo de previdência desconhecido.');
     if (!(e.sustento.despesaMensal >= 0) || !(e.sustento.meses >= 0 && e.sustento.meses <= 120)) erros.push('Despesas da família: valor não negativo e até 120 meses.');
     const pr = e.premissas;
     if (!(pr.rentabilidade > -0.5 && pr.rentabilidade < 1)) erros.push('Rentabilidade fora do intervalo aceito.');

@@ -161,9 +161,12 @@ test('recomendação: fora quem não protege; empate abaixo de 3% favorece o mai
 });
 
 test('recomendação sempre devolve uma solução, em níveis', () => {
-  // nível 1 vence nível 2 mesmo com valor menor; a alternativa à parte é informada
+  // quem pede dinheiro à parte dentro do limite concorre pelo valor; a melhor opção sem pedir nada é informada
   const r1 = S.recomendar([fake('a', 1000, true, 1, 'sim'), fake('b', 1500, true, 2, 'aParte', 50000)], 0.03);
-  assert.equal(r1.vencedor, 'a'); assert.equal(r1.nivel, 1); assert.equal(r1.alternativaAParte.id, 'b');
+  assert.equal(r1.vencedor, 'b'); assert.equal(r1.nivel, 2); assert.equal(r1.alternativaSemAParte.id, 'a');
+  // empate abaixo da margem: vence quem não pede dinheiro de fora, mesmo sendo mais complexo
+  const r1b = S.recomendar([fake('a', 1000, true, 4, 'sim'), fake('b', 1020, true, 1, 'aParte', 5000)], 0.03);
+  assert.equal(r1b.vencedor, 'a'); assert.equal(r1b.nivel, 1);
   // só cabe pagando à parte dentro do limite
   const r2 = S.recomendar([fake('a', 1000, true, 1, 'aParte', 9e4), fake('b', 900, true, 2, 'aParte', 1e4), fake('c', 5000, false, 0)], 0.03);
   assert.equal(r2.vencedor, 'a'); assert.equal(r2.nivel, 2);
@@ -386,4 +389,12 @@ test('caso de patrimônio imobiliário grande: com sobra mensal e 8% a.a., a hol
   const r = S.analisar(grande({ sobraMensal: 80000, premissas: { rentabilidade: 0.08 } }));
   assert.equal(r.caminhos.find(c => c.id === r.recomendacao.vencedor).estrutura, 'holdingGradual');
   assert.equal(r.holding.recomendada, true);
+});
+
+test('PGBL: IR sobre todo o saldo; VGBL: só sobre o rendimento', () => {
+  const c = { idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, previdencia: 1e6, previdenciaAportado: 600000, previdenciaAnos: 15, premissas: { rentabilidade: 0.10 } };
+  const liq = tipo => S.simular(S.normalizar(Object.assign({}, c, { previdenciaTipo: tipo })), {}, 1).anos[0].previdenciaLiquida;
+  perto(liq('vgbl'), 1.1e6 - 0.10 * (1.1e6 - 600000), 1e-6);
+  perto(liq('pgbl'), 1.1e6 * 0.90, 1e-6);
+  assert.equal(S.analisar(Object.assign({}, c, { previdenciaTipo: 'outro' })).ok, false);
 });
