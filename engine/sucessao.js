@@ -25,6 +25,9 @@
  *   despesas da família durante o inventário (meses × despesa mensal). Cobertura = (previdência líquida de IR + capital de seguro)
  *   ÷ meta. Previdência e seguro não entram no inventário nem pagam ITCMD
  *   (LC 227/2026, art. 150, III); indenização de seguro é isenta de IR.
+ * - Sobra mensal (renda e aluguéis não gastos) entra nas aplicações em todos os caminhos e paga os custos.
+ * - Sucessão do casal: com meação, o 2º inventário (do cônjuge, sobre a meação) entra no valor que chega
+ *   à família; doação e holding evitam os dois inventários para os bens transferidos.
  * - Regra de recomendação: só concorre quem cobre 100% já no 1º ano; vence
  *   o maior VCF na expectativa de vida; diferença menor que a margem
  *   (padrão 3%) favorece o mais simples.
@@ -376,7 +379,7 @@
       imoveis: 0, nImoveis: 0, aplicacoes: 0, previdencia: 0, previdenciaAportado: null, previdenciaAnos: 10,
       seguroExistente: 0, empresa: 0, exterior: 0, rendaMensal: 0,
       aluguelMensal: 0, deducoesAluguelMensal: 0, nImoveisAlugados: 0, nResidenciais: 0, outrasRendasMensais: 0,
-      doacaoCustoPct: 0.01
+      doacaoCustoPct: 0.01, sobraMensal: 0, sucessaoCasal: true
     }, e, {
       premissas: pr, holding: h, conjuge: cj, partilha: part, meacaoPct: part.meacaoPct, sustento: sus,
       custos: Object.assign({}, CUSTOS_PADRAO, e.custos || {}),
@@ -427,6 +430,9 @@
     let custoRealAcum = custo0;
     for (let t = 1; t <= H; t++) {
       imov *= 1 + ipca; emp *= 1 + ipca; ext *= 1 + r; aplic *= 1 + r; prevV *= 1 + r; prevN *= 1 + r;
+      // sobra mensal da renda e dos aluguéis: entra nas aplicações em todos os caminhos (R$ de hoje, corrigida pelo IPCA)
+      const sobra = Math.max(0, e.sobraMensal || 0) * 12 * Math.pow(1 + ipca, t - 1);
+      aplic += sobra; aplicBase += sobra;
       let custo = 0;
       if (C > 0 && t <= wl.anosPagamento) custo += wl.parcelaPor100k * (C / 100000) * Math.pow(1 + ipca, t - 1) * 12;
       if (cfg.holding) {
@@ -466,10 +472,17 @@
       const sustento = e.sustento.despesaMensal * e.sustento.meses * Math.pow(1 + ipca, t);
       const meta = s * Math.max(0, monte) + sustento;
       const liquidez = previdenciaLiquida + seguro;
-      const familia = monte - inv.total - custoExterior - irLatente + doadoValor + previdenciaLiquida + seguro;
+      // sucessão do casal: a meação do cônjuge também passa aos filhos, num 2º inventário (simplificação: mesma data,
+      // filhos como únicos herdeiros). Bens já doados ou na holding ficam fora dos dois inventários.
+      const invConjuge = e.sucessaoCasal && e.meacaoPct > 0 && monte > 0
+        ? custoInventario({ monte: monte * e.meacaoPct, imoveis: imovInv * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros,
+          uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos })
+        : null;
+      const custoConjuge = invConjuge ? invConjuge.total : 0;
+      const familia = monte - inv.total - custoConjuge - custoExterior - irLatente + doadoValor + previdenciaLiquida + seguro;
       const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + seguro);
       anos.push({
-        ano: t, monte, inventario: inv, sustento, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
+        ano: t, monte, inventario: inv, inventarioConjuge: invConjuge, sustento, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
         cobertura: meta > 0 ? liquidez / meta : Infinity, aplicacoes: aplic, familia,
         familiaReal: familia / Math.pow(1 + ipca, t), travado: Math.max(0, monte) / brutoFamilia,
         custosReais: custoRealAcum, faltaRecurso: aplic < 0
@@ -591,6 +604,8 @@
       ok: true, entrada: e, Texp, H, hipoteses, caminhos, recomendacao: rec, estabilidade,
       base: { custoHoje, metaInventarioHoje: e.premissas.metaLiquidez * (e.imoveis + e.aplicacoes + e.empresa + e.exterior),
         sustentoHoje: e.sustento.despesaMensal * e.sustento.meses,
+        conjugeHoje: e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ monte: (e.imoveis + e.aplicacoes + e.empresa + e.exterior) * e.meacaoPct,
+          imoveis: e.imoveis * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos }) : null,
         metaHoje: e.premissas.metaLiquidez * (e.imoveis + e.aplicacoes + e.empresa + e.exterior) + e.sustento.despesaMensal * e.sustento.meses,
         regimes, anoHoje: hoje,
         heranca: custoHoje.heranca, legitima: custoHoje.heranca / 2, disponivel: custoHoje.heranca / 2,
@@ -671,6 +686,7 @@
     if (!(e.meacaoPct >= 0 && e.meacaoPct < 1)) erros.push('A meação precisa estar entre 0% e 99%.');
     if (REGIMES_BENS.indexOf(e.conjuge.regime) < 0) erros.push('Regime de bens desconhecido.');
     if (!(e.conjuge.pctComuns >= 0 && e.conjuge.pctComuns <= 1)) erros.push('Os bens comuns precisam estar entre 0% e 100% do patrimônio.');
+    if (!(e.sobraMensal >= 0)) erros.push('A sobra mensal não pode ser negativa.');
     if (!(e.sustento.despesaMensal >= 0) || !(e.sustento.meses >= 0 && e.sustento.meses <= 120)) erros.push('Despesas da família: valor não negativo e até 120 meses.');
     const pr = e.premissas;
     if (!(pr.rentabilidade > -0.5 && pr.rentabilidade < 1)) erros.push('Rentabilidade fora do intervalo aceito.');

@@ -312,3 +312,32 @@ test('falta de caixa: caminho que cobre o inventário mas não cabe nas aplicaç
   assert.ok(!S.simular(e2, s.cfg, r.H).anos.some(a => a.aplicacoes < 0));
   assert.equal(r.caminhos.find(c => c.id === 'inventario').falta, null);
 });
+
+/* ---------- sobra mensal e sucessão do casal ---------- */
+const grande = over => Object.assign({ idade: 55, uf: 'MT', herdeiros: 3, conjuge: { regime: 'parcial' }, imoveis: 40e6, nImoveis: 10,
+  aplicacoes: 2.5e6, empresa: 1e6, aluguelMensal: 100000, nImoveisAlugados: 10, nResidenciais: 5 }, over);
+
+test('sobra mensal entra nas aplicações de todos os caminhos, corrigida pelo IPCA', () => {
+  const e0 = S.normalizar(grande({})), e1 = S.normalizar(grande({ sobraMensal: 10000 }));
+  const a = (e, t) => S.simular(e, {}, 3).anos[t - 1].aplicacoes;
+  perto(a(e1, 1) - a(e0, 1), 120000, 1e-6);
+  perto(a(e1, 2) - a(e0, 2), 120000 * 1.10 + 120000 * 1.04, 1e-6);
+  assert.equal(S.analisar(grande({ sobraMensal: -1 })).ok, false);
+});
+
+test('sucessão do casal: a meação paga um 2º inventário em "só o inventário", e a doação dos imóveis o evita', () => {
+  const com = S.analisar(grande({ sobraMensal: 80000 })), sem = S.analisar(grande({ sobraMensal: 80000, sucessaoCasal: false }));
+  const inv = r => r.caminhos.find(c => c.id === 'inventario').em.expectativa;
+  assert.ok(inv(com).inventarioConjuge.total > 0);
+  assert.ok(inv(com).familiaReal < inv(sem).familiaReal);
+  const ano1 = com.caminhos.find(c => c.id === 'inventario').sim.anos[0];
+  perto(ano1.inventarioConjuge.total, S.custoInventario({ monte: ano1.monte * 0.5, imoveis: 40e6 * 1.04 * 0.5, meacaoPct: 0, herdeiros: 3, uf: 'MT', tipo: 'cartorio' }).total, 1e-6);
+  assert.ok(com.base.conjugeHoje.total > 0);
+  assert.equal(S.analisar(grande({ conjuge: { regime: 'sem' } })).base.conjugeHoje, null);
+});
+
+test('caso de patrimônio imobiliário grande: com sobra mensal e 8% a.a., a holding com doação gradual é recomendada', () => {
+  const r = S.analisar(grande({ sobraMensal: 80000, premissas: { rentabilidade: 0.08 } }));
+  assert.equal(r.recomendacao.vencedor, 'holdingGradual');
+  assert.equal(r.holding.recomendada, true);
+});

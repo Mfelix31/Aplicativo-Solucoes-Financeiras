@@ -80,10 +80,11 @@
         </div>
         <div class="field" id="campoComuns">
           <label for="pctComuns" id="lblComuns">Bens comuns (adquiridos durante a união)</label>
-          <span class="lbl-campo" id="lblFiliacao">Filhos do casal</span>
+          <span class="lbl-campo" id="lblFiliacao">Cônjuge</span>
           <div class="row-input"><input type="number" id="pctComuns" value="100" min="0" max="100" step="5"><span class="suffix">% do patrimônio</span></div>
           <div class="hint">O restante é particular: de antes da união, herdado ou recebido em doação.</div>
           <label class="inline-check small" id="campoAsc"><input type="checkbox" id="ascComum" checked> o cônjuge é pai ou mãe de todos os herdeiros</label>
+          <label class="inline-check small" id="campoCasal"><input type="checkbox" id="sucessaoCasal" checked> incluir o inventário futuro do cônjuge (a meação também vai aos filhos)</label>
         </div>
         <div class="field">
           <label for="tipoInv">Inventário provável</label>
@@ -170,6 +171,11 @@
           <label for="outrasRendas">… dos quais tributáveis no IR (salário, pró-labore)</label>
           <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="outrasRendas" class="money" value="0,00"><span class="suffix">/mês</span></div>
           <div class="hint">Somadas ao aluguel na tabela do IR da pessoa física.</div>
+        </div>
+        <div class="field">
+          <label for="sobraMensal">Sobra por mês que vai para investimentos</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="sobraMensal" class="money" value="0,00"><span class="suffix">/mês</span></div>
+          <div class="hint">Parte da renda e dos aluguéis que não é gasta. Entra nas aplicações em todos os caminhos e ajuda a pagar parcelas do seguro, ITCMD e custos da holding. Corrigida pela inflação.</div>
         </div>
       </div>
       <h3 class="mini-title">Aluguéis recebidos</h3>

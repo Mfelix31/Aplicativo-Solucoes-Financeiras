@@ -76,6 +76,7 @@ function lerEntradas(){
     idade: num('idade'), uf: $('uf').value, herdeiros: num('herdeiros'), tipoInventario: $('tipoInv').value,
     conjuge: { regime: $('regimeBens').value, pctComuns: pctCampo('pctComuns'), ascendenteComum: $('ascComum').checked },
     sustento: { despesaMensal: money('despesaFamilia'), meses: num('mesesSustento') },
+    sobraMensal: money('sobraMensal'), sucessaoCasal: $('sucessaoCasal').checked,
     regime: seg.regime,
     imoveis: money('imoveis'), nImoveis: num('nImoveis') || 0, aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'),
     previdencia: money('previdencia'), previdenciaAportado: money('previdencia') > 0 ? Math.min(money('prevAportado') || money('previdencia'), money('previdencia')) : 0,
@@ -134,13 +135,14 @@ function atualizarDicas(){
   const alug = money('aluguel') > 0;
   // regime de bens
   const rb = $('regimeBens').value, nH = Math.max(1, Math.round(num('herdeiros') || 1));
-  $('campoComuns').hidden = rb === 'sem' || rb === 'universal' || rb === 'obrigatoria';
+  $('campoComuns').hidden = rb === 'sem' || rb === 'obrigatoria';
   $('lblComuns').hidden = rb !== 'parcial';
   $('lblFiliacao').hidden = rb === 'parcial';
   $('pctComuns').closest('.row-input').hidden = rb !== 'parcial';
   $('pctComuns').closest('.field').querySelector('.hint').hidden = rb !== 'parcial';
   const part = E.partilha({ herdeiros: nH, regime: rb, pctComuns: pctCampo('pctComuns'), ascendenteComum: $('ascComum').checked });
   $('campoAsc').hidden = !part.conjugeHerdeiro;
+  $('campoCasal').hidden = !(part.meacaoPct > 0);
   $('hintRegimeBens').textContent = ({
     sem: 'Toda a herança vai aos filhos.',
     parcial: 'Meação de metade dos bens comuns; o cônjuge também herda sobre os bens particulares (CC, art. 1.829, I).',
@@ -229,10 +231,11 @@ function renderVerdict(){
     const cobrem = r.caminhos.filter(c => c.protegeJa && c.falta).sort((a, b) => a.falta.valorHoje - b.falta.valorHoje);
     const itens = cobrem.map(c => '<li><b>' + CAM[c.id].nome + ':</b> cobre o inventário, mas os custos (' + custosDoCaminho(c, e) + ') acabam com as aplicações no ' + c.falta.ano + 'º ano. Precisaria de <b>' +
       fmtBRL0(c.falta.valorHoje) + ' a mais</b> em aplicações hoje.</li>').join('');
-    $('verdict').innerHTML = '<p class="headline">Com ' + fmtBRL0(e.aplicacoes) + ' em aplicações, nenhum caminho consegue pagar os próprios custos</p>' +
-      '<p>A ferramenta paga parcelas do seguro, ITCMD da doação, ITBI e custos da holding <b>só com as aplicações informadas</b>; a renda e os aluguéis não entram nessa conta. ' +
+    $('verdict').innerHTML = '<p class="headline">Com ' + fmtBRL0(e.aplicacoes) + ' em aplicações' + (e.sobraMensal > 0 ? ' e ' + fmtBRL0(e.sobraMensal) + ' de sobra por mês' : '') + ', nenhum caminho consegue pagar os próprios custos</p>' +
+      '<p>Parcelas do seguro, ITCMD da doação, ITBI e custos da holding são pagos com as aplicações' + (e.sobraMensal > 0 ? ' e com a sobra mensal' : ' informadas; sem a sobra mensal, a renda e os aluguéis não entram nessa conta') + '. ' +
       (cobrem.length ? 'Os caminhos que pagariam o inventário esbarram nisso:</p><ul class="alertas">' + itens + '</ul><p>' : '') +
-      'Para ver a comparação, aumente as aplicações disponíveis (por exemplo, somando o que a renda e os aluguéis vão acumular) ou reduza a meta de liquidez.</p>';
+      (e.sobraMensal > 0 ? 'Mesmo com a sobra de ' + fmtBRL0(e.sobraMensal) + ' por mês, falta caixa. Revise as aplicações, a sobra mensal ou a meta de liquidez.</p>'
+        : 'Informe na etapa 1 a <b>sobra por mês que vai para investimentos</b> (renda e aluguéis não gastos): ela entra nas aplicações e paga esses custos ao longo do tempo.</p>');
     return;
   }
   const ganho = valorEm(v, 'expectativa') - valorEm(inv, 'expectativa');
@@ -316,7 +319,8 @@ function renderBase(){
       { c: 'p-leg', t: 'legítima (herdeiros necessários)', v: fmtBRL0(b.legitima) },
       { c: 'p-disp', t: 'parte disponível (testamento ou doação)', v: fmtBRL0(b.disponivel) }]),
     'patrimônio ' + fmtBRL0(pat) + (b.meacao > 0 ? ' − meação ' + fmtBRL0(b.meacao) : '') + ' = herança ' + fmtBRL0(b.heranca) + '; metade legítima, metade disponível (Código Civil, arts. 1.789 e 1.846)' +
-      (e.partilha.conjugeHerdeiro ? '. O cônjuge também herda ' + pct1(e.partilha.fracConjuge) + ' da herança junto com os filhos' : '') + '.');
+      (e.partilha.conjugeHerdeiro ? '. O cônjuge também herda ' + pct1(e.partilha.fracConjuge) + ' da herança junto com os filhos' : '') + '.' +
+      (b.conjugeHoje ? ' <b>Sucessão do casal:</b> quando a meação passar aos filhos, haverá um 2º inventário de cerca de ' + fmtBRL0(b.conjugeHoje.total) + ' (hoje); ele entra na comparação dos caminhos.' : ''));
   $('baseCards').innerHTML = c1 + c2 + c3 + c4;
   const rg = b.regimes, linhaT = (k, f) => '<tr><td>' + k + '</td>' + ['vigente','reforma','estresse'].map(x => '<td>' + fmtBRL0(f(rg[x])) + '</td>').join('') + '</tr>';
   $('tabInventario').innerHTML = '<tr><th>Componente</th><th>Lei vigente</th><th>Adequação à reforma</th><th>Estresse 16%</th></tr>' +
@@ -521,6 +525,8 @@ function gerarPdf(){
   const REG = { sem: 'sem cônjuge', parcial: 'comunhão parcial', universal: 'comunhão universal', separacao: 'separação convencional', obrigatoria: 'separação obrigatória' };
   const dados = tr('Idade · sexo · estado · filhos herdeiros', e.idade + ' anos · ' + (e.wholeLife.sexo === 'f' ? 'feminino' : 'masculino') + ' · ' + T.ESTADOS[e.uf].nome + ' · ' + e.herdeiros) +
     tr('Regime de bens', REG[e.conjuge.regime] + (e.meacaoPct > 0 ? ' · meação ' + pct0(e.meacaoPct) : '') + (e.partilha.conjugeHerdeiro ? ' · cônjuge herdeiro (' + pct1(e.partilha.fracConjuge) + ')' : '')) +
+    (e.sobraMensal > 0 ? tr('Sobra mensal investida', fmtBRL0(e.sobraMensal) + '/mês') : '') +
+    (e.meacaoPct > 0 ? tr('Inventário do cônjuge', e.sucessaoCasal ? 'incluído (a meação também passa aos filhos)' : 'não incluído') : '') +
     (e.sustento.despesaMensal > 0 ? tr('Despesas da família na meta', fmtBRL0(e.sustento.despesaMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
     tr('Imóveis · aplicações', fmtBRL0(e.imoveis) + ' · ' + fmtBRL0(e.aplicacoes)) +
     (e.empresa ? tr('Participações em empresas', fmtBRL0(e.empresa)) : '') + (e.exterior ? tr('Bens no exterior', fmtBRL0(e.exterior)) : '') +
