@@ -249,6 +249,11 @@
           <div class="row-input"><input type="number" id="margem" value="3" min="0" max="20" step="0.5"><span class="suffix">%</span></div>
           <div class="hint">Diferença abaixo disso favorece o caminho mais simples.</div>
         </div>
+        <div class="field">
+          <label for="comprometimento">Limite para pagar à parte</label>
+          <div class="row-input"><input type="number" id="comprometimento" value="30" min="0" max="100" step="5"><span class="suffix">% da renda mensal</span></div>
+          <div class="hint">Quando a sobra e as aplicações não bastam, quanto da renda o cooperado aceita usar por mês para pagar a solução.</div>
+        </div>
       </div>
       <div class="seg-wrap">
         <span class="lbl">Regime de ITCMD</span>
@@ -336,7 +341,7 @@
     <div id="resultados">
       <div class="warn-box"><span aria-hidden="true">⚠️</span><span>Esta é uma <strong>simulação</strong> com os parâmetros informados. Leis, alíquotas, custos e rentabilidades mudam; o resultado real pode ser diferente. Não substitui a análise de advogado, contador ou corretor de seguros, nem é recomendação de investimento.</span></div>
 
-      <div class="verdict" id="verdict"></div>
+      <section class="sol" id="verdict" aria-label="Solução recomendada"></section>
       <div class="destaques" id="destaques"></div>
 
       <div class="block">
@@ -348,9 +353,9 @@
         <div class="hint nota" id="baseNota"></div>
       </div>
 
-      <p class="q-title">Comparação dos caminhos</p>
+      <p class="q-title">Todas as combinações testadas</p>
       <p class="q-sub" id="cardsSub"></p>
-      <div class="paths" id="cards"></div>
+      <div class="table-scroll"><table class="t comb" id="cards"></table></div>
 
       <div class="block">
         <div class="chart-head">

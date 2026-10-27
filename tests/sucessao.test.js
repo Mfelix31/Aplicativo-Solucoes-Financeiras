@@ -147,7 +147,8 @@ test('IRPFM: zero até R$ 600 mil; 10% acima de R$ 1,2 milhão, descontado o IR 
 });
 
 /* ---------- regra de recomendação ---------- */
-const fake = (id, valor, protege, complexidade) => ({ id, protegeJa: protege, faltaRecurso: false, complexidade,
+const fake = (id, valor, protege, complexidade, cabe, externo) => ({ id, protegeJa: protege, complexidade, cabe: cabe || 'sim',
+  coberturaAno1: protege ? 1 : 0.5, pagamento: { externo: externo || 0, externoMensalMax: (externo || 0) / 120 },
   em: { expectativa: { familiaReal: valor }, proximo: { familiaReal: valor }, dez: { familiaReal: valor } } });
 
 test('recomendação: fora quem não protege; empate abaixo de 3% favorece o mais simples', () => {
@@ -157,6 +158,21 @@ test('recomendação: fora quem não protege; empate abaixo de 3% favorece o mai
   assert.equal(r.porSimplicidade, true);
   const r2 = S.recomendar([fake('holdingTotal', 1100, true, 4), fake('previdencia', 1000, true, 1)], 0.03);
   assert.equal(r2.vencedor, 'holdingTotal');
+});
+
+test('recomendação sempre devolve uma solução, em níveis', () => {
+  // nível 1 vence nível 2 mesmo com valor menor; a alternativa à parte é informada
+  const r1 = S.recomendar([fake('a', 1000, true, 1, 'sim'), fake('b', 1500, true, 2, 'aParte', 50000)], 0.03);
+  assert.equal(r1.vencedor, 'a'); assert.equal(r1.nivel, 1); assert.equal(r1.alternativaAParte.id, 'b');
+  // só cabe pagando à parte dentro do limite
+  const r2 = S.recomendar([fake('a', 1000, true, 1, 'aParte', 9e4), fake('b', 900, true, 2, 'aParte', 1e4), fake('c', 5000, false, 0)], 0.03);
+  assert.equal(r2.vencedor, 'a'); assert.equal(r2.nivel, 2);
+  // nada cabe: vence o que pede menos dinheiro de fora
+  const r3 = S.recomendar([fake('a', 1000, true, 1, 'nao', 9e5), fake('b', 800, true, 2, 'nao', 2e5)], 0.03);
+  assert.equal(r3.vencedor, 'b'); assert.equal(r3.nivel, 3);
+  // nada protege: vence a maior cobertura
+  const r4 = S.recomendar([fake('a', 1000, false, 1), Object.assign(fake('b', 900, false, 2), { coberturaAno1: 0.8 })], 0.03);
+  assert.equal(r4.vencedor, 'b'); assert.equal(r4.nivel, 4);
 });
 
 /* ---------- análise completa ---------- */
@@ -169,7 +185,11 @@ test('análise: hipóteses pela tábua do IBGE e caminhos que cobrem desde já',
   assert.deepEqual(r.hipoteses.map(h => h.ano), [1, 10, 27]);
   const inv = r.caminhos.find(c => c.id === 'inventario');
   assert.equal(inv.protegeJa, false);
-  for (const id of ['previdencia', 'seguro', 'doacao', 'holdingTotal']) assert.ok(r.caminhos.find(c => c.id === id).protegeJa, id);
+  for (const id of ['previdencia', 'seguro']) assert.ok(r.caminhos.find(c => c.id === id).protegeJa, id);
+  for (const estr of ['doacao', 'holdingGradual', 'holdingTotal']) assert.ok(r.caminhos.some(c => c.estrutura === estr && c.protegeJa), estr);
+  // todas as combinações estrutura × liquidez aparecem
+  for (const id of ['doacao', 'doacao+previdencia', 'doacao+seguro', 'holdingGradual+seguro', 'holdingTotal+previdencia', 'combinado'])
+    assert.ok(r.caminhos.some(c => c.id === id), id);
   assert.ok(r.recomendacao.vencedor);
 });
 
@@ -189,8 +209,8 @@ test('sem aplicações suficientes, a previdência não cobre e o seguro entra n
 });
 
 test('offshore só aparece com bens no exterior acima do limite', () => {
-  assert.ok(!S.analisar(caso({ exterior: 500000 })).caminhos.some(c => c.id === 'offshore'));
-  assert.ok(S.analisar(caso({ exterior: 3e6 })).caminhos.some(c => c.id === 'offshore'));
+  assert.ok(!S.analisar(caso({ exterior: 500000 })).caminhos.some(c => c.offshore));
+  assert.ok(S.analisar(caso({ exterior: 3e6 })).caminhos.some(c => c.offshore && c.id.endsWith('+offshore')));
 });
 
 test('validação: estado, idade, herdeiros e patrimônio', () => {
@@ -302,15 +322,41 @@ test('doação feita hoje paga o ITCMD da lei de hoje, mesmo no regime de estres
   perto(d(vig), S.itcmdDividido(4e6, 2, 'MT', 'vigente', 'doacao') + 4e6 * 0.01, 1e-6);
 });
 
-test('falta de caixa: caminho que cobre o inventário mas não cabe nas aplicações informa quanto falta', () => {
+test('falta de caixa: quem não cabe nas aplicações aparece com o valor à parte, e sempre há uma solução', () => {
   const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 3, conjuge: { regime: 'parcial' }, imoveis: 40e6, nImoveis: 10, aplicacoes: 2.5e6, empresa: 1e6, aluguelMensal: 100000, nImoveisAlugados: 10, nResidenciais: 5 });
-  assert.equal(r.recomendacao.vencedor, null);
+  assert.ok(r.recomendacao.vencedor);
   const s = r.caminhos.find(c => c.id === 'seguro');
-  assert.ok(s.protegeJa && s.falta && s.falta.valorHoje > 0 && s.falta.ano >= 1);
-  // com o que falta somado às aplicações, o caixa do caminho não fica negativo
-  const e2 = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 3, conjuge: { regime: 'parcial' }, imoveis: 40e6, nImoveis: 10, aplicacoes: 2.5e6 + s.falta.valorHoje + 1, empresa: 1e6, aluguelMensal: 100000, nImoveisAlugados: 10, nResidenciais: 5 });
-  assert.ok(!S.simular(e2, s.cfg, r.H).anos.some(a => a.aplicacoes < 0));
-  assert.equal(r.caminhos.find(c => c.id === 'inventario').falta, null);
+  assert.ok(s.protegeJa && s.pagamento.externo > 0 && s.pagamento.anosExterno.length > 0);
+  assert.equal(s.cabe, 'nao');   // sem renda informada, nada pode ser pago à parte
+  assert.equal(r.caminhos.find(c => c.id === 'inventario').pagamento.externo, 0);
+});
+
+test('quem paga: sobra primeiro, depois rendimentos, depois principal, por fim à parte', () => {
+  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 100000, sobraMensal: 1000, premissas: { rentabilidade: 0.10, ipca: 0 } });
+  // seguro de R$ 1 mi: parcela ≈ R$ 6.976/mês (55 anos) → R$ 83.716/ano
+  const sim = S.simular(e, { C: 1e6 }, 3), p1 = sim.pagamentos[1];
+  const parcelaAno = e.wholeLife.parcelaPor100k * 10 * 12;
+  perto(p1.custo, parcelaAno, 1e-6);
+  perto(p1.daSobra, 12000, 1e-6);
+  perto(p1.daRendimento, 10000, 1e-6);                  // 10% de R$ 100 mil
+  perto(p1.daPrincipal, parcelaAno - 22000, 1e-6);
+  assert.equal(p1.externo, 0);
+  const p2 = sim.pagamentos[2];                          // as aplicações acabaram: o resto é à parte
+  assert.ok(p2.externo > 0);
+  perto(p2.daSobra + p2.daRendimento + p2.daPrincipal + p2.externo, p2.custo, 1e-6);
+  // o dinheiro de fora tem custo: reduz o valor à família
+  const semCusto = S.simular(e, { C: 1e6 }, 3).anos[2];
+  assert.ok(semCusto.externoAcumulado > 0);
+});
+
+test('limite de comprometimento da renda decide se o pagamento à parte cabe', () => {
+  const base = { idade: 55, uf: 'MT', herdeiros: 2, imoveis: 3e6, nImoveis: 2, aplicacoes: 0, rendaMensal: 60000 };
+  const r = S.analisar(base);
+  const s = r.caminhos.find(c => c.id === 'seguro');
+  assert.ok(s.pagamento.externo > 0);
+  assert.equal(s.cabe, s.pagamento.externoMensalMax <= 0.3 * 60000 ? 'aParte' : 'nao');
+  const r0 = S.analisar(Object.assign({}, base, { premissas: { comprometimentoRenda: 0 } }));
+  assert.equal(r0.caminhos.find(c => c.id === 'seguro').cabe, 'nao');
 });
 
 /* ---------- sobra mensal e sucessão do casal ---------- */
@@ -338,6 +384,6 @@ test('sucessão do casal: a meação paga um 2º inventário em "só o inventár
 
 test('caso de patrimônio imobiliário grande: com sobra mensal e 8% a.a., a holding com doação gradual é recomendada', () => {
   const r = S.analisar(grande({ sobraMensal: 80000, premissas: { rentabilidade: 0.08 } }));
-  assert.equal(r.recomendacao.vencedor, 'holdingGradual');
+  assert.equal(r.caminhos.find(c => c.id === r.recomendacao.vencedor).estrutura, 'holdingGradual');
   assert.equal(r.holding.recomendada, true);
 });

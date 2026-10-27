@@ -313,7 +313,7 @@
 
   /* ---------- simulação de um caminho ---------- */
   const PREMISSAS_PADRAO = { ipca: 0.04, rentabilidade: 0.10, metaLiquidez: 0.18, irAplicacoes: 0.15, margemEmpate: 0.03,
-    taxaAdmPrevidencia: 0.00275, rentabilidadeBruta: false, anoInicial: 2026 };
+    taxaAdmPrevidencia: 0.00275, rentabilidadeBruta: false, anoInicial: 2026, comprometimentoRenda: 0.30 };
   const HOLDING_PADRAO = { juridicoPct: 0.015, juridicoMin: 5000, cartorioPct: 0.005, itbiPct: null, laudo: 5000,
     contabilMensal: 1000, anosDoacaoGradual: 10, incluirEmpresa: true };
   const OFFSHORE_PADRAO = { limiar: 2000000, abertura: 20000, manutencaoAnual: 25000, custoSucessaoExteriorPct: 0.05, impostoExteriorPct: 0 };
@@ -393,6 +393,15 @@
    * Simula um caminho ano a ano e devolve o resultado em cada ano de falecimento 1..H.
    * cfg = { X (transferência das aplicações para a previdência), C (capital de whole life novo),
    *         doaImoveis, holding: null|'total'|'gradual', offshore }
+   *
+   * QUEM PAGA OS CUSTOS (ordem fixa, igual em todos os caminhos):
+   *   1. a sobra mensal do ano (renda e aluguéis não gastos);
+   *   2. os rendimentos das aplicações do ano;
+   *   3. o principal das aplicações;
+   *   4. o que faltar é pago à parte (dinheiro de fora). Esse dinheiro também tem custo:
+   *      ele cresce pela rentabilidade e é descontado do valor que chega à família.
+   * Economia (ex.: imposto menor sobre aluguel na holding) e a sobra não usada vão para as aplicações.
+   * A estruturação (ano 0) sai das aplicações; o que faltar, à parte.
    */
   function simular(e, cfg, H) {
     const pr = e.premissas, r = pr.rentabilidade, ipca = pr.ipca, s = pr.metaLiquidez;
@@ -402,57 +411,81 @@
     let aplic = e.aplicacoes, aplicBase = e.aplicacoes;
     let prevV = e.previdencia, prevVBase = e.previdenciaAportado === null ? e.previdencia : e.previdenciaAportado;
     let prevN = 0, prevNBase = 0;
-    let custosCaminho = 0;        // nominal pago no ano 0 (estruturação) — para relatório
-    const custosAno = [];
-    const pagar = v => {
-      if (!(v > 0)) return;
-      if (aplic > 0) aplicBase -= v * Math.min(1, aplicBase / aplic);
-      aplic -= v;
+    let externoFV = 0;                       // dinheiro de fora, corrigido pela rentabilidade (custo de oportunidade)
+    const tirar = v => {                     // tira v das aplicações (custo proporcional); devolve o que não havia
+      const pago = Math.min(v, Math.max(0, aplic));
+      if (aplic > 0) aplicBase -= pago * Math.min(1, Math.max(0, aplicBase) / aplic);
+      aplic -= pago;
+      return v - pago;
     };
+    const por = v => { aplic += v; aplicBase += v; };
     const integ = () => imov + (hp.incluirEmpresa ? emp : 0);
-    // ano 0: estruturação
-    let custo0 = 0;
+    // ano 0: previdência e estruturação
     if (X > 0) { const x = Math.min(X, Math.max(0, aplic)); aplic -= x; aplicBase -= x; prevN += x; prevNBase += x; }
+    const itens0 = { itcmdDoacao: 0, escritura: 0, juridico: 0, cartorio: 0, itbi: 0, laudo: 0, offshore: 0 };
     if (cfg.doaImoveis && imov > 0) {
       // doação feita hoje paga pela lei de hoje (LC 227/2026, art. 156, § 1º): o regime simulado vale só para fatos futuros
-      custo0 += itcmdDividido(imov, e.herdeiros, e.uf, 'vigente', 'doacao') + imov * e.doacaoCustoPct;
+      itens0.itcmdDoacao += itcmdDividido(imov, e.herdeiros, e.uf, 'vigente', 'doacao');
+      itens0.escritura += imov * e.doacaoCustoPct;
     }
     let doado = 0; // fração das cotas da holding já doadas
     if (cfg.holding) {
       const v = integ();
-      custo0 += Math.max(hp.juridicoMin, v * hp.juridicoPct) + imov * hp.cartorioPct + imov * hp.itbiPct;
-      if (cfg.holding === 'total') { custo0 += itcmdDividido(v, e.herdeiros, e.uf, 'vigente', 'doacao') + hp.laudo; doado = 1; }
+      itens0.juridico += Math.max(hp.juridicoMin, v * hp.juridicoPct);
+      itens0.cartorio += imov * hp.cartorioPct;
+      itens0.itbi += imov * hp.itbiPct;
+      if (cfg.holding === 'total') { itens0.itcmdDoacao += itcmdDividido(v, e.herdeiros, e.uf, 'vigente', 'doacao'); itens0.laudo += hp.laudo; doado = 1; }
     }
-    if (cfg.offshore) custo0 += of.abertura;
-    pagar(custo0); custosCaminho = custo0;
+    if (cfg.offshore) itens0.offshore += of.abertura;
+    const custo0 = Object.values(itens0).reduce((a, b) => a + b, 0);
+    const aplic0 = Math.max(0, aplic);
+    const externo0 = tirar(custo0);
+    externoFV = externo0;
+    const pagamento0 = { ano: 0, custo: custo0, itens: itens0, daSobra: 0, daRendimento: 0, daPrincipal: custo0 - externo0, externo: externo0, aplicacoes: aplic, aplicacoesAntes: aplic0 };
 
-    const anos = [];
+    const anos = [], pagamentos = [pagamento0], custosAno = [];
     let custoRealAcum = custo0;
     for (let t = 1; t <= H; t++) {
-      imov *= 1 + ipca; emp *= 1 + ipca; ext *= 1 + r; aplic *= 1 + r; prevV *= 1 + r; prevN *= 1 + r;
-      // sobra mensal da renda e dos aluguéis: entra nas aplicações em todos os caminhos (R$ de hoje, corrigida pelo IPCA)
-      const sobra = Math.max(0, e.sobraMensal || 0) * 12 * Math.pow(1 + ipca, t - 1);
-      aplic += sobra; aplicBase += sobra;
-      let custo = 0;
-      if (C > 0 && t <= wl.anosPagamento) custo += wl.parcelaPor100k * (C / 100000) * Math.pow(1 + ipca, t - 1) * 12;
+      imov *= 1 + ipca; emp *= 1 + ipca; ext *= 1 + r; prevV *= 1 + r; prevN *= 1 + r;
+      const rend = Math.max(0, aplic) * r;
+      aplic += Math.max(0, aplic) * r;
+      externoFV *= 1 + r;
+      const fi = Math.pow(1 + ipca, t - 1);
+      const sobra = Math.max(0, e.sobraMensal || 0) * 12 * fi;
+      const itens = { seguro: 0, contabilidade: 0, itcmdDoacao: 0, laudo: 0, aluguel: 0, offshore: 0 };
+      if (C > 0 && t <= wl.anosPagamento) itens.seguro = wl.parcelaPor100k * (C / 100000) * fi * 12;
       if (cfg.holding) {
-        custo += hp.contabilMensal * 12;
+        itens.contabilidade = hp.contabilMensal * 12;
         if ((e.aluguelMensal || 0) > 0) {
-          const ta = tributacaoAluguel(Object.assign({}, e.aluguelOpcoes, { aluguelMensal: e.aluguelMensal * Math.pow(1 + ipca, t - 1), deducoesMensais: e.deducoesAluguelMensal * Math.pow(1 + ipca, t - 1),
+          const ta = tributacaoAluguel(Object.assign({}, e.aluguelOpcoes, { aluguelMensal: e.aluguelMensal * fi, deducoesMensais: e.deducoesAluguelMensal * fi,
             outrasRendasMensais: e.outrasRendasMensais, nImoveisAlugados: e.nImoveisAlugados, nResidenciais: e.nResidenciais,
             ano: pr.anoInicial + t, contabilMensal: 0 }));
-          custo += ta.diferenca;
+          itens.aluguel = ta.diferenca;          // negativo = a holding paga menos imposto que a pessoa física
         }
         if (cfg.holding === 'gradual' && doado < 1) {
           const novo = Math.min(1, t / Math.max(1, hp.anosDoacaoGradual));
-          custo += itcmdDividido(integ() * (novo - doado), e.herdeiros, e.uf, e.regime, 'doacao') + hp.laudo;
+          itens.itcmdDoacao = itcmdDividido(integ() * (novo - doado), e.herdeiros, e.uf, e.regime, 'doacao');
+          itens.laudo = hp.laudo;
           doado = novo;
         }
       }
-      if (cfg.offshore) custo += of.manutencaoAnual;
+      if (cfg.offshore) itens.offshore = of.manutencaoAnual;
+      const custo = Object.values(itens).reduce((a, b) => a + b, 0);
       custosAno.push(custo);
       custoRealAcum += custo / Math.pow(1 + ipca, t);
-      if (custo >= 0) pagar(custo); else { aplic -= custo; aplicBase -= custo; }
+      let daSobra = 0, daRendimento = 0, daPrincipal = 0, externo = 0;
+      if (custo <= 0) por(sobra - custo);
+      else {
+        daSobra = Math.min(custo, sobra);
+        por(sobra - daSobra);
+        const resto = custo - daSobra;
+        externo = tirar(resto);
+        const pagoAplic = resto - externo;
+        daRendimento = Math.min(pagoAplic, rend);
+        daPrincipal = pagoAplic - daRendimento;
+        externoFV += externo;
+      }
+      pagamentos.push({ ano: t, custo, itens, sobra, rendimento: rend, daSobra, daRendimento, daPrincipal, externo, aplicacoes: aplic });
 
       // falecimento ao fim do ano t
       const fora = cfg.holding ? integ() : (cfg.doaImoveis ? imov : 0);      // bens já fora do inventário (doados/holding)
@@ -460,7 +493,7 @@
       const cotasInv = cfg.holding ? integ() * (1 - doado) : 0;
       const imovInv = (cfg.holding || cfg.doaImoveis) ? 0 : imov;
       const empInv = (cfg.holding && hp.incluirEmpresa) ? 0 : emp;
-      const monte = imovInv + empInv + cotasInv + aplic + ext;
+      const monte = Math.max(0, imovInv + empInv + cotasInv + aplic + ext);
       const inv = custoInventario({ monte, imoveis: imovInv, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes,
         uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
       const custoExterior = cfg.offshore ? 0 : ext * (of.custoSucessaoExteriorPct + of.impostoExteriorPct);
@@ -470,7 +503,7 @@
       const seguro = (e.seguroExistente || 0) + capitalSeguro(C, t, ipca, wl.ganhoReal);
       const irLatente = pr.irAplicacoes * Math.max(0, aplic - Math.max(0, aplicBase));
       const sustento = e.sustento.despesaMensal * e.sustento.meses * Math.pow(1 + ipca, t);
-      const meta = s * Math.max(0, monte) + sustento;
+      const meta = s * monte + sustento;
       const liquidez = previdenciaLiquida + seguro;
       // sucessão do casal: a meação do cônjuge também passa aos filhos, num 2º inventário (simplificação: mesma data,
       // filhos como únicos herdeiros). Bens já doados ou na holding ficam fora dos dois inventários.
@@ -479,31 +512,33 @@
           uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos })
         : null;
       const custoConjuge = invConjuge ? invConjuge.total : 0;
-      const familia = monte - inv.total - custoConjuge - custoExterior - irLatente + doadoValor + previdenciaLiquida + seguro;
+      const familia = monte - inv.total - custoConjuge - custoExterior - irLatente + doadoValor + previdenciaLiquida + seguro - externoFV;
       const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + seguro);
       anos.push({
         ano: t, monte, inventario: inv, inventarioConjuge: invConjuge, sustento, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
-        cobertura: meta > 0 ? liquidez / meta : Infinity, aplicacoes: aplic, familia,
-        familiaReal: familia / Math.pow(1 + ipca, t), travado: Math.max(0, monte) / brutoFamilia,
-        custosReais: custoRealAcum, faltaRecurso: aplic < 0
+        cobertura: meta > 0 ? liquidez / meta : Infinity, aplicacoes: aplic, familia, externoAcumulado: externoFV,
+        familiaReal: familia / Math.pow(1 + ipca, t), travado: monte / brutoFamilia, custosReais: custoRealAcum
       });
     }
-    return { cfg, anos, custoEstruturacao: custosCaminho, custosAno };
+    return { cfg, anos, custoEstruturacao: custo0, custosAno, pagamentos, resumoPagamento: resumirPagamentos(pagamentos, ipca) };
   }
 
-  /**
-   * Falta de caixa: quanto a mais em aplicações HOJE o caminho precisaria para pagar todos os
-   * seus custos sem o saldo ficar negativo (bissecção), e o primeiro ano em que falta.
-   */
-  function faltaDeCaixa(e, sim, H) {
-    const a0 = sim.anos.find(a => a.aplicacoes < 0);
-    if (!a0) return null;
-    const ok = extra => !simular(Object.assign({}, e, { aplicacoes: e.aplicacoes + extra }), sim.cfg, H).anos.some(a => a.aplicacoes < 0);
-    let hi = Math.max(1e5, e.aplicacoes);
-    for (let k = 0; k < 40 && !ok(hi); k++) hi *= 2;
-    let lo = 0;
-    for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (ok(m)) hi = m; else lo = m; }
-    return { valorHoje: hi, ano: a0.ano };
+  /** Totais de quem pagou, em R$ de hoje, e o maior pagamento à parte por mês. */
+  function resumirPagamentos(pg, ipca) {
+    const real = (v, t) => v / Math.pow(1 + ipca, t);
+    const z = { custo: 0, daSobra: 0, daRendimento: 0, daPrincipal: 0, externo: 0, externoMensalMax: 0, anosExterno: [], principalConsumido: false };
+    pg.forEach(p => {
+      if (p.custo > 0) z.custo += real(p.custo, p.ano);
+      z.daSobra += real(p.daSobra, p.ano); z.daRendimento += real(p.daRendimento, p.ano); z.daPrincipal += real(p.daPrincipal, p.ano);
+      z.externo += real(p.externo, p.ano);
+      if (p.externo > 0.5) {
+        z.anosExterno.push(p.ano);
+        if (p.ano > 0) z.externoMensalMax = Math.max(z.externoMensalMax, real(p.externo, p.ano) / 12);
+      }
+      if (p.daPrincipal > 0.5) z.principalConsumido = true;
+    });
+    z.externoHoje = pg[0].externo;
+    return z;
   }
 
   const coberturaMinima = (sim, ate) => Math.min(...sim.anos.slice(0, ate || sim.anos.length).map(a => a.cobertura));
@@ -512,26 +547,47 @@
   function menorQueCobre(e, cfg, campo, max, H, ateAno) {
     const cobre = v => coberturaMinima(simular(e, Object.assign({}, cfg, { [campo]: v }), H), ateAno) >= 1;
     if (cobre(0)) return 0;
-    if (!cobre(max)) return null;
+    if (!(max > 0) || !cobre(max)) return null;
     let lo = 0, hi = max;
-    for (let k = 0; k < 50; k++) { const m = (lo + hi) / 2; if (cobre(m)) hi = m; else lo = m; }
+    for (let k = 0; k < 42; k++) { const m = (lo + hi) / 2; if (cobre(m)) hi = m; else lo = m; }
     return hi;
   }
 
-  /** Liquidez pela combinação: previdência até onde as aplicações permitem; seguro cobre o que faltar. */
-  function liquidezCombinada(e, base, H, ateAno) {
-    const disponivel = Math.max(0, e.aplicacoes - estimarCusto0(e, base));
-    const X = menorQueCobre(e, base, 'X', disponivel, H, ateAno);
-    if (X !== null) return { X, C: 0 };
-    const cfg = Object.assign({}, base, { X: disponivel });
-    const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior) * 2);
-    const C = menorQueCobre(e, cfg, 'C', tetoC, H, ateAno);
-    return { X: disponivel, C: C === null ? tetoC : C };
-  }
-  function estimarCusto0(e, cfg) { return simular(e, Object.assign({}, cfg, { X: 0, C: 0 }), 1).custoEstruturacao; }
+  /* ---------- combinações: estrutura × liquidez ---------- */
+  const ESTRUTURAS = ['nenhuma', 'doacao', 'holdingGradual', 'holdingTotal'];
+  const LIQUIDEZ = ['nenhuma', 'previdencia', 'seguro', 'combinado'];
+  const RANK_ESTR = { nenhuma: 0, doacao: 3, holdingTotal: 4, holdingGradual: 4.5 };
+  const RANK_LIQ = { nenhuma: 0, previdencia: 1, seguro: 2, combinado: 2.5 };
+  const CFG_ESTR = { nenhuma: {}, doacao: { doaImoveis: true }, holdingGradual: { holding: 'gradual' }, holdingTotal: { holding: 'total' } };
+  const idCaminho = (estr, liq) => estr === 'nenhuma' ? (liq === 'nenhuma' ? 'inventario' : liq) : estr + (liq === 'nenhuma' ? '' : '+' + liq);
+  const complexidade = (estr, liq, offshore) => (estr === 'nenhuma' ? RANK_LIQ[liq] : RANK_ESTR[estr] + RANK_LIQ[liq] / 10) + (offshore ? 5 : 0);
 
-  /* ---------- comparação dos caminhos ---------- */
-  const COMPLEXIDADE = { inventario: 0, previdencia: 1, seguro: 2, combinado: 2.5, doacao: 3, holdingTotal: 4, holdingGradual: 4.5, offshore: 5 };
+  /** Dimensiona as quatro variantes de liquidez para uma estrutura. */
+  function variantesLiquidez(e, estr, H, ate) {
+    const base = CFG_ESTR[estr];
+    const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.sustento.despesaMensal * e.sustento.meses) * 2);
+    const custo0 = simular(e, Object.assign({}, base, { X: 0, C: 0 }), 1).custoEstruturacao;
+    const disp = Math.max(0, e.aplicacoes - custo0);
+    const Xp = menorQueCobre(e, base, 'X', disp, H, ate);
+    const Cs = menorQueCobre(e, base, 'C', tetoC, H, ate);
+    const out = [{ liq: 'nenhuma', cfg: Object.assign({}, base) }];
+    out.push({ liq: 'previdencia', cfg: Object.assign({}, base, { X: Xp === null ? disp : Xp }) });
+    out.push({ liq: 'seguro', cfg: Object.assign({}, base, { C: Cs === null ? tetoC : Cs }) });
+    const Xc = Xp === null ? disp : Xp / 2;            // combinação: metade pela previdência (ou o que houver), o resto pelo seguro
+    if (Xc > 0 && !(Xp === 0)) {
+      const comX = Object.assign({}, base, { X: Xc });
+      const Cc = menorQueCobre(e, comX, 'C', tetoC, H, ate);
+      out.push({ liq: 'combinado', cfg: Object.assign({}, comX, { C: Cc === null ? tetoC : Cc }) });
+    }
+    return { variantes: out, Xp, disp };
+  }
+
+  /** Cabe no caixa? 'sim' (sem dinheiro de fora), 'aParte' (de fora, dentro do limite da renda) ou 'nao'. */
+  function cabeNoCaixa(e, resumo) {
+    if (resumo.externo < 1) return 'sim';
+    const limite = e.premissas.comprometimentoRenda * Math.max(0, e.rendaMensal || 0);
+    return resumo.externoHoje < 1 && resumo.externoMensalMax <= limite + 1e-6 ? 'aParte' : 'nao';
+  }
 
   function analisar(entrada, opcoes) {
     const e = normalizar(entrada);
@@ -542,106 +598,138 @@
     const hipoteses = [{ id: 'proximo', ano: 1 }, { id: 'dez', ano: 10 }, { id: 'expectativa', ano: Texp }];
     const ate = H;   // cobertura exigida em todo o horizonte para dimensionar; o filtro olha o 1º ano
 
+    const temImoveis = e.imoveis > 0, temIntegralizavel = e.imoveis + (e.holding.incluirEmpresa ? e.empresa : 0) > 0;
     const defs = [];
-    const add = (id, cfg) => defs.push({ id, cfg });
-    add('inventario', {});
-    const disp = Math.max(0, e.aplicacoes);
-    const Xp = menorQueCobre(e, {}, 'X', disp, H, ate);
-    add('previdencia', { X: Xp === null ? disp : Xp });
-    const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior) * 2);
-    const Cs = menorQueCobre(e, {}, 'C', tetoC, H, ate);
-    add('seguro', { C: Cs === null ? tetoC : Cs });
-    if (Xp === null) add('combinado', liquidezCombinada(e, {}, H, ate));
-    if (e.imoveis > 0) add('doacao', Object.assign({ doaImoveis: true }, liquidezCombinada(e, { doaImoveis: true }, H, ate)));
-    if (e.imoveis + (e.holding.incluirEmpresa ? e.empresa : 0) > 0) {
-      add('holdingTotal', Object.assign({ holding: 'total' }, liquidezCombinada(e, { holding: 'total' }, H, ate)));
-      add('holdingGradual', Object.assign({ holding: 'gradual' }, liquidezCombinada(e, { holding: 'gradual' }, H, ate)));
+    let Xp0 = null;
+    for (const estr of ESTRUTURAS) {
+      if (estr === 'doacao' && !temImoveis) continue;
+      if ((estr === 'holdingGradual' || estr === 'holdingTotal') && !temIntegralizavel) continue;
+      const v = variantesLiquidez(e, estr, H, ate);
+      if (estr === 'nenhuma') Xp0 = v.Xp;
+      v.variantes.forEach(x => defs.push({ id: idCaminho(estr, x.liq), estrutura: estr, liquidez: x.liq, cfg: x.cfg }));
+    }
+    // variantes iguais (ex.: sem aplicações para levar à previdência) aparecem uma vez só, na forma mais simples
+    const vistos = new Set();
+    for (let i = 0; i < defs.length; i++) {
+      const c = defs[i].cfg, k = [defs[i].estrutura, Math.round(c.X || 0), Math.round(c.C || 0)].join('|');
+      if (vistos.has(k)) { defs.splice(i, 1); i--; } else vistos.add(k);
     }
 
     const montar = d => {
       const sim = simular(e, d.cfg, H);
       const em = hipoteses.reduce((o, h) => { o[h.id] = sim.anos[h.ano - 1]; return o; }, {});
-      return { id: d.id, cfg: d.cfg, sim, em, coberturaAno1: sim.anos[0].cobertura,
-        coberturaMin: coberturaMinima(sim), protegeJa: sim.anos[0].cobertura >= 1 - 1e-9, complexidade: COMPLEXIDADE[d.id],
-        faltaRecurso: sim.anos.some(a => a.faltaRecurso),
-        falta: faltaDeCaixa(e, sim, H) };
+      const cabe = cabeNoCaixa(e, sim.resumoPagamento);
+      return { id: d.id, estrutura: d.estrutura, liquidez: d.liquidez, offshore: !!d.cfg.offshore, cfg: d.cfg, sim, em,
+        coberturaAno1: sim.anos[0].cobertura, coberturaMin: coberturaMinima(sim), protegeJa: sim.anos[0].cobertura >= 1 - 1e-9,
+        complexidade: complexidade(d.estrutura, d.liquidez, d.cfg.offshore), pagamento: sim.resumoPagamento, cabe,
+        faltaRecurso: cabe === 'nao' };
     };
     let caminhos = defs.map(montar);
 
     // offshore: só com bens no exterior acima do limite — variante do melhor caminho sem offshore
-    const temOffshore = e.exterior >= e.offshore.limiar;
     let rec = recomendar(caminhos, e.premissas.margemEmpate);
-    if (temOffshore && rec.vencedor) {
-      const base = caminhos.find(c => c.id === rec.vencedor);
-      caminhos.push(montar({ id: 'offshore', cfg: Object.assign({}, base.cfg, { offshore: true }) }));
+    if (e.exterior >= e.offshore.limiar && rec.vencedor) {
+      const b = caminhos.find(c => c.id === rec.vencedor);
+      caminhos.push(montar({ id: b.id + '+offshore', estrutura: b.estrutura, liquidez: b.liquidez, cfg: Object.assign({}, b.cfg, { offshore: true }) }));
       rec = recomendar(caminhos, e.premissas.margemEmpate);
     }
 
     // estabilidade: o vencedor continua à frente nas outras hipóteses e no regime de estresse?
     const estabilidade = {};
-    if (rec.vencedor) {
-      for (const h of ['proximo', 'dez']) {
-        const r2 = recomendar(caminhos, e.premissas.margemEmpate, h);
-        estabilidade[h] = r2.vencedor === rec.vencedor ? null : r2.vencedor;
-      }
-      if (!(opcoes && opcoes.semEstresse) && e.regime !== 'estresse') {
-        const est = analisar(Object.assign({}, entrada, { regime: 'estresse' }), { semEstresse: true });
-        estabilidade.estresse = est.ok && est.recomendacao.vencedor !== rec.vencedor ? est.recomendacao.vencedor : null;
-      }
+    for (const h of ['proximo', 'dez']) {
+      const r2 = recomendar(caminhos, e.premissas.margemEmpate, h);
+      estabilidade[h] = r2.vencedor === rec.vencedor ? null : r2.vencedor;
+    }
+    if (!(opcoes && opcoes.semEstresse) && e.regime !== 'estresse') {
+      const est = analisar(Object.assign({}, entrada, { regime: 'estresse' }), { semEstresse: true });
+      estabilidade.estresse = est.ok && est.recomendacao.vencedor !== rec.vencedor ? est.recomendacao.vencedor : null;
     }
 
     const sem = caminhos.find(c => c.id === 'inventario');
     const hoje = sem.sim.anos[0];
-    const custoHoje = custoInventario({ monte: e.imoveis + e.aplicacoes + e.empresa + e.exterior, imoveis: e.imoveis,
+    const monte0 = e.imoveis + e.aplicacoes + e.empresa + e.exterior;
+    const custoHoje = custoInventario({ monte: monte0, imoveis: e.imoveis,
       meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
     const regimes = ['vigente', 'reforma', 'estresse'].reduce((o, rg) => {
-      o[rg] = custoInventario({ monte: e.imoveis + e.aplicacoes + e.empresa + e.exterior, imoveis: e.imoveis, meacaoPct: e.meacaoPct,
+      o[rg] = custoInventario({ monte: monte0, imoveis: e.imoveis, meacaoPct: e.meacaoPct,
         herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: rg, tipo: e.tipoInventario, custos: e.custos });
       return o;
     }, {});
 
     return {
       ok: true, entrada: e, Texp, H, hipoteses, caminhos, recomendacao: rec, estabilidade,
-      base: { custoHoje, metaInventarioHoje: e.premissas.metaLiquidez * (e.imoveis + e.aplicacoes + e.empresa + e.exterior),
+      base: { custoHoje, metaInventarioHoje: e.premissas.metaLiquidez * monte0,
         sustentoHoje: e.sustento.despesaMensal * e.sustento.meses,
-        conjugeHoje: e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ monte: (e.imoveis + e.aplicacoes + e.empresa + e.exterior) * e.meacaoPct,
+        conjugeHoje: e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ monte: monte0 * e.meacaoPct,
           imoveis: e.imoveis * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos }) : null,
-        metaHoje: e.premissas.metaLiquidez * (e.imoveis + e.aplicacoes + e.empresa + e.exterior) + e.sustento.despesaMensal * e.sustento.meses,
+        metaHoje: e.premissas.metaLiquidez * monte0 + e.sustento.despesaMensal * e.sustento.meses,
         regimes, anoHoje: hoje,
         heranca: custoHoje.heranca, legitima: custoHoje.heranca / 2, disponivel: custoHoje.heranca / 2,
-        meacao: (e.imoveis + e.aplicacoes + e.empresa + e.exterior) * e.meacaoPct },
+        meacao: monte0 * e.meacaoPct },
       holding: avaliarHolding(e, caminhos, rec, Texp),
-      seguroDesnecessario: Xp !== null,
-      previdencia: { X: Xp, disponivel: disp, metaFormula: e.premissas.metaLiquidez / (1 + e.premissas.metaLiquidez) },
+      seguroDesnecessario: Xp0 !== null,
+      previdencia: { X: Xp0, disponivel: Math.max(0, e.aplicacoes), metaFormula: e.premissas.metaLiquidez / (1 + e.premissas.metaLiquidez) },
       aluguel: (e.aluguelMensal || 0) > 0 ? Array.from({ length: 10 }, (_, i) => tributacaoAluguel(Object.assign({}, e.aluguelOpcoes, {
         aluguelMensal: e.aluguelMensal * Math.pow(1 + e.premissas.ipca, i), deducoesMensais: e.deducoesAluguelMensal * Math.pow(1 + e.premissas.ipca, i),
         outrasRendasMensais: e.outrasRendasMensais, nImoveisAlugados: e.nImoveisAlugados, nResidenciais: e.nResidenciais,
         ano: e.premissas.anoInicial + i + 1, contabilMensal: e.holding.contabilMensal }))) : null,
-      seguro: detalheSeguro(e, caminhos)
+      seguro: detalheSeguro(e, caminhos, rec)
     };
   }
 
-  /** Regra validada: filtro de proteção → maior VCF na hipótese → empate abaixo da margem favorece o mais simples. */
+  /**
+   * Regra de recomendação — sempre devolve uma solução:
+   *   nível 1: protege desde o 1º ano e cabe no caixa (sobra + aplicações);
+   *   nível 2: protege e precisa de dinheiro à parte dentro do limite de comprometimento da renda;
+   *   nível 3: protege, mas o dinheiro à parte passa do limite (vence o que pede menos de fora);
+   *   nível 4: nada protege desde o 1º ano (vence a maior cobertura).
+   * Dentro do nível: maior valor à família na hipótese; empate abaixo da margem favorece o mais simples.
+   */
   function recomendar(caminhos, margem, hipotese) {
     const h = hipotese || 'expectativa';
-    const aptos = caminhos.filter(c => c.protegeJa && !c.faltaRecurso);
-    if (!aptos.length) return { vencedor: null, aptos: [], melhorValor: null };
-    const melhor = Math.max(...aptos.map(c => c.em[h].familiaReal));
-    const empatados = aptos.filter(c => c.em[h].familiaReal >= melhor * (1 - margem));
-    empatados.sort((a, b) => a.complexidade - b.complexidade || b.em[h].familiaReal - a.em[h].familiaReal);
-    const ordem = aptos.slice().sort((a, b) => b.em[h].familiaReal - a.em[h].familiaReal).map(c => c.id);
-    return { vencedor: empatados[0].id, maiorValor: ordem[0], porSimplicidade: empatados[0].id !== ordem[0], ordem, melhorValor: melhor, hipotese: h };
+    const v = c => c.em[h].familiaReal;
+    const prot = caminhos.filter(c => c.protegeJa);
+    const n1 = prot.filter(c => c.cabe === 'sim'), n2 = prot.filter(c => c.cabe === 'aParte');
+    let nivel, aptos;
+    if (n1.length) { nivel = 1; aptos = n1; }
+    else if (n2.length) { nivel = 2; aptos = n2; }
+    else if (prot.length) {
+      nivel = 3;
+      const menor = Math.min(...prot.map(c => c.pagamento.externo));
+      aptos = prot.filter(c => c.pagamento.externo <= menor * 1.05 + 1);
+    } else {
+      nivel = 4;
+      const maior = Math.max(...caminhos.map(c => c.coberturaAno1));
+      aptos = caminhos.filter(c => c.coberturaAno1 >= maior - 1e-9);
+    }
+    const melhor = Math.max(...aptos.map(v));
+    const empatados = aptos.filter(c => v(c) >= melhor - Math.abs(melhor) * margem);
+    empatados.sort((a, b) => a.complexidade - b.complexidade || v(b) - v(a));
+    const ordem = aptos.slice().sort((a, b) => v(b) - v(a)).map(c => c.id);
+    const venc = empatados[0];
+    // alternativa que pede dinheiro à parte (dentro do limite) e entrega bem mais
+    let alternativaAParte = null;
+    if (nivel === 1 && n2.length) {
+      const m2 = n2.slice().sort((a, b) => v(b) - v(a))[0];
+      if (v(m2) > v(venc) * (1 + margem)) alternativaAParte = { id: m2.id, ganho: v(m2) - v(venc), externoMensalMax: m2.pagamento.externoMensalMax };
+    }
+    return { vencedor: venc.id, nivel, maiorValor: ordem[0], porSimplicidade: venc.id !== ordem[0], ordem, melhorValor: melhor, hipotese: h, alternativaAParte };
   }
 
   function avaliarHolding(e, caminhos, rec, Texp) {
-    const hs = caminhos.filter(c => c.id === 'holdingTotal' || c.id === 'holdingGradual');
+    const hs = caminhos.filter(c => c.estrutura === 'holdingTotal' || c.estrutura === 'holdingGradual');
     if (!hs.length) return { aplicavel: false };
     const venc = caminhos.find(c => c.id === rec.vencedor);
-    const recomendada = !!venc && (venc.id === 'holdingTotal' || venc.id === 'holdingGradual');
-    const melhorH = hs.slice().sort((a, b) => b.em.expectativa.familiaReal - a.em.expectativa.familiaReal)[0];
+    const recomendada = !!venc && (venc.estrutura === 'holdingTotal' || venc.estrutura === 'holdingGradual');
+    const comparaveis = hs.filter(c => c.protegeJa && c.cabe !== 'nao');
+    const protegidas = hs.filter(c => c.protegeJa);
+    const melhorH = comparaveis.length ? comparaveis.slice().sort((a, b) => b.em.expectativa.familiaReal - a.em.expectativa.familiaReal)[0]
+      : (protegidas.length ? protegidas.slice().sort((a, b) => a.pagamento.externo - b.pagamento.externo)[0] : hs[0]);   // sem caixa: a que pede menos de fora
     const motivos = [];
     if (!recomendada) {
-      if (venc) motivos.push({ id: 'numeros', diferenca: venc.em.expectativa.familiaReal - melhorH.em.expectativa.familiaReal, vencedor: venc.id });
+      const dif = venc ? venc.em.expectativa.familiaReal - melhorH.em.expectativa.familiaReal : 0;
+      if (venc && dif > 0) motivos.push({ id: 'numeros', diferenca: dif, vencedor: venc.id, holding: melhorH.id });
+      if (!comparaveis.length) motivos.push({ id: 'caixa', externoMensalMax: melhorH.pagamento.externoMensalMax, externoHoje: melhorH.pagamento.externoHoje });
       const total = e.imoveis + e.aplicacoes + e.previdencia + e.empresa + e.exterior;
       if (total > 0 && (e.aplicacoes + e.previdencia + e.exterior) / total >= 0.6) motivos.push({ id: 'financeiro' });
       if (e.nImoveis > 0 && e.nImoveis <= 2 && e.empresa === 0) motivos.push({ id: 'poucosImoveis', n: e.nImoveis });
@@ -659,8 +747,10 @@
     return { aplicavel: true, recomendada, motivos, custoEvitado, melhor: melhorH.id };
   }
 
-  function detalheSeguro(e, caminhos) {
-    const c = caminhos.find(x => x.id === 'combinado' && x.cfg.C > 0) || caminhos.find(x => x.id === 'seguro');
+  function detalheSeguro(e, caminhos, rec) {
+    const venc = caminhos.find(x => x.id === rec.vencedor);
+    const comSeguro = caminhos.filter(x => x.cfg.C > 0).sort((a, b) => b.em.expectativa.familiaReal - a.em.expectativa.familiaReal);
+    const c = venc && venc.cfg.C > 0 ? venc : comSeguro[0];
     if (!c || !(c.cfg.C > 0)) return null;
     const o = Object.assign({}, e.wholeLife, { capital: c.cfg.C, ipca: e.premissas.ipca, idade: e.idade });
     const proj = projetarWholeLife(Object.assign({}, o, { anos: Math.max(10, Math.round(expectativaSobrevida(e.idade))) }));
@@ -691,6 +781,9 @@
     const pr = e.premissas;
     if (!(pr.rentabilidade > -0.5 && pr.rentabilidade < 1)) erros.push('Rentabilidade fora do intervalo aceito.');
     if (!(pr.metaLiquidez > 0 && pr.metaLiquidez < 1)) erros.push('A meta de liquidez precisa estar entre 0% e 100%.');
+    if (!(pr.ipca > -0.2 && pr.ipca < 0.5)) erros.push('Inflação fora do intervalo aceito.');
+    if (!(pr.comprometimentoRenda >= 0 && pr.comprometimentoRenda <= 1)) erros.push('O limite de comprometimento da renda precisa estar entre 0% e 100%.');
+    if (!(e.wholeLife.parcelaPor100k > 0)) erros.push('Informe a parcela do whole life.');
     return [...new Set(erros)];
   }
 
@@ -698,6 +791,6 @@
     TABUA_IBGE_2024, CURVA_ATUARIAL, PREMISSAS_PADRAO, CUSTOS_PADRAO, HOLDING_PADRAO, OFFSHORE_PADRAO, WL_PADRAO,
     expectativaSobrevida, itcmdValor, itcmdDividido, custoInventario, partilha, MESES_SUSTENTO, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
     projetarWholeLife, fatorIdadeWholeLife, wholeLifeDaIdade, capitalSeguro, anoEquilibrioSeguro, irpfMensal, irpfm, faseIBS, tributacaoAluguel,
-    normalizar, simular, analisar, recomendar, validar
+    normalizar, simular, analisar, recomendar, validar, ESTRUTURAS, LIQUIDEZ, idCaminho
   };
 });

@@ -58,7 +58,10 @@ O que os testes cobrem: cálculos dos motores (conferidos com a planilha e com a
   - Meta = 18% + despesas da família durante o inventário (meses padrão: 3 em cartório, 24 judicial, 36 com conflito).
   - Partilha pelo regime de bens (meação, cônjuge herdeiro pelo art. 1.829 do Código Civil, mínimo de 1/4 do art. 1.832); ITCMD por quinhão; legítima e parte disponível.
   - Whole life por idade e sexo: a parcela da proposta Sicoob (homem, 48 anos) é escalada por um fator atuarial pela tábua de seguros da SUSEP, BR-EMSmt v.2026 (ou v.2021), em `dados/tabuas-br-ems.js`, com juros técnicos implícitos na proposta.
-  - Sobra mensal (renda e aluguéis não gastos) entra nas aplicações em todos os caminhos e paga os custos de cada um. Caminho cujos custos passam do caixa é desclassificado, e a conclusão diz quanto faltaria.
+  - Testa todas as combinações de estrutura (nada, doação com usufruto, holding gradual, holding total) com liquidez (nada, previdência, whole life, previdência + whole life), e offshore quando houver bens no exterior.
+  - Quem paga cada custo, nesta ordem: sobra mensal → rendimentos das aplicações → principal → à parte. O dinheiro de fora cresce pela rentabilidade e é descontado do valor à família.
+  - Sempre há uma solução: (1) protege e cabe no orçamento; (2) protege com pagamento à parte até o limite da renda (padrão 30%); (3) protege pedindo o menor valor de fora; (4) maior cobertura.
+  - Painel da solução: componentes, valor à família, por que, como pagar, passo a passo e alternativas. `tests/sucessao-robustez.test.js` roda casos aleatórios (sem erro, números válidos, sempre uma solução).
   - Sucessão do casal: com meação, o 2º inventário (do cônjuge, sobre a meação) entra no valor que chega à família; doação e holding evitam os dois para os bens transferidos.
   - Doações feitas hoje pagam ITCMD pela lei vigente; os regimes de reforma e estresse valem só para a herança e as doações futuras.
   - Simulação pode ser salva e reaberta em arquivo `.json` (só os campos da tela, sem dados pessoais).
