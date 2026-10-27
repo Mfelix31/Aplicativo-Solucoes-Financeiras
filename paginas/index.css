@@ -14,8 +14,9 @@ header{display:flex; justify-content:space-between; align-items:center; gap:16px
 .hero h1{font-family:Arial, Helvetica, sans-serif; font-weight:600; font-size:clamp(28px, 4.4vw, 40px); line-height:1.15; margin:0 0 10px; max-width:20ch;}
 .hero p{margin:0; color:var(--ink-muted); font-size:15px; max-width:58ch;}
 
-.modules{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
-@media(max-width:900px){.modules{grid-template-columns:1fr;}}
+.modules{display:grid; grid-template-columns:repeat(4,1fr); gap:20px;}
+@media(max-width:1180px){.modules{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.modules{grid-template-columns:1fr;}}
 .module{display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:24px 24px 20px; text-decoration:none; color:inherit; box-shadow:var(--shadow); position:relative; overflow:hidden; transition:border-color .15s ease, transform .15s ease;}
 .module::before{content:''; position:absolute; inset:0 0 auto 0; height:4px; background:var(--cb, var(--c));}
 .module:hover{border-color:var(--cb, var(--c)); transform:translateY(-2px);}

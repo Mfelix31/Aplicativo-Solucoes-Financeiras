@@ -9,7 +9,7 @@ const vm = require('node:vm');
 
 const RAIZ = path.join(__dirname, '..');
 const ler = f => fs.readFileSync(path.join(RAIZ, f), 'utf8');
-const PAGINAS = ['index.html', 'investimentos.html', 'planejamento.html', 'aquisicao.html'];
+const PAGINAS = ['index.html', 'investimentos.html', 'planejamento.html', 'aquisicao.html', 'sucessao.html'];
 
 /** arquivos locais carregados pela página (scripts e folhas de estilo) */
 function recursosLocais(html) {
@@ -47,7 +47,7 @@ for (const pagina of PAGINAS) {
 }
 
 test('todos os arquivos JavaScript têm sintaxe válida', () => {
-  const pastas = ['assets', 'engine', 'paginas'];
+  const pastas = ['assets', 'dados', 'engine', 'paginas'];
   for (const pasta of pastas) {
     for (const f of fs.readdirSync(path.join(RAIZ, pasta)).filter(f => f.endsWith('.js'))) {
       assert.doesNotThrow(() => new vm.Script(ler(path.join(pasta, f)), { filename: f }), `${pasta}/${f}`);
@@ -61,7 +61,7 @@ test('todos os arquivos JavaScript têm sintaxe válida', () => {
 });
 
 test('nenhum estilo em linha fixo nas páginas (só variáveis de cor por item)', () => {
-  for (const pagina of ['aquisicao.html', 'index.html']) {
+  for (const pagina of ['aquisicao.html', 'index.html', 'sucessao.html']) {
     const estilos = [...ler(pagina).matchAll(/\sstyle="([^"]*)"/g)].map(m => m[1]).filter(s => !/^--c[bl]?:/.test(s.trim()));
     assert.deepEqual(estilos, [], pagina);
   }

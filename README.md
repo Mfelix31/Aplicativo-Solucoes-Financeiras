@@ -8,6 +8,7 @@ Plataforma estática (HTML/CSS/JS, sem build) com três módulos:
 | `investimentos.html` | Simulador e comparador de LCA, RDC e Operação Compromissada |
 | `planejamento.html` | Planejamento financeiro: patrimônio necessário, cenários, objetivos de vida e PDF |
 | `aquisicao.html` | Estratégia de Aquisição: consórcio × financiamento × capital próprio, com a renda do capital pagando a parcela |
+| `sucessao.html` | Planejamento Sucessório: inventário × previdência × whole life × doação com usufruto × holding × offshore, em MT, MS, RO e PA |
 
 ## Estrutura
 
@@ -32,6 +33,8 @@ Motores de cálculo (funções puras, sem tela, testadas):
 
 - `engine/planejamento.js` — planejamento financeiro.
 - `engine/aquisicao.js` — estratégia de aquisição (financiamento no padrão Sicoob, consórcio, IR no resgate).
+- `engine/sucessao.js` — planejamento sucessório (custo do inventário, previdência e whole life dimensionados para pagá-lo, doação, holding, aluguel PF × holding, recomendação).
+- `dados/itcmd-uf.js` — tabelas de ITCMD de MT, MS, RO e PA (vigente, adequação à LC 227/2026 e estresse de 16%) e honorários de referência.
 - `engine/propostas.js` — leitura das simulações do Sicoob em PDF.
 
 Ordem de carregamento em cada página: `assets/tema.js` → `assets/base.css` → (`assets/componentes.css`) → `paginas/<página>.css` → … → `assets/*.js` → `engine/*.js` → `paginas/<página>.js`.
@@ -50,6 +53,7 @@ O que os testes cobrem: cálculos dos motores (conferidos com a planilha e com a
 ## Convenções de cálculo
 
 - **Investimentos:** rendimento em dias úteis, base 252, com feriados nacionais; IR e IOF por dias corridos. LCA com prazo mínimo de 6 meses (Res. CMN 5.215/2025). CDI constante ou projetado por ano (Boletim Focus, API do BCB, editável). Comparativo com poupança (0,5% a.m. + TR), CDB e Tesouro Selic (custódia B3 0,20% a.a. acima de R$ 10 mil).
+- **Sucessão:** base anual; meta de liquidez de 18% do que vai a inventário, paga só por previdência (líquida de IR) e/ou whole life (capital IPCA + 2,5%, planilha Sicoob); recomenda, entre os caminhos que cobrem a meta desde o 1º ano, o que mais entrega à família na expectativa de vida (IBGE 2024), com empate abaixo de 3% favorecendo o mais simples.
 - **Aquisição:** base mensal; o capital rende e paga a parcela; patrimônio líquido = capital + bem − saldo devedor; bem valoriza pelo IPCA. Financiamento no padrão da proposta Sicoob (TR projetada, juros nominais ÷ 12, MIP por idade, DFI, TAC). Consórcio no padrão da simulação de lance Sicoob (nº de parcelas, lance em % ou parcelas abatendo antes da parcela da assembleia, seguro proporcional à parcela). IR de produtos tributados cobrado no resgate, sobre o ganho. Simulações do Sicoob em PDF podem preencher os campos (opcional).
 - **Planejamento:** base de 360 dias (12 meses de 30), capitalização mensal com taxa equivalente; valores antes de IR. Outras rendas (INSS, aluguel, previdência) são descontadas da renda desejada antes de calcular o patrimônio necessário.
 

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planejamento Sucessório</title>
+<script src="assets/tema.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/componentes.css">
+<link rel="stylesheet" href="paginas/sucessao.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <a class="home-link" href="index.html">← Início</a>
+      <h1>Planejamento Sucessório</h1>
+      <p>Previdência, whole life, doação, holding ou offshore: descubra qual caminho entrega mais à família e paga o inventário desde já, pelo menor custo — incluindo quando a estrutura não é necessária.</p>
+    </div>
+    <button class="theme-toggle" id="btnTema" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema">🌙</button>
+  </header>
+
+  <nav class="steps" role="tablist">
+    <button class="step-btn active" data-step="1" role="tab"><span class="n">01</span>Família e patrimônio</button>
+    <button class="step-btn" data-step="2" role="tab"><span class="n">02</span>Premissas e custos</button>
+    <button class="step-btn" data-step="3" role="tab"><span class="n">03</span>Análise</button>
+  </nav>
+
+  <div class="err-banner" id="errBanner"></div>
+
+  <!-- ========================= ETAPA 1 ========================= -->
+  <div class="step-panel active" id="step-1">
+
+    <section class="panel">
+      <h2>A família</h2>
+      <p class="sub">Só o necessário para o cálculo: nenhum nome, CPF ou data de nascimento. Nada é enviado ou armazenado.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="idade">Idade do cooperado</label>
+          <div class="row-input"><input type="number" id="idade" value="55" min="18" max="100" step="1"><span class="suffix">anos</span></div>
+          <div class="hint" id="hintIdade"></div>
+        </div>
+        <div class="field">
+          <label for="uf">Estado de domicílio e dos imóveis</label>
+          <div class="row-input"><select id="uf">
+            <option value="MT">Mato Grosso</option><option value="MS">Mato Grosso do Sul</option><option value="RO">Rondônia</option><option value="PA">Pará</option>
+          </select></div>
+          <div class="hint" id="hintUf"></div>
+        </div>
+        <div class="field">
+          <label for="herdeiros">Número de herdeiros</label>
+          <div class="row-input"><input type="number" id="herdeiros" value="2" min="1" step="1"></div>
+          <div class="hint">Quem divide a herança. O ITCMD é calculado sobre o quinhão de cada um.</div>
+        </div>
+        <div class="field">
+          <label for="meacao">Parte do patrimônio que é meação do cônjuge</label>
+          <div class="row-input"><input type="number" id="meacao" value="0" min="0" max="99" step="1"><span class="suffix">%</span></div>
+          <div class="hint">Pelo regime de bens. A meação não é herança e não paga ITCMD.</div>
+        </div>
+        <div class="field">
+          <label for="tipoInv">Inventário provável</label>
+          <div class="row-input"><select id="tipoInv">
+            <option value="cartorio">Em cartório (herdeiros de acordo)</option>
+            <option value="judicial">Judicial sem conflito</option>
+            <option value="litigio">Judicial com conflito</option>
+          </select></div>
+        </div>
+      </div>
+      <div class="checks">
+        <label class="inline-check"><input type="checkbox" id="sinIncapaz"> Há herdeiro menor ou incapaz</label>
+        <label class="inline-check"><input type="checkbox" id="sinConflito"> Há risco de conflito entre herdeiros</label>
+        <label class="inline-check"><input type="checkbox" id="sinEmpresa"> Há empresa operacional da família</label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>O patrimônio</h2>
+      <p class="sub">Valores de mercado de hoje. A base do ITCMD é o valor de mercado (LC 227/2026).</p>
+      <div class="grid">
+        <div class="field">
+          <label for="imoveis">Imóveis</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="imoveis" class="money" value="2.500.000,00"></div>
+        </div>
+        <div class="field">
+          <label for="nImoveis">Quantidade de imóveis</label>
+          <div class="row-input"><input type="number" id="nImoveis" value="3" min="0" step="1"></div>
+        </div>
+        <div class="field">
+          <label for="aplicacoes">Aplicações financeiras</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="aplicacoes" class="money" value="2.500.000,00"></div>
+          <div class="hint">LCA, RDC, CDB, fundos, ações. Daqui saem os custos dos caminhos.</div>
+        </div>
+        <div class="field">
+          <label for="empresa">Participações em empresas <span class="opcional">(opcional)</span></label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="empresa" class="money" value="0,00"></div>
+        </div>
+        <div class="field">
+          <label for="exterior">Bens no exterior <span class="opcional">(opcional)</span></label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="exterior" class="money" value="0,00"></div>
+        </div>
+      </div>
+      <h3 class="mini-title">O que já existe fora do inventário</h3>
+      <div class="grid">
+        <div class="field">
+          <label for="previdencia">Previdência (VGBL/PGBL) — saldo</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="previdencia" class="money" value="0,00"></div>
+        </div>
+        <div class="field">
+          <label for="prevAportado">… dos quais foi aportado</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="prevAportado" class="money" value="0,00"></div>
+          <div class="hint">O IR do beneficiário incide só sobre o rendimento (VGBL).</div>
+        </div>
+        <div class="field">
+          <label for="prevAnos">Há quantos anos foi aplicado</label>
+          <div class="row-input"><input type="number" id="prevAnos" value="10" min="0" step="1"><span class="suffix">anos</span></div>
+        </div>
+        <div class="field">
+          <label for="seguroExist">Seguro de vida já contratado — capital</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="seguroExist" class="money" value="0,00"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Renda <span class="opcional">(para o teste "a parcela cabe?" e para os aluguéis)</span></h2>
+      <div class="grid">
+        <div class="field">
+          <label for="rendaMensal">Renda mensal do cooperado</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="rendaMensal" class="money" value="40.000,00"><span class="suffix">/mês</span></div>
+        </div>
+        <div class="field">
+          <label for="outrasRendas">… dos quais tributáveis no IR (salário, pró-labore)</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="outrasRendas" class="money" value="0,00"><span class="suffix">/mês</span></div>
+          <div class="hint">Somadas ao aluguel na tabela do IR da pessoa física.</div>
+        </div>
+      </div>
+      <h3 class="mini-title">Aluguéis recebidos</h3>
+      <div class="grid">
+        <div class="field">
+          <label for="aluguel">Aluguel bruto por mês</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="aluguel" class="money" value="0,00"><span class="suffix">/mês</span></div>
+        </div>
+        <div class="field">
+          <label for="dedAluguel">Despesas dedutíveis por mês</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="dedAluguel" class="money" value="0,00"><span class="suffix">/mês</span></div>
+          <div class="hint">IPTU, condomínio e taxa de administração pagos pelo locador.</div>
+        </div>
+        <div class="field">
+          <label for="nAlugados">Imóveis alugados</label>
+          <div class="row-input"><input type="number" id="nAlugados" value="0" min="0" step="1"></div>
+        </div>
+        <div class="field">
+          <label for="nResid">… dos quais residenciais</label>
+          <div class="row-input"><input type="number" id="nResid" value="0" min="0" step="1"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="nav-row">
+      <button class="ghost" type="button" data-goto="2">Premissas e custos →</button>
+      <button class="primary" type="button" data-goto="3">Ver análise →</button>
+    </div>
+  </div>
+
+  <!-- ========================= ETAPA 2 ========================= -->
+  <div class="step-panel" id="step-2">
+
+    <section class="panel">
+      <h2>Premissas</h2>
+      <p class="sub">Todas editáveis. Patrimônio: imóveis e empresas crescem pelo IPCA; aplicações, previdência e exterior pelo cenário.</p>
+      <div class="seg-wrap">
+        <span class="lbl">Cenário de rentabilidade (já líquido da taxa de administração da previdência)</span>
+        <div class="seg" id="segCenario">
+          <button type="button" data-v="8">Conservador 8%</button>
+          <button type="button" data-v="10" class="active">Base 10%</button>
+          <button type="button" data-v="12">Otimista 12%</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="field">
+          <label for="rentab">Rentabilidade nominal</label>
+          <div class="row-input"><input type="number" id="rentab" value="10" step="0.1"><span class="suffix">% a.a.</span></div>
+        </div>
+        <div class="field">
+          <label for="ipca">Inflação média prevista (IPCA)</label>
+          <div class="row-input"><input type="number" id="ipca" value="4" step="0.1"><span class="suffix">% a.a.</span></div>
+        </div>
+        <div class="field">
+          <label for="meta">Meta de liquidez para o inventário</label>
+          <div class="row-input"><input type="number" id="meta" value="18" min="1" max="99" step="0.5"><span class="suffix">% do patrimônio</span></div>
+          <div class="hint">Valor que previdência e seguro precisam pagar, sozinhos, do patrimônio que vai a inventário.</div>
+        </div>
+        <div class="field">
+          <label for="taxaAdm">Taxa de administração da previdência</label>
+          <div class="row-input"><input type="number" id="taxaAdm" value="0.275" min="0" step="0.005"><span class="suffix">% a.a.</span></div>
+          <label class="inline-check small"><input type="checkbox" id="rentBruta"> a rentabilidade informada é bruta (descontar a taxa)</label>
+        </div>
+        <div class="field">
+          <label for="irAplic">IR latente das aplicações</label>
+          <div class="row-input"><input type="number" id="irAplic" value="15" min="0" max="35" step="0.5"><span class="suffix">% do ganho</span></div>
+          <div class="hint">Pago pelos herdeiros no resgate. Use 0% se for LCA.</div>
+        </div>
+        <div class="field">
+          <label for="margem">Margem de empate</label>
+          <div class="row-input"><input type="number" id="margem" value="3" min="0" max="20" step="0.5"><span class="suffix">%</span></div>
+          <div class="hint">Diferença abaixo disso favorece o caminho mais simples.</div>
+        </div>
+      </div>
+      <div class="seg-wrap">
+        <span class="lbl">Regime de ITCMD</span>
+        <div class="seg" id="segRegime">
+          <button type="button" data-v="vigente" class="active">Lei vigente</button>
+          <button type="button" data-v="reforma">Adequação à reforma</button>
+          <button type="button" data-v="estresse">Estresse 16%</button>
+        </div>
+        <div class="hint" id="hintRegime"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Custos do inventário <span class="opcional">(referências de mercado)</span></h2>
+      <p class="sub" id="subHonorarios"></p>
+      <div class="grid">
+        <div class="field"><label for="honCart">Honorários em cartório</label><div class="row-input"><input type="number" id="honCart" value="6" step="0.5"><span class="suffix">% da herança</span></div></div>
+        <div class="field"><label for="honJud">Honorários judicial</label><div class="row-input"><input type="number" id="honJud" value="8" step="0.5"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="honLit">Honorários com conflito</label><div class="row-input"><input type="number" id="honLit" value="10" step="0.5"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="escPct">Escritura em cartório</label><div class="row-input"><input type="number" id="escPct" value="0.5" step="0.1"><span class="suffix">% (R$ 1,5 a 20 mil)</span></div></div>
+        <div class="field"><label for="custasPct">Custas judiciais</label><div class="row-input"><input type="number" id="custasPct" value="1.5" step="0.1"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="regPct">Registro dos imóveis</label><div class="row-input"><input type="number" id="regPct" value="0.4" step="0.1"><span class="suffix">% dos imóveis</span></div></div>
+        <div class="field"><label for="certidoes">Certidões</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="certidoes" class="money" value="1.000,00"></div></div>
+        <div class="field"><label for="multa">Multa por atraso <span class="opcional">(opcional)</span></label><div class="row-input"><input type="number" id="multa" value="0" min="0" step="1"><span class="suffix">% do imposto</span></div><div class="hint" id="hintMulta"></div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Holding</h2>
+      <p class="sub">Padrões de mercado; ajuste ao orçamento do advogado e do contador.</p>
+      <div class="grid">
+        <div class="field"><label for="hJur">Jurídico de estruturação</label><div class="row-input"><input type="number" id="hJur" value="1.5" step="0.1"><span class="suffix">% do integralizado</span></div></div>
+        <div class="field"><label for="hJurMin">… mínimo</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="hJurMin" class="money" value="5.000,00"></div></div>
+        <div class="field"><label for="hCart">Cartório, Junta e registro</label><div class="row-input"><input type="number" id="hCart" value="0.5" step="0.1"><span class="suffix">% dos imóveis</span></div></div>
+        <div class="field"><label for="hItbi">ITBI na integralização</label><div class="row-input"><input type="number" id="hItbi" value="0" step="0.5"><span class="suffix">% dos imóveis</span></div><div class="hint" id="hintItbi"></div></div>
+        <div class="field"><label for="hLaudo">Laudo de avaliação, por doação</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="hLaudo" class="money" value="5.000,00"></div></div>
+        <div class="field"><label for="hContab">Contabilidade</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="hContab" class="money" value="1.000,00"><span class="suffix">/mês</span></div></div>
+        <div class="field"><label for="hAnos">Doação gradual das cotas em</label><div class="row-input"><input type="number" id="hAnos" value="10" min="1" step="1"><span class="suffix">anos</span></div></div>
+        <div class="field"><label for="hIva">Alíquota de referência IBS + CBS</label><div class="row-input"><input type="number" id="hIva" value="28" step="0.5"><span class="suffix">%</span></div><div class="hint">Locação tem redução de 70% (LC 214/2025).</div></div>
+      </div>
+      <div class="checks">
+        <label class="inline-check"><input type="checkbox" id="hEmpresa" checked> Integralizar também as participações em empresas</label>
+        <label class="inline-check"><input type="checkbox" id="hLc224" checked> Aplicar o acréscimo da LC 224/2025 acima de R$ 5 milhões de receita</label>
+        <label class="inline-check"><input type="checkbox" id="h487"> Contratos antigos no regime de 3,65% (LC 214/2025, art. 487)</label>
+      </div>
+      <h3 class="mini-title">Doação direta com usufruto</h3>
+      <div class="grid">
+        <div class="field"><label for="dCusto">Escritura e registro da doação</label><div class="row-input"><input type="number" id="dCusto" value="1" step="0.1"><span class="suffix">% dos imóveis</span></div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Whole life <span class="opcional">(média da planilha Sicoob)</span></h2>
+      <div class="grid">
+        <div class="field"><label for="wlParcela">Parcela mensal por R$ 100 mil de capital</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlParcela" class="money" value="637,15"></div><div class="hint">Corrigida pelo IPCA por 10 anos.</div></div>
+        <div class="field"><label for="wlBasica">… dos quais cobertura básica</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlBasica" class="money" value="397,23"></div><div class="hint">Forma a reserva (valor resgatável).</div></div>
+        <div class="field"><label for="wlGanho">Ganho real atuarial</label><div class="row-input"><input type="number" id="wlGanho" value="2.5" step="0.1"><span class="suffix">% a.a. + IPCA</span></div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Offshore</h2>
+      <p class="sub">Só entra na análise quando os bens no exterior passam do limite. Custos de estrutura são estimativas: confirme com o prestador.</p>
+      <div class="grid">
+        <div class="field"><label for="oLimiar">Mostrar a partir de</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="oLimiar" class="money" value="2.000.000,00"></div></div>
+        <div class="field"><label for="oAbertura">Abertura</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="oAbertura" class="money" value="20.000,00"></div></div>
+        <div class="field"><label for="oManut">Manutenção anual</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="oManut" class="money" value="25.000,00"></div></div>
+        <div class="field"><label for="oCustoExt">Inventário no exterior sem offshore</label><div class="row-input"><input type="number" id="oCustoExt" value="5" step="0.5"><span class="suffix">% dos bens</span></div></div>
+        <div class="field"><label for="oImpExt">Imposto sucessório do país dos bens</label><div class="row-input"><input type="number" id="oImpExt" value="0" step="1"><span class="suffix">%</span></div><div class="hint">Nos EUA, até 40% acima de US$ 60 mil para não residentes. Confirme com especialista.</div></div>
+      </div>
+    </section>
+
+    <div class="nav-row">
+      <button class="ghost" type="button" data-goto="1">← Família e patrimônio</button>
+      <button class="primary" type="button" data-goto="3">Ver análise →</button>
+    </div>
+  </div>
+
+  <!-- ========================= ETAPA 3 ========================= -->
+  <div class="step-panel" id="step-3">
+    <div id="resultados">
+      <div class="warn-box"><span aria-hidden="true">⚠️</span><span>Esta é uma <strong>simulação</strong> com os parâmetros informados. Leis, alíquotas, custos e rentabilidades mudam; o resultado real pode ser diferente. Não substitui a análise de advogado, contador ou corretor de seguros, nem é recomendação de investimento.</span></div>
+
+      <div class="verdict" id="verdict"></div>
+      <div class="destaques" id="destaques"></div>
+
+      <div class="block">
+        <h3>O custo de não planejar</h3>
+        <p class="sub" id="baseSub"></p>
+        <div class="eq" id="baseCards"></div>
+        <div class="table-scroll"><table class="t" id="tabInventario"></table></div>
+        <div class="hint nota" id="baseNota"></div>
+      </div>
+
+      <p class="q-title">Comparação dos caminhos</p>
+      <p class="q-sub" id="cardsSub"></p>
+      <div class="paths" id="cards"></div>
+
+      <div class="block">
+        <div class="chart-head">
+          <h3>A família tem dinheiro para o inventário em todos os anos?</h3>
+          <div class="seg" id="segGrafico"></div>
+        </div>
+        <p class="sub" id="chartSub"></p>
+        <canvas id="ch" height="290"></canvas>
+        <div class="tooltip" id="tt"></div>
+        <div class="legend" id="legenda"></div>
+      </div>
+
+      <div class="block" id="blocoSeguro">
+        <h3>Whole life: a parcela cabe? O prêmio é bom?</h3>
+        <p class="sub">Parcela pela média da planilha Sicoob, proporcional ao capital. A proposta real pode ser diferente.</p>
+        <div class="eq" id="seguroCards"></div>
+        <div class="table-scroll"><table class="t" id="tabSeguro"></table></div>
+        <div class="hint nota" id="seguroNota"></div>
+      </div>
+
+      <div class="block" id="blocoAluguel">
+        <h3>Aluguéis: pessoa física × holding</h3>
+        <p class="sub">Carga anual sobre os aluguéis nos próximos 10 anos, com a transição do IBS e da CBS. Valores nominais.</p>
+        <div class="table-scroll"><table class="t" id="tabAluguel"></table></div>
+        <div class="hint nota" id="aluguelNota"></div>
+      </div>
+
+      <div class="block" id="blocoHolding">
+        <h3>Quanto custa a holding</h3>
+        <p class="sub">Estruturação (uma vez) e manutenção. O ITCMD da doação das cotas existe em qualquer doação e não entra no custo evitado.</p>
+        <div class="table-scroll"><table class="t" id="tabHolding"></table></div>
+      </div>
+
+      <div class="block">
+        <h3>Alertas para a conversa com o cooperado</h3>
+        <ul class="alertas" id="alertas"></ul>
+      </div>
+
+      <div class="explain">
+        <h3>Como o cálculo funciona</h3>
+        <ul>
+          <li><b>Regra de recomendação:</b> só concorrem os caminhos que pagam 100% da meta de liquidez já no primeiro ano. Entre eles, vence o que entrega mais à família na expectativa de vida, em R$ de hoje. Se a diferença for menor que a margem de empate, vence o mais simples: inventário → previdência → whole life → combinação → doação → holding → offshore.</li>
+          <li><b>Valor que chega à família:</b> tudo o que a família recebe (bens, previdência líquida de IR, capital do seguro) menos o inventário, os custos do caminho e o IR latente das aplicações. Os custos saem das aplicações e deixam de render; tudo é deflacionado pelo IPCA.</li>
+          <li><b>Três momentos:</b> falecimento no próximo ano, em 10 anos e na expectativa de vida pela Tábua Completa de Mortalidade do IBGE (2024).</li>
+          <li><b>Inventário:</b> ITCMD pela tabela do estado sobre o quinhão de cada herdeiro, honorários, escritura ou custas, registro, certidões e multa opcional. <b>Previdência e seguro</b> não entram no inventário nem pagam ITCMD (LC 227/2026, art. 150, III); a previdência paga IR regressivo sobre o rendimento; a indenização do seguro é isenta.</li>
+          <li><b>Dimensionamento:</b> previdência e seguro são o menor valor que paga a meta de liquidez em todos os anos até a expectativa de vida. Quando as aplicações não bastam para a previdência, o seguro cobre o restante.</li>
+          <li><b>Holding:</b> integraliza imóveis (e empresas, se marcado); doação total das cotas com usufruto ou gradual. ITCMD das cotas a valor de mercado (LC 227/2026, art. 154). Aluguéis comparados entre pessoa física e lucro presumido, com dividendos (Lei 15.270/2025) e IBS/CBS (LC 214/2025).</li>
+          <li><b>Limitações:</b> herdeiros com quinhões iguais; imóveis no estado escolhido; doação tributada pelo valor total; não considera a parte disponível do testamento nem a colação em detalhe; whole life pela média da planilha, não pela proposta.</li>
+        </ul>
+      </div>
+
+      <div class="explain" id="fontes"></div>
+
+      <div class="nav-row">
+        <button class="ghost" type="button" data-goto="2">← Premissas e custos</button>
+        <button class="primary" type="button" id="btnPdf">Baixar PDF da análise</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Simulador educativo. Não coletamos, não armazenamos e não transmitimos dados pessoais; todo o processamento é feito no seu navegador.</p>
+    <p>As informações têm caráter meramente informativo e não constituem consultoria jurídica, tributária ou de seguros, oferta ou recomendação de investimento. A estruturação de holding exige advogado e contador; a contratação de seguro passa por corretor habilitado (SUSEP). Consulte profissionais antes de decidir.</p>
+  </footer>
+</div>
+
+<div id="printArea"></div>
+
+<script src="assets/formato.js"></script>
+<script src="assets/grafico.js"></script>
+<script src="dados/itcmd-uf.js"></script>
+<script src="engine/sucessao.js"></script>
+<script src="paginas/sucessao.js"></script>
+</body>
+</html>
