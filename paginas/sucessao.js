@@ -32,7 +32,6 @@ const money = id => lerMoeda($(id));
 const pctCampo = id => num(id) / 100;
 const linha = (k, v, cls) => '<div class="lrow"><span class="k">' + k + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
 const cssVar = Grafico.cssVar;
-const semHtml = s => String(s).replace(/<[^>]+>/g, '');
 const pct0 = v => fmtPct(v, 0);
 const pct1 = v => fmtPct(v, 1);
 
@@ -198,6 +197,15 @@ const venc = r => r.caminhos.find(c => c.id === r.recomendacao.vencedor);
 const valorEm = (c, h) => c.em[h].familiaReal;
 const hipRotulo = (r, h) => h === 'expectativa' ? HIP.expectativa + ' (' + fmtAnos(r.Texp) + ', aos ' + Math.round(r.entrada.idade + r.Texp) + ')' : HIP[h];
 
+/** principais custos do caminho, em poucas palavras */
+function custosDoCaminho(c, e){
+  const p = [];
+  if(c.cfg.C > 0) p.push('parcelas do seguro de ' + fmtBRL0(e.wholeLife.parcelaPor100k * c.cfg.C / 100000 * 12) + ' por ano');
+  if(c.sim.custoEstruturacao > 0) p.push(fmtBRL0(c.sim.custoEstruturacao) + ' de estruturação hoje');
+  if(c.cfg.holding) p.push('contabilidade' + (c.cfg.holding === 'gradual' ? ' e ITCMD das doações anuais' : ''));
+  return p.join(', ') || 'custos do caminho';
+}
+
 /** o que o caminho pede hoje, em uma frase por item */
 function comoFazer(c, r){
   const e = r.entrada, itens = [];
@@ -217,7 +225,14 @@ function comoFazer(c, r){
 function renderVerdict(){
   const {r} = ultimo, rec = r.recomendacao, v = venc(r), inv = r.caminhos.find(c => c.id === 'inventario');
   if(!v){
-    $('verdict').innerHTML = '<p class="headline">Nenhum caminho paga o inventário desde já com os recursos informados</p><p>Revise as aplicações disponíveis ou a meta de liquidez.</p>';
+    const e = r.entrada;
+    const cobrem = r.caminhos.filter(c => c.protegeJa && c.falta).sort((a, b) => a.falta.valorHoje - b.falta.valorHoje);
+    const itens = cobrem.map(c => '<li><b>' + CAM[c.id].nome + ':</b> cobre o inventário, mas os custos (' + custosDoCaminho(c, e) + ') acabam com as aplicações no ' + c.falta.ano + 'º ano. Precisaria de <b>' +
+      fmtBRL0(c.falta.valorHoje) + ' a mais</b> em aplicações hoje.</li>').join('');
+    $('verdict').innerHTML = '<p class="headline">Com ' + fmtBRL0(e.aplicacoes) + ' em aplicações, nenhum caminho consegue pagar os próprios custos</p>' +
+      '<p>A ferramenta paga parcelas do seguro, ITCMD da doação, ITBI e custos da holding <b>só com as aplicações informadas</b>; a renda e os aluguéis não entram nessa conta. ' +
+      (cobrem.length ? 'Os caminhos que pagariam o inventário esbarram nisso:</p><ul class="alertas">' + itens + '</ul><p>' : '') +
+      'Para ver a comparação, aumente as aplicações disponíveis (por exemplo, somando o que a renda e os aluguéis vão acumular) ou reduza a meta de liquidez.</p>';
     return;
   }
   const ganho = valorEm(v, 'expectativa') - valorEm(inv, 'expectativa');
@@ -333,7 +348,8 @@ function renderCards(){
       '<div class="badges">' + badges.join('') + '</div>' +
       '<div class="desc">' + nome.desc + '</div>' +
       '<div class="hip">' + hip + '</div>' +
-      linha('Cobertura do inventário no 1º ano', isFinite(c.coberturaAno1) ? pct0(c.coberturaAno1) : '—', apto ? 'ok-t' : 'no-t') +
+      linha('Cobertura do inventário no 1º ano', isFinite(c.coberturaAno1) ? pct0(c.coberturaAno1) : 'nada vai a inventário', apto ? 'ok-t' : 'no-t') +
+      (c.falta ? linha('Falta nas aplicações', fmtBRL0(c.falta.valorHoje) + '<small>a mais hoje; o dinheiro acaba no ' + c.falta.ano + 'º ano</small>', 'no-t') : '') +
       linha('Menor cobertura no período', isFinite(c.coberturaMin) ? pct0(c.coberturaMin) : '—') +
       linha('Patrimônio no inventário', pct0(ex.travado)) +
       linha('Prazo para a família', liquidezPrazo(c)) +
@@ -514,12 +530,12 @@ function gerarPdf(){
   const comp = '<table><tr><th>Caminho</th><th class="n">Próximo ano</th><th class="n">Em 10 anos</th><th class="n">Expectativa</th><th class="n">Cobertura 1º ano</th></tr>' +
     r.caminhos.map(c => '<tr><td>' + CAM[c.id].nome + (c.id === r.recomendacao.vencedor ? ' <span class="ok">(recomendado)</span>' : '') + '</td>' +
       ['proximo','dez','expectativa'].map(h => '<td class="n">' + fmtBRL0(valorEm(c, h)) + '</td>').join('') +
-      '<td class="n ' + (c.protegeJa ? 'ok' : 'no') + '">' + (isFinite(c.coberturaAno1) ? pct0(Math.min(c.coberturaAno1, 9.99)) : '—') + '</td></tr>').join('') + '</table>';
+      '<td class="n ' + (c.protegeJa ? 'ok' : 'no') + '">' + (isFinite(c.coberturaAno1) ? pct0(Math.min(c.coberturaAno1, 9.99)) : 'sem inventário') + (c.falta ? ' · faltam ' + fmtBRL0(c.falta.valorHoje) : '') + '</td></tr>').join('') + '</table>';
   const b = r.base;
   const inv = '<table>' + tr('Meta de liquidez', fmtBRL0(b.metaHoje) + (b.sustentoHoje > 0 ? ' (inventário ' + fmtBRL0(b.metaInventarioHoje) + ' + família ' + fmtBRL0(b.sustentoHoje) + ')' : '')) +
     tr('Herança · legítima · parte disponível', fmtBRL0(b.heranca) + ' · ' + fmtBRL0(b.legitima) + ' · ' + fmtBRL0(b.disponivel)) + tr('Estimativa por componentes (lei vigente)', fmtBRL0(b.regimes.vigente.total) + ' (' + pct1(b.regimes.vigente.pct) + ')') +
     tr('Com a adequação à reforma · estresse 16%', fmtBRL0(b.regimes.reforma.total) + ' · ' + fmtBRL0(b.regimes.estresse.total)) + '</table>';
-  const destaques = semHtml($('destaques').innerHTML.replace(/<\/(p|h4|div)>/g, ' ')).replace(/\s+/g, ' ').trim();
+  const destaques = [...$('destaques').querySelectorAll('h4, p, .big')].map(x => x.textContent.trim()).join(' ').replace(/\s+/g, ' ').trim();
   const img = graficoParaImpressao();
   const seguro = r.seguro ? '<div class="bloco"><h2>Whole life</h2><table>' + tr('Capital', fmtBRL0(r.seguro.capital)) +
     tr('Parcela 1º ano · 10º ano', fmtBRL0(r.seguro.parcelaInicial) + ' · ' + fmtBRL0(r.seguro.parcela10) + ' por mês') + tr('Desembolso em 10 anos', fmtBRL0(r.seguro.desembolso)) +

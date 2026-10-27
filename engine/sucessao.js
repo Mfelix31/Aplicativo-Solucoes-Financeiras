@@ -411,13 +411,14 @@
     let custo0 = 0;
     if (X > 0) { const x = Math.min(X, Math.max(0, aplic)); aplic -= x; aplicBase -= x; prevN += x; prevNBase += x; }
     if (cfg.doaImoveis && imov > 0) {
-      custo0 += itcmdDividido(imov, e.herdeiros, e.uf, e.regime, 'doacao') + imov * e.doacaoCustoPct;
+      // doação feita hoje paga pela lei de hoje (LC 227/2026, art. 156, § 1º): o regime simulado vale só para fatos futuros
+      custo0 += itcmdDividido(imov, e.herdeiros, e.uf, 'vigente', 'doacao') + imov * e.doacaoCustoPct;
     }
     let doado = 0; // fração das cotas da holding já doadas
     if (cfg.holding) {
       const v = integ();
       custo0 += Math.max(hp.juridicoMin, v * hp.juridicoPct) + imov * hp.cartorioPct + imov * hp.itbiPct;
-      if (cfg.holding === 'total') { custo0 += itcmdDividido(v, e.herdeiros, e.uf, e.regime, 'doacao') + hp.laudo; doado = 1; }
+      if (cfg.holding === 'total') { custo0 += itcmdDividido(v, e.herdeiros, e.uf, 'vigente', 'doacao') + hp.laudo; doado = 1; }
     }
     if (cfg.offshore) custo0 += of.abertura;
     pagar(custo0); custosCaminho = custo0;
@@ -477,6 +478,21 @@
     return { cfg, anos, custoEstruturacao: custosCaminho, custosAno };
   }
 
+  /**
+   * Falta de caixa: quanto a mais em aplicações HOJE o caminho precisaria para pagar todos os
+   * seus custos sem o saldo ficar negativo (bissecção), e o primeiro ano em que falta.
+   */
+  function faltaDeCaixa(e, sim, H) {
+    const a0 = sim.anos.find(a => a.aplicacoes < 0);
+    if (!a0) return null;
+    const ok = extra => !simular(Object.assign({}, e, { aplicacoes: e.aplicacoes + extra }), sim.cfg, H).anos.some(a => a.aplicacoes < 0);
+    let hi = Math.max(1e5, e.aplicacoes);
+    for (let k = 0; k < 40 && !ok(hi); k++) hi *= 2;
+    let lo = 0;
+    for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (ok(m)) hi = m; else lo = m; }
+    return { valorHoje: hi, ano: a0.ano };
+  }
+
   const coberturaMinima = (sim, ate) => Math.min(...sim.anos.slice(0, ate || sim.anos.length).map(a => a.cobertura));
 
   /** Menor valor (bissecção) de cfg[campo] que cobre 100% em todos os anos até `ateAno`. */
@@ -534,7 +550,8 @@
       const em = hipoteses.reduce((o, h) => { o[h.id] = sim.anos[h.ano - 1]; return o; }, {});
       return { id: d.id, cfg: d.cfg, sim, em, coberturaAno1: sim.anos[0].cobertura,
         coberturaMin: coberturaMinima(sim), protegeJa: sim.anos[0].cobertura >= 1 - 1e-9, complexidade: COMPLEXIDADE[d.id],
-        faltaRecurso: sim.anos.some(a => a.faltaRecurso) };
+        faltaRecurso: sim.anos.some(a => a.faltaRecurso),
+        falta: faltaDeCaixa(e, sim, H) };
     };
     let caminhos = defs.map(montar);
 

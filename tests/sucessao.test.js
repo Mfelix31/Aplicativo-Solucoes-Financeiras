@@ -293,3 +293,22 @@ test('dados: todo estado tem lei, unidade, mês da unidade e mês da última rev
     assert.ok(e.lei && e.unidade && e.unidade.valor > 0, uf);
   }
 });
+
+test('doação feita hoje paga o ITCMD da lei de hoje, mesmo no regime de estresse', () => {
+  const c = { idade: 55, uf: 'MT', herdeiros: 2, imoveis: 4e6, nImoveis: 3, aplicacoes: 4e6 };
+  const vig = S.analisar(c), est = S.analisar(Object.assign({}, c, { regime: 'estresse' }));
+  const d = r => r.caminhos.find(x => x.id === 'doacao').sim.custoEstruturacao;
+  perto(d(est), d(vig), 1e-6);
+  perto(d(vig), S.itcmdDividido(4e6, 2, 'MT', 'vigente', 'doacao') + 4e6 * 0.01, 1e-6);
+});
+
+test('falta de caixa: caminho que cobre o inventário mas não cabe nas aplicações informa quanto falta', () => {
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 3, conjuge: { regime: 'parcial' }, imoveis: 40e6, nImoveis: 10, aplicacoes: 2.5e6, empresa: 1e6, aluguelMensal: 100000, nImoveisAlugados: 10, nResidenciais: 5 });
+  assert.equal(r.recomendacao.vencedor, null);
+  const s = r.caminhos.find(c => c.id === 'seguro');
+  assert.ok(s.protegeJa && s.falta && s.falta.valorHoje > 0 && s.falta.ano >= 1);
+  // com o que falta somado às aplicações, o caixa do caminho não fica negativo
+  const e2 = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 3, conjuge: { regime: 'parcial' }, imoveis: 40e6, nImoveis: 10, aplicacoes: 2.5e6 + s.falta.valorHoje + 1, empresa: 1e6, aluguelMensal: 100000, nImoveisAlugados: 10, nResidenciais: 5 });
+  assert.ok(!S.simular(e2, s.cfg, r.H).anos.some(a => a.aplicacoes < 0));
+  assert.equal(r.caminhos.find(c => c.id === 'inventario').falta, null);
+});
