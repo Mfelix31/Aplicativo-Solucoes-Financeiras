@@ -49,6 +49,13 @@
           <div class="hint" id="hintIdade"></div>
         </div>
         <div class="field">
+          <label for="sexo">Sexo do cooperado</label>
+          <div class="row-input"><select id="sexo">
+            <option value="m">Masculino</option><option value="f">Feminino</option>
+          </select></div>
+          <div class="hint">Usado só no preço do whole life: a tábua das seguradoras (BR-EMS) é por sexo.</div>
+        </div>
+        <div class="field">
           <label for="uf">Estado de domicílio e dos imóveis</label>
           <div class="row-input"><select id="uf">
             <option value="MT">Mato Grosso</option><option value="MS">Mato Grosso do Sul</option><option value="RO">Rondônia</option><option value="PA">Pará</option>
@@ -288,10 +295,12 @@
     </section>
 
     <section class="panel">
-      <h2>Whole life <span class="opcional">(planilha Sicoob, ajustada pela idade)</span></h2>
+      <h2>Whole life <span class="opcional">(planilha Sicoob, ajustada por idade e sexo)</span></h2>
       <div class="grid">
+        <div class="field"><label for="wlSexoRef">Proposta de referência — sexo</label><div class="row-input"><select id="wlSexoRef"><option value="m">Masculino</option><option value="f">Feminino</option></select></div><div class="hint">Confira na proposta Sicoob usada como base.</div></div>
+        <div class="field"><label for="wlTabua">Tábua de mortalidade</label><div class="row-input"><select id="wlTabua"><option value="2026">BR-EMSmt v.2026 (vigente desde 07/2026)</option><option value="2021">BR-EMSmt v.2021 (até 06/2026)</option></select></div><div class="hint">SUSEP. Use a v.2021 se a proposta for anterior a julho de 2026.</div></div>
         <div class="field"><label for="wlIdadeRef">Idade da proposta de referência</label><div class="row-input"><input type="number" id="wlIdadeRef" value="48" min="18" max="90" step="1"><span class="suffix">anos</span></div>
-          <label class="inline-check small"><input type="checkbox" id="wlAjustar" checked> ajustar a parcela pela idade do cooperado</label><div class="hint" id="hintWlIdade"></div></div>
+          <label class="inline-check small"><input type="checkbox" id="wlAjustar" checked> ajustar a parcela pela idade e pelo sexo do cooperado</label><div class="hint" id="hintWlIdade"></div></div>
         <div class="field"><label for="wlParcela">Parcela mensal por R$ 100 mil, na idade de referência</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlParcela" class="money" value="637,15"></div><div class="hint">Corrigida pelo IPCA por 10 anos.</div></div>
         <div class="field"><label for="wlBasica">… dos quais cobertura básica</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlBasica" class="money" value="397,23"></div><div class="hint">Forma a reserva (valor resgatável).</div></div>
         <div class="field"><label for="wlGanho">Ganho real atuarial</label><div class="row-input"><input type="number" id="wlGanho" value="2.5" step="0.1"><span class="suffix">% a.a. + IPCA</span></div></div>
@@ -406,6 +415,7 @@
 <script src="assets/formato.js"></script>
 <script src="assets/grafico.js"></script>
 <script src="dados/itcmd-uf.js"></script>
+<script src="dados/tabuas-br-ems.js"></script>
 <script src="engine/sucessao.js"></script>
 <script src="paginas/sucessao.js"></script>
 </body>

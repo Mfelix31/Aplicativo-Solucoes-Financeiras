@@ -199,12 +199,24 @@ test('validação: estado, idade, herdeiros e patrimônio', () => {
   assert.ok(r.erros.length >= 3);
 });
 
-/* ---------- whole life por idade (conferido em Python: numpy.polyfit + scipy.brentq) ---------- */
-test('whole life: fator por idade calibrado na proposta aos 48 anos', () => {
-  const f = x => S.fatorIdadeWholeLife(x).fator;
+/* ---------- whole life por idade e sexo (BR-EMSmt da SUSEP; conferido em Python: scipy.brentq) ---------- */
+test('tábuas BR-EMSmt: idades 0..116, q = 1 no fim, conferidas com a planilha da SUSEP', () => {
+  const B = require('../dados/tabuas-br-ems.js');
+  assert.equal(B.VERSOES['2026'].m.length, 117);
+  assert.equal(B.VERSOES['2026'].m[48], 0.0028082592);
+  assert.equal(B.VERSOES['2026'].f[70], 0.01372770337);
+  assert.equal(B.VERSOES['2021'].m[48], 0.0029891469);
+  for (const v of Object.values(B.VERSOES)) for (const s of ['m', 'f']) assert.equal(v[s][v[s].length - 1], 1);
+});
+
+test('whole life: fator por idade e sexo calibrado na proposta (homem, 48 anos)', () => {
+  const f = (x, o) => S.fatorIdadeWholeLife(x, o).fator;
   perto(f(48), 1, 1e-9);
-  perto(S.fatorIdadeWholeLife(48).taxaTecnica, 0.0386565, 1e-6, 'juros técnicos implícitos');
-  perto(f(30), 0.7953, 5e-4); perto(f(55), 1.0950, 5e-4); perto(f(70), 1.3632, 5e-4); perto(f(80), 1.6672, 5e-4);
+  perto(S.fatorIdadeWholeLife(48).taxaTecnica, 0.0381165340, 1e-8, 'juros técnicos implícitos');
+  perto(f(30), 0.8020689, 1e-6); perto(f(55), 1.0945944, 1e-6); perto(f(70), 1.3726639, 1e-6); perto(f(80), 1.7262621, 1e-6);
+  perto(f(48, { sexo: 'f' }), 0.9491189, 1e-6, 'mulher paga menos');
+  perto(f(70, { sexo: 'f' }), 1.2847711, 1e-6);
+  perto(f(70, { tabua: '2021' }), 1.3839351, 1e-6, 'tábua v.2021');
   for (let x = 25; x < 85; x += 5) assert.ok(f(x + 5) > f(x), 'cresce com a idade');
 });
 
@@ -212,13 +224,14 @@ test('whole life: parcela ajustada entra na análise; desligar mantém a planilh
   const a48 = S.normalizar(caso({ idade: 48 })).wholeLife;
   assert.equal(a48.parcelaPor100k, 637.15);
   const a70 = S.normalizar(caso({ idade: 70 })).wholeLife;
-  perto(a70.parcelaPor100k, 637.15 * 1.3632, 0.5);
-  perto(a70.basicaPor100k, 397.23 * 1.3632, 0.5);
+  perto(a70.parcelaPor100k, 637.15 * 1.3726639, 0.01);
+  perto(a70.basicaPor100k, 397.23 * 1.3726639, 0.01);
   assert.equal(a70.parcelaReferencia, 637.15);
   const fixo = S.normalizar(caso({ idade: 70, wholeLife: { ajustarIdade: false } })).wholeLife;
   assert.equal(fixo.parcelaPor100k, 637.15);
   const r = S.analisar(caso({ idade: 70 }));
-  perto(r.seguro.parcelaInicial, 637.15 * 1.3632 * r.seguro.capital / 1e5, 1);
+  perto(r.seguro.parcelaInicial, 637.15 * 1.3726639 * r.seguro.capital / 1e5, 0.05);
+  assert.notEqual(S.normalizar(caso({ idade: 48, wholeLife: { sexo: 'f' } })).wholeLife.parcelaPor100k, 637.15, 'sexo diferente da referência ajusta mesmo aos 48');
 });
 
 /* ---------- regime de bens (contas à mão) ---------- */

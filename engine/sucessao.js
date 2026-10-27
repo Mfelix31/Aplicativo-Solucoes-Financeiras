@@ -31,16 +31,18 @@
  * - Whole life: reproduz a planilha "Sicoob - Seguro Whole Life.xlsx"
  *   (parcela por R$ 100 mil da proposta aos 48 anos, corrigida por IPCA
  *   por 10 anos; capital × (1+IPCA)(1+2,5%) ao ano; reserva pela curva atuarial).
- *   Em outras idades, parcela e cobertura básica são escaladas por um fator
- *   atuarial (ver fatorIdadeWholeLife).
+ *   Em outras idades e para o outro sexo, parcela e cobertura básica são
+ *   escaladas por um fator atuarial pela tábua BR-EMSmt da SUSEP (ver fatorIdadeWholeLife).
  * - Arredondamento só na apresentação.
  */
 (function (root, factory) {
-  const dados = (typeof module === 'object' && module.exports) ? require('../dados/itcmd-uf.js') : root.ItcmdUF;
-  const api = factory(dados);
+  const node = typeof module === 'object' && module.exports;
+  const dados = node ? require('../dados/itcmd-uf.js') : root.ItcmdUF;
+  const tabuas = node ? require('../dados/tabuas-br-ems.js') : root.TabuasBREMS;
+  const api = factory(dados, tabuas);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.SucessaoEngine = api;
-})(typeof self !== 'undefined' ? self : this, function (ITCMD) {
+})(typeof self !== 'undefined' ? self : this, function (ITCMD, BREMS) {
   'use strict';
 
   /* ---------- tábua IBGE 2024, ambos os sexos: expectativa de sobrevida e(x), x = 0..90 ---------- */
@@ -134,59 +136,51 @@
     1.00719156258, 1.006885611642, 1.006585607506, 1.006291984413, 1.006004892678, 1.00572476209, 1.005451909824, 1.005186611438,
     1.004928930089];
   const WL_PADRAO = { parcelaPor100k: 637.15, basicaPor100k: 397.23, ganhoReal: 0.025, anosPagamento: 10,
-    idadeReferencia: 48, ajustarIdade: true };
+    idadeReferencia: 48, sexoReferencia: 'm', sexo: 'm', tabua: '2026', ajustarIdade: true };
 
   /*
-   * Parcela por idade. A planilha Sicoob traz a parcela de uma proposta aos 48 anos
-   * (aba Premissas). Para outras idades, a parcela é escalada pelo fator atuarial
-   *   f(x) = P(x) / P(idade de referência)
-   * em que P(x) é o prêmio nivelado (real) de um seguro vitalício pago em 10 anos, com
+   * Parcela por idade e sexo. A planilha Sicoob traz a parcela de uma proposta aos 48 anos
+   * (aba Premissas). Para outra idade ou sexo, a parcela é escalada pelo fator atuarial
+   *   f = P(sexo, idade) / P(sexo da referência, idade de referência)
+   * em que P é o prêmio nivelado (real) de um seguro vitalício pago em 10 anos, com
    * capital crescendo 2,5% real ao ano:
    *   P(x) = Σ_t  tp_x · q_(x+t) · v^(t+1) · 1,025^t   ÷   Σ_(t<10) tp_x · v^t
-   * Mortalidade: Gompertz (q_x = e^(a + b·x)) ajustada à Tábua IBGE 2024 (idades 35–85),
-   * com q_x obtido de e(x) por e_x = p_x (1 + e_(x+1)) + q_x / 2.
-   * Juros técnicos: a taxa real implícita que faz P(48) bater com a parcela da proposta
-   * (≈ 3,9% a.a. com R$ 637,15 por R$ 100 mil). Assim o fator só usa o formato da tábua;
-   * o nível de preço continua sendo o da proposta Sicoob. Simplificações: tábua da
-   * população (não a de segurados BR-EMS), ambos os sexos, sem carregamentos.
+   * Mortalidade: tábua de seguros da SUSEP, BR-EMSmt (v.2026 por padrão; v.2021 opcional),
+   * em dados/tabuas-br-ems.js. Juros técnicos: a taxa real implícita que faz P na idade e
+   * no sexo de referência bater com a parcela da proposta (≈ 3,8% a.a. com R$ 637,15 por
+   * R$ 100 mil, homem de 48 anos). Assim o nível de preço continua sendo o da proposta
+   * Sicoob; a tábua dá só a variação por idade e sexo. Sem carregamentos nem seleção médica.
    */
-  const GOMPERTZ_IBGE = (function () {
-    const e = TABUA_IBGE_2024;
-    let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
-    for (let x = 35; x <= 85; x++) {
-      const q = (1 + e[x + 1] - e[x]) / (0.5 + e[x + 1]);
-      if (!(q > 0)) continue;
-      const y = Math.log(q);
-      n++; sx += x; sy += y; sxx += x * x; sxy += x * y;
-    }
-    const b = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-    return { a: (sy - b * sx) / n, b };
-  })();
-  const qGompertz = x => Math.min(1, Math.exp(GOMPERTZ_IBGE.a + GOMPERTZ_IBGE.b * x));
-  /** Prêmio nivelado anual por unidade de capital (real), idade x, juros reais i. */
-  function premioNivelado(x, i, ganhoReal, anosPagamento) {
+  function tabuaMortalidade(versao, sexo) {
+    const v = BREMS.VERSOES[versao] || BREMS.VERSOES[BREMS.PADRAO];
+    return v[sexo === 'f' ? 'f' : 'm'];
+  }
+  /** Prêmio nivelado anual por unidade de capital (real), idade x, juros reais i, tábua q. */
+  function premioNivelado(q, x, i, ganhoReal, anosPagamento) {
     const v = 1 / (1 + i);
     let A = 0, ann = 0, tp = 1;
-    for (let t = 0; x + t < 121 && tp > 1e-12; t++) {
-      const q = qGompertz(x + t);
-      A += tp * q * Math.pow(v, t + 1) * Math.pow(1 + ganhoReal, t);
+    for (let t = 0; x + t < q.length && tp > 1e-14; t++) {
+      const qx = q[x + t];
+      A += tp * qx * Math.pow(v, t + 1) * Math.pow(1 + ganhoReal, t);
       if (t < anosPagamento) ann += tp * Math.pow(v, t);
-      tp *= 1 - q;
+      tp *= 1 - qx;
     }
     return A / ann;
   }
-  /** { fator, taxaTecnica } para a idade, calibrado na parcela da idade de referência. */
+  /** { fator, taxaTecnica } para idade e sexo, calibrado na parcela da proposta de referência. */
   function fatorIdadeWholeLife(idade, o) {
     const p = Object.assign({}, WL_PADRAO, o);
+    const qRef = tabuaMortalidade(p.tabua, p.sexoReferencia), q = tabuaMortalidade(p.tabua, p.sexo);
+    const xRef = Math.round(p.idadeReferencia), x = Math.max(0, Math.min(q.length - 1, Math.round(idade)));
     const alvo = p.parcelaPor100k * 12 / 100000;
-    let lo = -0.02, hi = 0.20;
-    for (let k = 0; k < 80; k++) {
+    let lo = -0.05, hi = 0.30;
+    for (let k = 0; k < 100; k++) {
       const m = (lo + hi) / 2;
-      if (premioNivelado(p.idadeReferencia, m, p.ganhoReal, p.anosPagamento) > alvo) lo = m; else hi = m;
+      if (premioNivelado(qRef, xRef, m, p.ganhoReal, p.anosPagamento) > alvo) lo = m; else hi = m;
     }
     const i = (lo + hi) / 2;
-    const fator = premioNivelado(idade, i, p.ganhoReal, p.anosPagamento) / premioNivelado(p.idadeReferencia, i, p.ganhoReal, p.anosPagamento);
-    return { fator, taxaTecnica: i };
+    const fator = premioNivelado(q, x, i, p.ganhoReal, p.anosPagamento) / premioNivelado(qRef, xRef, i, p.ganhoReal, p.anosPagamento);
+    return { fator, taxaTecnica: i, tabua: (BREMS.VERSOES[p.tabua] || BREMS.VERSOES[BREMS.PADRAO]).nome };
   }
 
   /**
@@ -356,10 +350,11 @@
   function wholeLifeDaIdade(idade, o) {
     const wl = Object.assign({}, WL_PADRAO, o || {});
     wl.parcelaReferencia = wl.parcelaPor100k; wl.basicaReferencia = wl.basicaPor100k;
-    wl.fatorIdade = 1; wl.taxaTecnica = null;
-    if (wl.ajustarIdade && isFinite(idade) && idade !== wl.idadeReferencia && wl.parcelaPor100k > 0) {
+    wl.fatorIdade = 1; wl.taxaTecnica = null; wl.tabuaNome = null;
+    const diferente = idade !== wl.idadeReferencia || (wl.sexo || 'm') !== (wl.sexoReferencia || 'm');
+    if (wl.ajustarIdade && isFinite(idade) && diferente && wl.parcelaPor100k > 0) {
       const f = fatorIdadeWholeLife(idade, wl);
-      wl.fatorIdade = f.fator; wl.taxaTecnica = f.taxaTecnica;
+      wl.fatorIdade = f.fator; wl.taxaTecnica = f.taxaTecnica; wl.tabuaNome = f.tabua;
       wl.parcelaPor100k *= f.fator; wl.basicaPor100k *= f.fator;
     }
     return wl;

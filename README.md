@@ -34,6 +34,7 @@ Motores de cálculo (funções puras, sem tela, testadas):
 - `engine/planejamento.js` — planejamento financeiro.
 - `engine/aquisicao.js` — estratégia de aquisição (financiamento no padrão Sicoob, consórcio, IR no resgate).
 - `engine/sucessao.js` — planejamento sucessório (custo do inventário, previdência e whole life dimensionados para pagá-lo, doação, holding, aluguel PF × holding, recomendação).
+- `dados/tabuas-br-ems.js` — tábuas de mortalidade BR-EMSmt da SUSEP (v.2021 e v.2026, por sexo), para o preço do whole life por idade.
 - `dados/itcmd-uf.js` — tabelas de ITCMD de MT, MS, RO e PA (vigente, adequação à LC 227/2026 e estresse de 16%) e honorários de referência.
 - `engine/propostas.js` — leitura das simulações do Sicoob em PDF.
 
@@ -56,7 +57,7 @@ O que os testes cobrem: cálculos dos motores (conferidos com a planilha e com a
 - **Sucessão:** base anual; meta de liquidez de 18% do que vai a inventário, paga só por previdência (líquida de IR) e/ou whole life (capital IPCA + 2,5%, planilha Sicoob); recomenda, entre os caminhos que cobrem a meta desde o 1º ano, o que mais entrega à família na expectativa de vida (IBGE 2024), com empate abaixo de 3% favorecendo o mais simples.
   - Meta = 18% + despesas da família durante o inventário (meses padrão: 3 em cartório, 24 judicial, 36 com conflito).
   - Partilha pelo regime de bens (meação, cônjuge herdeiro pelo art. 1.829 do Código Civil, mínimo de 1/4 do art. 1.832); ITCMD por quinhão; legítima e parte disponível.
-  - Whole life por idade: a parcela da proposta Sicoob aos 48 anos é escalada por um fator atuarial (Tábua IBGE 2024 ajustada por Gompertz, juros técnicos implícitos na proposta).
+  - Whole life por idade e sexo: a parcela da proposta Sicoob (homem, 48 anos) é escalada por um fator atuarial pela tábua de seguros da SUSEP, BR-EMSmt v.2026 (ou v.2021), em `dados/tabuas-br-ems.js`, com juros técnicos implícitos na proposta.
   - Simulação pode ser salva e reaberta em arquivo `.json` (só os campos da tela, sem dados pessoais).
   - Tabelas de ITCMD: `dados/itcmd-uf.js`, com `revisadoEm` por estado. No início de cada trimestre o GitHub abre uma issue de revisão (`.github/workflows/revisao-dados.yml`, que roda `scripts/verificar-dados.js`); a página alerta quando a revisão passa de 6 meses.
 - **Aquisição:** base mensal; o capital rende e paga a parcela; patrimônio líquido = capital + bem − saldo devedor; bem valoriza pelo IPCA. Financiamento no padrão da proposta Sicoob (TR projetada, juros nominais ÷ 12, MIP por idade, DFI, TAC). Consórcio no padrão da simulação de lance Sicoob (nº de parcelas, lance em % ou parcelas abatendo antes da parcela da assembleia, seguro proporcional à parcela). IR de produtos tributados cobrado no resgate, sobre o ganho. Simulações do Sicoob em PDF podem preencher os campos (opcional).
