@@ -50,8 +50,22 @@
     return true;
   }
 
+  /* Ibovespa: arquivo gravado todo dia útil pela rotina da B3 (scripts/atualizar-ibovespa.js).
+     Lê primeiro do repositório (atualiza na hora em que a rotina grava) e, se falhar, a cópia publicada no site. */
+  const IBOV_REPO = 'https://raw.githubusercontent.com/Mfelix31/Aplicativo-Solucoes-Financeiras/main/dados/ibovespa.json';
+  async function lerIbov(url) {
+    const resp = await fetch(url, { cache: 'no-cache' });
+    if (!resp.ok) throw new Error('sem arquivo');
+    const j = await resp.json();
+    const f = j && j.fechamento;
+    if (!f || !(f.valor >= 10000 && f.valor <= 1000000) || !/^\d{4}-\d{2}-\d{2}$/.test(f.data)) throw new Error('formato inesperado');
+    const data = f.data.slice(8, 10) + '/' + f.data.slice(5, 7) + '/' + f.data.slice(0, 4);
+    return { valor: f.valor, data, variacao: isFinite(j.variacao) ? j.variacao : null, recente: BCB.diasDesde(data) <= 7 };
+  }
+  const ibovespa = () => lerIbov(IBOV_REPO).catch(() => lerIbov('dados/ibovespa.json'));
+
   const ano = new Date().getFullYear();
-  Promise.allSettled([BCB.metaSelic(), BCB.ipca12m(), BCB.focusSelic(ano), BCB.dolarPtax(), BCB.ibovespa()]).then(([s, i, f, usd, ibov]) => {
+  Promise.allSettled([BCB.metaSelic(), BCB.ipca12m(), BCB.focusSelic(ano), BCB.dolarPtax(), ibovespa()]).then(([s, i, f, usd, ibov]) => {
     const okUsd = mostrarDiaria(usd, 'indDolar', 'indDolarData', v => 'R$ ' + num(v, 4));
     const okIbov = mostrarDiaria(ibov, 'indIbov', 'indIbovData', v => num(v, 0));
     if (s.status === 'fulfilled') mostrarSelic(s.value.metaSelic, s.value.data, true);
@@ -66,7 +80,7 @@
     }
     const ok = [s, i, f].filter(x => x.status === 'fulfilled').length + okUsd + okIbov;
     if (ok === 5) { estado.textContent = 'atualizado agora'; estado.classList.add('ok'); }
-    else if (ok === 0) { estado.textContent = 'valores de referência · o Banco Central não respondeu agora'; estado.classList.add('ref'); }
+    else if (ok === 0) { estado.textContent = 'valores de referência · o Banco Central e a B3 não responderam agora'; estado.classList.add('ref'); }
     else { estado.textContent = 'parte dos dados indisponível agora'; estado.classList.add('ref'); }
   });
 })();

@@ -5,7 +5,6 @@
  *  - IPCA acumulado em 12 meses: SGS 13522
  *  - Expectativa de Selic de fim de ano: Boletim Focus (API Olinda), mediana mais recente
  *  - Dólar comercial PTAX de venda: SGS 1 (R$ por US$, diária)
- *  - Ibovespa, fechamento em pontos: SGS 7 (dados da B3 publicados pelo BCB, diária)
  * Cada função lança erro se a rede falhar ou o formato vier inesperado.
  */
 (function () {
@@ -45,8 +44,6 @@
   }
   /** {valor (R$ por US$), data, variacao, recente} — PTAX de venda */
   const dolarPtax = () => diaria(1, 1, 20);
-  /** {valor (pontos), data, variacao, recente} — Ibovespa, fechamento */
-  const ibovespa = () => diaria(7, 10000, 1000000);
   /** {metaSelic, cdi, data} em % a.a. */
   async function metaSelic() {
     const r = await sgsUltimo(432);
@@ -77,5 +74,5 @@
     if (!Object.keys(porAno).length) throw new Error('sem anos futuros');
     return { data, porAno };
   }
-  window.BCB = { SPREAD_CDI_SELIC, metaSelic, ipca12m, focusSelic, dolarPtax, ibovespa };
+  window.BCB = { SPREAD_CDI_SELIC, metaSelic, ipca12m, focusSelic, dolarPtax, diasDesde };
 })();

@@ -1,0 +1,34 @@
+# Atualiza dados/ibovespa.json com o fechamento do Ibovespa publicado pela B3 (scripts/atualizar-ibovespa.js).
+# Roda nos dias úteis depois do pregão; também pode ser disparado à mão em Actions → "Ibovespa (B3)" → Run workflow.
+# Se a B3 não responder ou mudar o formato, a execução falha sem gravar nada e o painel mantém o último fechamento válido.
+name: Ibovespa (B3)
+on:
+  schedule:
+    - cron: '43 21 * * 1-5'   # 17h43 em Cuiabá (18h43 em Brasília), depois do fechamento
+    - cron: '17 1 * * 2-6'    # 21h17 em Cuiabá, segunda tentativa caso a B3 publique tarde
+  workflow_dispatch:
+  push:                       # roda também quando o script ou esta rotina mudam
+    branches: [main]
+    paths: ['scripts/atualizar-ibovespa.js', '.github/workflows/ibovespa.yml']
+permissions:
+  contents: write
+concurrency:
+  group: ibovespa
+  cancel-in-progress: false
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/atualizar-ibovespa.js
+      - name: Gravar se houver fechamento novo
+        run: |
+          if git diff --quiet -- dados/ibovespa.json; then echo "Nada a gravar."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dados/ibovespa.json
+          git commit -m "Ibovespa: fechamento de $(node -p "require('./dados/ibovespa.json').fechamento.data")"
+          git push
