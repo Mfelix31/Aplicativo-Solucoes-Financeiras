@@ -66,3 +66,18 @@ test('nenhum estilo em linha fixo nas páginas (só variáveis de cor por item)'
     assert.deepEqual(estilos, [], pagina);
   }
 });
+
+test('valores de referência da página inicial são os mesmos dos simuladores', () => {
+  const ref = require('../dados/referencias-mercado.js');
+  const cdi = +(ref.metaSelic.valor - ref.spreadCdi).toFixed(2);
+  for (const [pagina, ids] of [['investimentos.html', ['s_cdi', 'c_cdi']], ['aquisicao.html', ['cdi']]]) {
+    for (const id of ids) {
+      const m = ler(pagina).match(new RegExp('id="' + id + '" value="([0-9.]+)"'));
+      assert.ok(m, `${pagina}: campo ${id} não encontrado`);
+      assert.equal(+m[1], cdi, `${pagina}: ${id} difere da referência`);
+    }
+  }
+  const ipca = ler('investimentos.html').match(/id="s_ipca" value="([0-9.]+)"/);
+  assert.equal(+ipca[1], ref.ipca12m.valor);
+  assert.match(ler('investimentos.html'), new RegExp(ref.metaSelic.data.replace(/\//g, '\\/')));
+});

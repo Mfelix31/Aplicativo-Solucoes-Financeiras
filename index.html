@@ -37,7 +37,7 @@
 
       <aside class="mesa" aria-labelledby="mesaTitulo" aria-live="polite">
         <div class="mesa-cab">
-          <h2 id="mesaTitulo">Indicadores de hoje</h2>
+          <h2 id="mesaTitulo">Indicadores de mercado</h2>
           <span class="mesa-estado" id="mesaEstado">consultando o Banco Central…</span>
         </div>
         <dl class="mesa-linhas">
@@ -55,7 +55,7 @@
           </div>
           <div class="linha">
             <dt>Juro real<small>(1 + Selic) ÷ (1 + IPCA 12m) − 1</small></dt>
-            <dd><span class="v" id="indReal">—</span><small>calculado</small></dd>
+            <dd><span class="v" id="indReal">—</span><small id="indRealData"></small></dd>
           </div>
           <div class="linha">
             <dt>Selic no fim do ano<small>Boletim Focus · mediana do mercado</small></dt>
@@ -126,6 +126,7 @@
   </footer>
 </div>
 
+<script src="dados/referencias-mercado.js"></script>
 <script src="assets/bcb.js"></script>
 <script src="paginas/index.js"></script>
 </body>
