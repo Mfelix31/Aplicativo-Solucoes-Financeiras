@@ -20,9 +20,11 @@
  *   inventário, custos do caminho (pagos das aplicações e, por isso,
  *   com custo de oportunidade), IR da previdência no pagamento e IR
  *   latente das aplicações; em R$ de hoje (deflacionado pelo IPCA).
- * - Meta de liquidez (decisão do usuário): 18% do patrimônio que vai a
- *   inventário (cartório, advogado, contador, ITCMD e trâmites), mais as
- *   despesas da família durante o inventário (meses × despesa mensal). Cobertura = (previdência líquida de IR + capital de seguro)
+ * - Custo esperado do inventário (premissa do usuário): 18% do patrimônio que vai a
+ *   inventário — média observada em MT e MS (cartório, advogado, contador, ITCMD e
+ *   trâmites). É o custo usado na comparação dos caminhos e, somado às despesas da
+ *   família durante o inventário, o valor que previdência e seguro precisam pagar.
+ *   A conta item por item (custoInventario) é só conferência. Cobertura = (previdência líquida de IR + capital de seguro)
  *   ÷ meta. Previdência e seguro não entram no inventário nem pagam ITCMD
  *   (LC 227/2026, art. 150, III); indenização de seguro é isenta de IR.
  * - Sobra mensal (renda e aluguéis não gastos) entra nas aplicações em todos os caminhos e paga os custos.
@@ -348,6 +350,8 @@
   }
   /** Meses de despesas da família cobertos pela liquidez enquanto o inventário corre (padrão por tipo). */
   const MESES_SUSTENTO = { cartorio: 3, judicial: 24, litigio: 36 };
+  /** acima disso, a média de 18% pode exagerar o custo (honorários e cartório negociados ou com teto) */
+  const LIMITE_PATRIMONIO_GRANDE = 50e6;
 
   /** Parcela e cobertura básica ajustadas à idade (a proposta de referência fica em parcelaReferencia/basicaReferencia). */
   function wholeLifeDaIdade(idade, o) {
@@ -512,11 +516,14 @@
         ? custoInventario({ monte: monte * e.meacaoPct, imoveis: imovInv * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros,
           uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos })
         : null;
-      const custoConjuge = invConjuge ? invConjuge.total : 0;
-      const familia = monte - inv.total - custoConjuge - custoExterior - irLatente + doadoValor + previdenciaLiquida + seguro - externoFV;
+      // custo do inventário usado na comparação: o custo esperado (premissa do usuário, média de MT e MS = 18%),
+      // e não a conta item por item, que fica como conferência
+      const custoEsperado = s * monte;
+      const custoEsperadoConjuge = invConjuge ? s * monte * e.meacaoPct : 0;
+      const familia = monte - custoEsperado - custoEsperadoConjuge - custoExterior - irLatente + doadoValor + previdenciaLiquida + seguro - externoFV;
       const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + seguro);
       anos.push({
-        ano: t, monte, inventario: inv, inventarioConjuge: invConjuge, sustento, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
+        ano: t, monte, inventario: inv, inventarioConjuge: invConjuge, custoEsperado, custoEsperadoConjuge, sustento, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
         cobertura: meta > 0 ? liquidez / meta : Infinity, aplicacoes: aplic, familia, externoAcumulado: externoFV,
         familiaReal: familia / Math.pow(1 + ipca, t), travado: monte / brutoFamilia, custosReais: custoRealAcum
       });
@@ -661,8 +668,10 @@
       ok: true, entrada: e, Texp, H, hipoteses, caminhos, recomendacao: rec, estabilidade,
       base: { custoHoje, metaInventarioHoje: e.premissas.metaLiquidez * monte0,
         sustentoHoje: e.sustento.despesaMensal * e.sustento.meses,
-        conjugeHoje: e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ monte: monte0 * e.meacaoPct,
-          imoveis: e.imoveis * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos }) : null,
+        conjugeHoje: e.sucessaoCasal && e.meacaoPct > 0 ? { total: e.premissas.metaLiquidez * monte0 * e.meacaoPct,
+          conferencia: custoInventario({ monte: monte0 * e.meacaoPct, imoveis: e.imoveis * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros,
+            uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos }) } : null,
+        patrimonioGrande: monte0 >= LIMITE_PATRIMONIO_GRANDE, limitePatrimonioGrande: LIMITE_PATRIMONIO_GRANDE,
         metaHoje: e.premissas.metaLiquidez * monte0 + e.sustento.despesaMensal * e.sustento.meses,
         regimes, anoHoje: hoje,
         heranca: custoHoje.heranca, legitima: custoHoje.heranca / 2, disponivel: custoHoje.heranca / 2,
@@ -782,7 +791,7 @@
     if (!(e.sustento.despesaMensal >= 0) || !(e.sustento.meses >= 0 && e.sustento.meses <= 120)) erros.push('Despesas da família: valor não negativo e até 120 meses.');
     const pr = e.premissas;
     if (!(pr.rentabilidade > -0.5 && pr.rentabilidade < 1)) erros.push('Rentabilidade fora do intervalo aceito.');
-    if (!(pr.metaLiquidez > 0 && pr.metaLiquidez < 1)) erros.push('A meta de liquidez precisa estar entre 0% e 100%.');
+    if (!(pr.metaLiquidez > 0 && pr.metaLiquidez < 1)) erros.push('O custo esperado do inventário precisa estar entre 0% e 100%.');
     if (!(pr.ipca > -0.2 && pr.ipca < 0.5)) erros.push('Inflação fora do intervalo aceito.');
     if (!(pr.comprometimentoRenda >= 0 && pr.comprometimentoRenda <= 1)) erros.push('O limite de comprometimento da renda precisa estar entre 0% e 100%.');
     if (!(e.wholeLife.parcelaPor100k > 0)) erros.push('Informe a parcela do whole life.');
@@ -791,7 +800,7 @@
 
   return {
     TABUA_IBGE_2024, CURVA_ATUARIAL, PREMISSAS_PADRAO, CUSTOS_PADRAO, HOLDING_PADRAO, OFFSHORE_PADRAO, WL_PADRAO,
-    expectativaSobrevida, itcmdValor, itcmdDividido, custoInventario, partilha, MESES_SUSTENTO, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
+    expectativaSobrevida, itcmdValor, itcmdDividido, custoInventario, partilha, MESES_SUSTENTO, LIMITE_PATRIMONIO_GRANDE, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
     projetarWholeLife, fatorIdadeWholeLife, wholeLifeDaIdade, capitalSeguro, anoEquilibrioSeguro, irpfMensal, irpfm, faseIBS, tributacaoAluguel,
     normalizar, simular, analisar, recomendar, validar, ESTRUTURAS, LIQUIDEZ, idCaminho
   };

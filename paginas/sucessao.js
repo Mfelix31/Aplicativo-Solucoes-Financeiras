@@ -109,7 +109,7 @@ function lerEntradas(){
 /** erros de campo que o motor não vê (campos numéricos vazios ou fora do intervalo) */
 function errosDeCampo(inp){
   const e = [];
-  const campos = [['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade da proposta de referência'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Meta de liquidez'],['honCart','Honorários'],['hJur','Jurídico da holding']];
+  const campos = [['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade da proposta de referência'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Custo esperado do inventário'],['honCart','Honorários'],['hJur','Jurídico da holding']];
   campos.forEach(([id, nome]) => { if(!isFinite(num(id))) e.push(nome + ': preencha o campo.'); });
   if(inp.nResidenciais > inp.nImoveisAlugados) e.push('Os imóveis residenciais não podem passar dos alugados.');
   if(inp.wholeLife.basicaPor100k > inp.wholeLife.parcelaPor100k) e.push('A cobertura básica do whole life não pode passar da parcela.');
@@ -161,7 +161,7 @@ function atualizarDicas(){
   const tipo = $('tipoInv').value;
   if(!mesesTocado) $('mesesSustento').value = E.MESES_SUSTENTO[tipo];
   $('hintSustento').textContent = 'Padrão: 3 meses em cartório, 24 no judicial, 36 com conflito. ' +
-    (money('despesaFamilia') > 0 && isFinite(num('mesesSustento')) ? 'Soma ' + fmtBRL0(money('despesaFamilia') * num('mesesSustento')) + ' à meta (R$ de hoje).' : '');
+    (money('despesaFamilia') > 0 && isFinite(num('mesesSustento')) ? 'Soma ' + fmtBRL0(money('despesaFamilia') * num('mesesSustento')) + ' ao que a família precisa ter em dinheiro (R$ de hoje).' : '');
   // whole life pela idade
   const wlRef = num('wlIdadeRef');
   if($('wlAjustar').checked && isFinite(idade) && isFinite(wlRef) && money('wlParcela') > 0){
@@ -405,7 +405,7 @@ function renderVerdict(){
       kpi('Chega à família', fmtBRL0(valorEm(v, 'expectativa')), 'na expectativa de vida (' + Math.round(e.idade + r.Texp) + ' anos), em R$ de hoje') +
       (ganho >= 0 || v.id === 'inventario' ? kpi('A mais que não planejar', v.id === 'inventario' ? '—' : fmtBRL0(ganho), 'já descontados todos os custos')
         : kpi('Custo da proteção', fmtBRL0(-ganho), 'a menos que sem planejar' + (v.pagamento.externo >= 1 ? ', pelo dinheiro pago à parte' : ', em troca da liquidez imediata'))) +
-      kpi('Inventário pago no 1º ano', coberturaTxt(v.coberturaAno1), 'meta: ' + fmtBRL0(r.base.metaHoje)) +
+      kpi('Inventário pago no 1º ano', coberturaTxt(v.coberturaAno1), 'precisa de ' + fmtBRL0(r.base.metaHoje) + ' em dinheiro') +
     '</div>' +
     '<div class="sol-grid">' +
       '<div class="sol-box"><h3>Por que esta solução</h3><ul class="sol-lista">' + motivos(v, r).map(x => '<li>' + x + '</li>').join('') + '</ul></div>' +
@@ -430,7 +430,7 @@ function renderDestaques(){
   }
   const v = venc(r);
   if(r.seguroDesnecessario && v && !(v.cfg.C > 0)){
-    out.push('<div class="destaque" style="--cl:var(--l-roxo)"><h4>Whole life não é necessário para o inventário</h4><p>A previdência com ' + fmtBRL0(r.previdencia.X) + ' das aplicações já paga a meta de liquidez sozinha, em todos os anos. O seguro só faria sentido por outro motivo (por exemplo, proteger a renda da família).</p></div>');
+    out.push('<div class="destaque" style="--cl:var(--l-roxo)"><h4>Whole life não é necessário para o inventário</h4><p>A previdência com ' + fmtBRL0(r.previdencia.X) + ' das aplicações já paga sozinha o custo esperado do inventário, em todos os anos. O seguro só faria sentido por outro motivo (por exemplo, proteger a renda da família).</p></div>');
   } else if(!r.seguroDesnecessario && r.previdencia.disponivel > 0){
     out.push('<div class="destaque" style="--cl:var(--l-roxo)"><h4>As aplicações não bastam para a previdência</h4><p>Mesmo levando todas as aplicações (' + fmtBRL0(r.previdencia.disponivel) + ') para a previdência, falta liquidez para o inventário. O whole life cobre a diferença.</p></div>');
   }
@@ -450,23 +450,23 @@ function renderBase(){
     '<p class="q-c"><b>Como foi calculado:</b> ' + conta + '</p></div>';
   // 1. quanto a família precisa ter em dinheiro
   const c1 = card(1, 'Quanto a família precisa ter em dinheiro logo após o falecimento?', fmtBRL0(b.metaHoje),
-    'É a <b>meta de liquidez</b>: o valor para pagar todo o inventário sem vender bens' + (b.sustentoHoje > 0 ? ' e manter a família enquanto ele corre' : '') +
+    'É o <b>custo esperado do inventário</b>' + (b.sustentoHoje > 0 ? ' mais as despesas da família enquanto ele corre' : '') + ': o dinheiro para pagar tudo sem vender bens' +
       '. Previdência e whole life são dimensionados para pagar esse valor sozinhos.',
     barra([{ c: 'p-meta', v: b.metaInventarioHoje / pat, t: 'Inventário' }, { c: 'p-sus', v: b.sustentoHoje / pat, t: 'Sustento' }, { c: 'p-resto', v: Math.max(0, 1 - b.metaHoje / pat), t: 'Restante do patrimônio' }]) +
-    legenda([{ c: 'p-meta', t: pct0(e.premissas.metaLiquidez) + ' para o inventário', v: fmtBRL0(b.metaInventarioHoje) },
+    legenda([{ c: 'p-meta', t: 'custo esperado do inventário (' + pct0(e.premissas.metaLiquidez) + ')', v: fmtBRL0(b.metaInventarioHoje) },
       { c: 'p-sus', t: e.sustento.meses + ' meses de despesas', v: fmtBRL0(b.sustentoHoje), mostra: b.sustentoHoje > 0 },
       { c: 'p-resto', t: 'restante do patrimônio', v: fmtBRL0(Math.max(0, pat - b.metaHoje)) }]),
-    pct0(e.premissas.metaLiquidez) + ' de ' + fmtBRL0(pat) + ' (média de mercado de todo o trâmite: cartório, advogado, contador, ITCMD)' +
+    pct0(e.premissas.metaLiquidez) + ' de ' + fmtBRL0(pat) + ' (média observada em MT e MS: ITCMD, advogado, cartório, contador e trâmites)' +
       (b.sustentoHoje > 0 ? ' + ' + fmtBRL0(e.sustento.despesaMensal) + ' × ' + e.sustento.meses + ' meses' : '') + '.');
   // 2. quanto o inventário custaria pela conta item a item
   const folga = b.metaInventarioHoje - b.custoHoje.total;
   const c2 = card(2, 'Quanto o inventário custaria, item por item, pela lei e pelas tabelas?', fmtBRL0(b.custoHoje.total),
-    'É uma <b>conferência</b> da meta, com a lei do estado. ' + (folga >= 0
-      ? 'A meta de ' + pct0(e.premissas.metaLiquidez) + ' fica ' + fmtBRL0(folga) + ' acima: cobre também multas, avaliações, atrasos e imprevistos que a conta não vê.'
-      : '<b>A conta passou da meta em ' + fmtBRL0(-folga) + ':</b> considere aumentar a meta de liquidez.'),
+    'É uma <b>conferência</b> do custo esperado, pela lei do estado. ' + (folga >= 0
+      ? 'A média de ' + pct0(e.premissas.metaLiquidez) + ' fica ' + fmtBRL0(folga) + ' acima da conta pela lei: a diferença é o que a experiência mostra e a conta não vê (multas, avaliações, atrasos, imprevistos).'
+      : '<b>A conta pela lei passou do custo esperado em ' + fmtBRL0(-folga) + ':</b> neste caso, considere aumentar o percentual na etapa 2.'),
     barra([{ c: 'p-est', v: Math.min(1, b.custoHoje.total / Math.max(1, b.metaInventarioHoje)), t: 'Estimativa' }, { c: 'p-resto', v: Math.max(0, 1 - b.custoHoje.total / Math.max(1, b.metaInventarioHoje)), t: 'Folga da meta' }]) +
     legenda([{ c: 'p-est', t: 'estimativa (' + pct1(b.custoHoje.pct) + ' do patrimônio)', v: fmtBRL0(b.custoHoje.total) },
-      { c: 'p-resto', t: 'folga até a meta de ' + pct0(e.premissas.metaLiquidez), v: fmtBRL0(Math.max(0, folga)) }]),
+      { c: 'p-resto', t: 'diferença até a média de ' + pct0(e.premissas.metaLiquidez), v: fmtBRL0(Math.max(0, folga)) }]),
     'ITCMD ' + mil(b.custoHoje.itcmd) + ' + honorários ' + mil(b.custoHoje.honorarios) + ' + ' + (e.tipoInventario === 'cartorio' ? 'escritura ' : 'custas ') + mil(b.custoHoje.cartorio) +
       ' + registro ' + mil(b.custoHoje.registro) + ' + certidões ' + mil(b.custoHoje.certidoes) + (b.custoHoje.multa > 0 ? ' + multa ' + mil(b.custoHoje.multa) : '') + '. Detalhe na tabela abaixo.');
   // 3. quanto tempo os bens ficam travados
@@ -494,7 +494,9 @@ function renderBase(){
     linhaT(e.tipoInventario === 'cartorio' ? 'Escritura' : 'Custas judiciais', c => c.cartorio) + linhaT('Registro dos imóveis', c => c.registro) +
     linhaT('Certidões', c => c.certidoes) + (e.custos.multaPctImposto > 0 ? linhaT('Multa por atraso', c => c.multa) : '') +
     '<tr class="now"><td>Total</td>' + ['vigente','reforma','estresse'].map(x => '<td>' + fmtBRL0(rg[x].total) + ' <small class="suave inline">(' + pct1(rg[x].pct) + ')</small></td>').join('') + '</tr>';
-  $('baseNota').textContent = 'A meta de ' + pct0(e.premissas.metaLiquidez) + ' é a média de mercado de todo o trâmite (cartório, advogado, contador, ITCMD, avaliações, certidões); a estimativa por componentes é só uma conferência e não substitui a meta. ' +
+  $('baseNota').textContent = 'O custo esperado de ' + pct0(e.premissas.metaLiquidez) + ' é a média observada em MT e MS para todo o trâmite (ITCMD, advogado, cartório, contador, avaliações, certidões) e é o custo usado na comparação; a conta item por item é só uma conferência. ' +
+    (b.patrimonioGrande ? 'Patrimônio acima de ' + fmtBRL0(b.limitePatrimonioGrande) + ': honorários e cartório costumam ser negociados ou ter teto, e o custo real em percentual tende a ser menor; revise o percentual. ' : '') +
+    (e.uf === 'RO' || e.uf === 'PA' ? 'Em ' + T.ESTADOS[e.uf].nome + ', confirme se a média de 18% de MT e MS vale para os seus clientes. ' : '') +
     (e.partilha.conjugeHerdeiro ? 'O ITCMD considera o cônjuge como herdeiro, com ' + pct1(e.partilha.fracConjuge) + ' da herança. ' : '') +
     (T.ESTADOS[e.uf].reformaIgualVigente ? '' : 'Adequação à reforma: ' + T.ESTADOS[e.uf].reforma.hipotese);
 }
@@ -578,6 +580,7 @@ function renderAlertas(){
     out.push('<b>Previdência e legítima:</b> metade da herança (' + fmtBRL0(r.base.legitima) + ') é dos herdeiros necessários (Código Civil, art. 1.846). Previdência com beneficiários diferentes deles, ou aportes grandes perto do falecimento, pode ser questionada.' +
       (prev > r.base.disponivel ? ' <b>Aqui a previdência (' + fmtBRL0(prev) + ') passaria da parte disponível (' + fmtBRL0(r.base.disponivel) + '):</b> indique os herdeiros necessários como beneficiários.' : ''));
   }
+  if(r.base.patrimonioGrande) out.push('<b>Patrimônio acima de ' + fmtBRL0(r.base.limitePatrimonioGrande) + ':</b> o custo esperado de ' + pct0(e.premissas.metaLiquidez) + ' é a média dos clientes de MT e MS. Neste porte, honorários e cartório costumam ser negociados ou ter teto; revise o percentual na etapa 2 com base em orçamentos reais.');
   if(e.partilha.conjugeHerdeiro) out.push('<b>O cônjuge é herdeiro junto com os filhos</b> (CC, art. 1.829, I)' + (e.conjuge.regime === 'parcial' ? ', só sobre os bens particulares' : '') + ': recebe ' + pct1(e.partilha.fracConjuge) + ' da herança' + (e.conjuge.ascendenteComum && e.herdeiros >= 3 ? ', com o mínimo de 1/4 por ser pai ou mãe de todos (art. 1.832)' : '') + '. Previdência e seguro podem indicá-lo como beneficiário à parte.');
   if(e.conjuge.regime === 'obrigatoria') out.push('<b>Separação obrigatória:</b> pela Súmula 377 do STF, os bens adquiridos com esforço comum podem ser partilhados como meação. A simulação considera meação zero; confirme com o advogado.');
   if(e.conjuge.regime === 'universal' || e.conjuge.regime === 'parcial') out.push('<b>Doação de bens comuns</b> precisa da concordância do cônjuge, que também doa a sua meação.');
@@ -638,7 +641,7 @@ function seriesGrafico(){
   const {r} = ultimo, c = r.caminhos.find(x => x.id === seg.grafico) || venc(r), idade = r.entrada.idade;
   const pts = f => [{ x: idade, y: f(null) }].filter(p => p.y !== null).concat(c.sim.anos.map(a => ({ x: idade + a.ano, y: f(a) })));
   const s = [
-    { nome: 'Meta de liquidez (' + pct0(r.entrada.premissas.metaLiquidez) + ' do que vai a inventário)', cor: cssVar('--l-meta'), dash: true, pontos: pts(a => a ? a.meta : null) },
+    { nome: 'Custo esperado do inventário (' + pct0(r.entrada.premissas.metaLiquidez) + ')' + (r.entrada.sustento.despesaMensal > 0 ? ' + despesas da família' : ''), cor: cssVar('--l-meta'), dash: true, pontos: pts(a => a ? a.meta : null) },
     { nome: 'Previdência líquida de IR', cor: cssVar('--l-turq'), pontos: pts(a => a ? a.previdenciaLiquida : null) },
     { nome: 'Capital do seguro', cor: cssVar('--l-roxo'), pontos: pts(a => a ? a.seguro : null) },
     { nome: 'Liquidez total', cor: cssVar('--hl'), pontos: pts(a => a ? a.liquidez : null) }
@@ -695,18 +698,18 @@ function gerarPdf(){
     tr('Regime de bens', REG[e.conjuge.regime] + (e.meacaoPct > 0 ? ' · meação ' + pct0(e.meacaoPct) : '') + (e.partilha.conjugeHerdeiro ? ' · cônjuge herdeiro (' + pct1(e.partilha.fracConjuge) + ')' : '')) +
     (e.sobraMensal > 0 ? tr('Sobra mensal investida', fmtBRL0(e.sobraMensal) + '/mês') : '') +
     (e.meacaoPct > 0 ? tr('Inventário do cônjuge', e.sucessaoCasal ? 'incluído (a meação também passa aos filhos)' : 'não incluído') : '') +
-    (e.sustento.despesaMensal > 0 ? tr('Despesas da família na meta', fmtBRL0(e.sustento.despesaMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
+    (e.sustento.despesaMensal > 0 ? tr('Despesas da família incluídas', fmtBRL0(e.sustento.despesaMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
     tr('Imóveis · aplicações', fmtBRL0(e.imoveis) + ' · ' + fmtBRL0(e.aplicacoes)) +
     (e.empresa ? tr('Participações em empresas', fmtBRL0(e.empresa)) : '') + (e.exterior ? tr('Bens no exterior', fmtBRL0(e.exterior)) : '') +
     (e.previdencia ? tr('Previdência existente', fmtBRL0(e.previdencia)) : '') + (e.seguroExistente ? tr('Seguro existente', fmtBRL0(e.seguroExistente)) : '') +
     (e.aluguelMensal ? tr('Aluguéis', fmtBRL0(e.aluguelMensal) + '/mês') : '') +
-    tr('Premissas', 'rentabilidade ' + fmtPct(e.premissas.rentabilidade, 1) + ' a.a. · IPCA ' + fmtPct(e.premissas.ipca, 1) + ' · meta de liquidez ' + pct0(e.premissas.metaLiquidez) + ' · ITCMD ' + ({vigente:'lei vigente', reforma:'adequação à reforma', estresse:'estresse 16%'})[e.regime]);
+    tr('Premissas', 'rentabilidade ' + fmtPct(e.premissas.rentabilidade, 1) + ' a.a. · IPCA ' + fmtPct(e.premissas.ipca, 1) + ' · custo esperado do inventário ' + pct0(e.premissas.metaLiquidez) + ' · ITCMD ' + ({vigente:'lei vigente', reforma:'adequação à reforma', estresse:'estresse 16%'})[e.regime]);
   const comp = '<table><tr><th>Caminho</th><th class="n">Próximo ano</th><th class="n">Em 10 anos</th><th class="n">Expectativa</th><th class="n">Cobertura 1º ano</th></tr>' +
     r.caminhos.slice().sort((a, b) => (a.id === r.recomendacao.vencedor ? -1 : b.id === r.recomendacao.vencedor ? 1 : valorEm(b, 'expectativa') - valorEm(a, 'expectativa'))).map(c => '<tr><td>' + nomeDe(c) + (c.id === r.recomendacao.vencedor ? ' <span class="ok">(solução)</span>' : '') + '</td>' +
       ['proximo','dez','expectativa'].map(h => '<td class="n">' + fmtBRL0(valorEm(c, h)) + '</td>').join('') +
       '<td class="n ' + (c.protegeJa ? 'ok' : 'no') + '">' + coberturaTxt(c.coberturaAno1) + (c.cabe === 'nao' ? ' · não cabe' : c.cabe === 'aParte' ? ' · à parte' : '') + '</td></tr>').join('') + '</table>';
   const b = r.base;
-  const inv = '<table>' + tr('Meta de liquidez', fmtBRL0(b.metaHoje) + (b.sustentoHoje > 0 ? ' (inventário ' + fmtBRL0(b.metaInventarioHoje) + ' + família ' + fmtBRL0(b.sustentoHoje) + ')' : '')) +
+  const inv = '<table>' + tr('Dinheiro necessário logo após o falecimento', fmtBRL0(b.metaHoje) + (b.sustentoHoje > 0 ? ' (custo esperado do inventário ' + fmtBRL0(b.metaInventarioHoje) + ' + família ' + fmtBRL0(b.sustentoHoje) + ')' : '')) +
     tr('Herança · legítima · parte disponível', fmtBRL0(b.heranca) + ' · ' + fmtBRL0(b.legitima) + ' · ' + fmtBRL0(b.disponivel)) + tr('Estimativa por componentes (lei vigente)', fmtBRL0(b.regimes.vigente.total) + ' (' + pct1(b.regimes.vigente.pct) + ')') +
     tr('Com a adequação à reforma · estresse 16%', fmtBRL0(b.regimes.reforma.total) + ' · ' + fmtBRL0(b.regimes.estresse.total)) + '</table>';
   const destaques = [...$('destaques').querySelectorAll('h4, p, .big')].map(x => x.textContent.trim()).join(' ').replace(/\s+/g, ' ').trim();

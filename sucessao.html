@@ -235,9 +235,9 @@
           <div class="row-input"><input type="number" id="ipca" value="4" step="0.1"><span class="suffix">% a.a.</span></div>
         </div>
         <div class="field">
-          <label for="meta">Meta de liquidez para o inventário</label>
+          <label for="meta">Custo esperado do inventário</label>
           <div class="row-input"><input type="number" id="meta" value="18" min="1" max="99" step="0.5"><span class="suffix">% do patrimônio</span></div>
-          <div class="hint">Cartório, advogado, contador, ITCMD e trâmites do inventário. Previdência e seguro precisam pagar esse valor sozinhos, mais as despesas da família.</div>
+          <div class="hint" id="hintMeta">Média observada em MT e MS: 18% do que vai a inventário (ITCMD, advogado, cartório, contador e trâmites). É o custo usado na comparação dos caminhos e o valor que previdência e seguro precisam pagar, mais as despesas da família.</div>
         </div>
         <div class="field">
           <label for="taxaAdm">Taxa de administração da previdência</label>
@@ -402,13 +402,13 @@
       <div class="explain">
         <h3>Como o cálculo funciona</h3>
         <ul>
-          <li><b>Regra de recomendação:</b> só concorrem os caminhos que pagam 100% da meta de liquidez já no primeiro ano. Entre eles, vence o que entrega mais à família na expectativa de vida, em R$ de hoje. Se a diferença for menor que a margem de empate, vence o mais simples: inventário → previdência → whole life → combinação → doação → holding → offshore.</li>
-          <li><b>Valor que chega à família:</b> tudo o que a família recebe (bens, previdência líquida de IR, capital do seguro) menos o inventário, os custos do caminho e o IR latente das aplicações. Os custos saem das aplicações e deixam de render; tudo é deflacionado pelo IPCA.</li>
+          <li><b>Regra de recomendação:</b> vence a combinação que paga o custo esperado do inventário (e as despesas da família) já no primeiro ano, cabe no orçamento (sobra, aplicações e, se preciso, um valor à parte dentro do limite da renda) e entrega mais à família na expectativa de vida, em R$ de hoje. Diferença menor que a margem de empate favorece quem não pede dinheiro à parte e, depois, o mais simples.</li>
+          <li><b>Valor que chega à família:</b> tudo o que a família recebe (bens, previdência líquida de IR, capital do seguro) menos o custo esperado do inventário (18% do que vai a inventário, também no inventário futuro do cônjuge), os custos do caminho, o dinheiro pago à parte e o IR latente das aplicações. Os custos saem das aplicações e deixam de render; tudo é deflacionado pelo IPCA.</li>
           <li><b>Três momentos:</b> falecimento no próximo ano, em 10 anos e na expectativa de vida pela Tábua Completa de Mortalidade do IBGE (2024).</li>
-          <li><b>Inventário:</b> ITCMD pela tabela do estado sobre o quinhão de cada herdeiro, honorários, escritura ou custas, registro, certidões e multa opcional. <b>Previdência e seguro</b> não entram no inventário nem pagam ITCMD (LC 227/2026, art. 150, III); a previdência paga IR regressivo sobre o rendimento; a indenização do seguro é isenta.</li>
-          <li><b>Dimensionamento:</b> previdência e seguro são o menor valor que paga a meta de liquidez em todos os anos até a expectativa de vida. Quando as aplicações não bastam para a previdência, o seguro cobre o restante.</li>
+          <li><b>Conferência do inventário:</b> ITCMD pela tabela do estado sobre o quinhão de cada herdeiro, honorários, escritura ou custas, registro, certidões e multa opcional. <b>Previdência e seguro</b> não entram no inventário nem pagam ITCMD (LC 227/2026, art. 150, III); a previdência paga IR regressivo sobre o rendimento; a indenização do seguro é isenta.</li>
+          <li><b>Dimensionamento:</b> previdência e seguro são o menor valor que paga o custo esperado do inventário e as despesas da família em todos os anos até a expectativa de vida. Quando as aplicações não bastam para a previdência, o seguro cobre o restante.</li>
           <li><b>Holding:</b> integraliza imóveis (e empresas, se marcado); doação total das cotas com usufruto ou gradual. ITCMD das cotas a valor de mercado (LC 227/2026, art. 154). Aluguéis comparados entre pessoa física e lucro presumido, com dividendos (Lei 15.270/2025) e IBS/CBS (LC 214/2025).</li>
-          <li><b>Limitações:</b> herdeiros com quinhões iguais; imóveis no estado escolhido; doação tributada pelo valor total; não considera a parte disponível do testamento nem a colação em detalhe; whole life pela média da planilha, não pela proposta.</li>
+          <li><b>Limitações:</b> herdeiros com quinhões iguais; imóveis no estado escolhido; doação tributada pelo valor total; não considera a parte disponível do testamento nem a colação em detalhe; whole life pela proposta de referência da planilha, ajustada por idade e sexo pela tábua BR-EMS; o custo esperado de 18% é a média de MT e MS e pode ser menor em patrimônios muito grandes.</li>
         </ul>
       </div>
 

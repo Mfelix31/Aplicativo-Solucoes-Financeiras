@@ -398,3 +398,15 @@ test('PGBL: IR sobre todo o saldo; VGBL: só sobre o rendimento', () => {
   perto(liq('pgbl'), 1.1e6 * 0.90, 1e-6);
   assert.equal(S.analisar(Object.assign({}, c, { previdenciaTipo: 'outro' })).ok, false);
 });
+
+test('custo do inventário na comparação = custo esperado (18%), inclusive no 2º inventário do cônjuge', () => {
+  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0 });
+  const a = S.simular(e, {}, 1).anos[0];
+  perto(a.custoEsperado, 0.18 * a.monte, 1e-6);
+  perto(a.familia, a.monte * 0.82, 1e-6);
+  const ec = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, conjuge: { regime: 'universal' } });
+  const b = S.simular(ec, {}, 1).anos[0];
+  perto(b.familia, b.monte * 0.82 - 0.18 * b.monte * 0.5, 1e-6);
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 60e6, aplicacoes: 1e6 });
+  assert.equal(r.base.patrimonioGrande, true);
+});
