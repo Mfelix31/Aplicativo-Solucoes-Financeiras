@@ -1,6 +1,6 @@
 /*
  * Gráfico de linhas em canvas (sem bibliotecas) — usado pelo Planejamento e pela
- * Estratégia de Aquisição. Cores vêm dos tokens do tema; o gráfico se redesenha
+ * Estratégia de Aquisição de Bens. Cores vêm dos tokens do tema; o gráfico se redesenha
  * ao trocar o tema ou a largura chamando desenhar() de novo com a mesma config.
  *
  * Grafico.desenhar(canvas, cfg) → geometria (ou null se o canvas estiver oculto)

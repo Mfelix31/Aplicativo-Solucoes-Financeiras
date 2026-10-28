@@ -1,4 +1,4 @@
-// Testes do motor de Estratégia de Aquisição. Rodar: node --test tests/
+// Testes do motor de Estratégia de Aquisição de Bens. Rodar: node --test tests/
 // As referências do "caso do cooperado" foram conferidas com uma simulação
 // independente em Python (mesmas premissas, código separado).
 const test = require('node:test');

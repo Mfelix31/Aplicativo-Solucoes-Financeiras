@@ -1,5 +1,5 @@
 /*
- * Estratégia de Aquisição — lógica da página (aquisicao.html).
+ * Estratégia de Aquisição de Bens — lógica da página (aquisicao.html).
  *
  * Organização deste arquivo:
  *   1. Utilidades (formatação, datas, leitura de campos)
@@ -715,7 +715,7 @@ function gerarPdf(){
   const legenda = ids.map(id => '<span><i style="background:' + CAM[id].hex + '"></i>' + CAM[id].nome + '</span>').join('');
   $('printArea').innerHTML =
     '<div class="pr-badge">SIMULAÇÃO — NÃO É PROPOSTA DE CRÉDITO NEM PROMESSA DE RENTABILIDADE</div>' +
-    '<h1>Estratégia de Aquisição</h1><div class="pr-sub">Simulação gerada em ' + HOJE.toLocaleDateString('pt-BR') + ' · consórcio × financiamento × capital próprio</div>' +
+    '<h1>Estratégia de Aquisição de Bens</h1><div class="pr-sub">Simulação gerada em ' + HOJE.toLocaleDateString('pt-BR') + ' · consórcio × financiamento × capital próprio</div>' +
     '<div class="bloco"><h2>Conclusão</h2><div class="pr-concl"><p><strong>' + semHtml(t.head) + '</strong></p>' + t.p.map(x => '<p>' + x + '</p>').join('') + '</div></div>' +
     '<div class="bloco"><h2>Dados informados</h2><table>' + pdfDadosInformados(inp) + pdfCondicoes(inp.e) + '</table></div>' +
     '<div class="bloco"><h2>Resultado por caminho</h2>' + pdfResultado(inp, r) + '</div>' +

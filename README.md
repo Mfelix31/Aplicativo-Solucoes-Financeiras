@@ -7,7 +7,7 @@ Plataforma estática (HTML/CSS/JS, sem build) com três módulos:
 | `index.html` | Página inicial em duas divisões (Simulador de Investimentos e Consultoria Financeira) e indicadores do Banco Central ao vivo (`paginas/index.js`) |
 | `investimentos.html` | Simulador e comparador de LCA, RDC e Operação Compromissada |
 | `planejamento.html` | Planejamento financeiro: patrimônio necessário, cenários, objetivos de vida e PDF |
-| `aquisicao.html` | Estratégia de Aquisição: consórcio × financiamento × capital próprio, com a renda do capital pagando a parcela |
+| `aquisicao.html` | Estratégia de Aquisição de Bens: consórcio × financiamento × capital próprio, com a renda do capital pagando a parcela |
 | `sucessao.html` | Planejamento Sucessório: inventário × previdência × whole life × doação com usufruto × holding × offshore, nos 27 estados, com bens em mais de um estado |
 
 ## Estrutura

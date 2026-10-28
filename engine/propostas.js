@@ -1,5 +1,5 @@
 /*
- * Leitura das propostas do Sicoob em PDF — Estratégia de Aquisição
+ * Leitura das propostas do Sicoob em PDF — Estratégia de Aquisição de Bens
  * --------------------------------------------------------------
  * Funções puras: recebem as linhas de texto da proposta e devolvem os campos.
  * A extração do texto do PDF (pdf.js, no navegador) fica na página; aqui só

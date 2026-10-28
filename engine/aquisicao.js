@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Estratégia de Aquisição
+ * Motor de cálculo — Estratégia de Aquisição de Bens
  * (consórcio × financiamento × capital próprio)
  * --------------------------------------------------------------
  * Funções puras, sem acesso ao DOM. Funcionam no navegador
