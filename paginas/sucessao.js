@@ -244,6 +244,12 @@ function recalcular(){
  * 7. Resultados
  * ========================================================================= */
 const venc = r => r.caminhos.find(c => c.id === r.recomendacao.vencedor);
+/** a solução e as duas melhores alternativas: primeiro as que protegem e cabem, depois as que pedem dinheiro à parte, por fim as que não protegem */
+function principais(r, n){
+  const v = venc(r), grupo = c => !c.protegeJa ? 3 : c.cabe === 'sim' ? 0 : c.cabe === 'aParte' ? 1 : 2;
+  return [v].concat(r.caminhos.filter(c => c.id !== v.id && c.id !== 'inventario')
+    .sort((a, b) => grupo(a) - grupo(b) || b.em.expectativa.familiaReal - a.em.expectativa.familiaReal).slice(0, (n || 3) - 1));
+}
 const porId = id => ultimo && ultimo.r.caminhos.find(c => c.id === id);
 const nomeId = id => nomeDe(porId(id)) || id;
 const valorEm = (c, h) => c.em[h].familiaReal;
@@ -423,9 +429,7 @@ function renderVerdict(){
   const bar = pg.tot > 0.5 ? '<div class="qbar">' + pg.fontes.map(f => '<span class="' + f.c + '" style="--w:' + Math.max(1.5, f.v / pg.tot * 100).toFixed(2) + '%"></span>').join('') + '</div>' +
     '<ul class="qleg">' + pg.fontes.map(f => '<li class="' + f.c + '"><span>' + f.t + '</span><b>' + fmtBRL0(f.v) + '</b></li>').join('') + '</ul>' : '';
   // alternativas: primeiro as que protegem e cabem, depois as que protegem mas pedem dinheiro de fora, por fim as que não protegem
-  const grupo = c => !c.protegeJa ? 3 : c.cabe === 'sim' ? 0 : c.cabe === 'aParte' ? 1 : 2;
-  const alt = r.caminhos.filter(c => c.id !== v.id && c.id !== 'inventario')
-    .sort((a, b) => grupo(a) - grupo(b) || valorEm(b, 'expectativa') - valorEm(a, 'expectativa')).slice(0, 4);
+  const alt = principais(r, 3).slice(1);
   const altAParte = rec.alternativaSemAParte ? '<li><b>Sem pagar nada à parte:</b> a melhor opção seria ' + nomeId(rec.alternativaSemAParte.id) + ', que entrega ' + fmtBRL0(rec.alternativaSemAParte.perda) + ' a menos à família.</li>' : '';
   $('verdict').innerHTML =
     '<div class="sol-top"><span class="sol-eyebrow">Solução para este caso</span><span class="status ' + nv.cls + '">' + nv.t + '</span></div>' +
@@ -535,9 +539,8 @@ function renderBase(){
 
 function renderCards(){
   const {r} = ultimo, e = r.entrada, rec = r.recomendacao, v = venc(r);
-  $('cardsSub').textContent = r.caminhos.length + ' combinações de estrutura (nada, doação, holding) com liquidez (nada, previdência, whole life ou os dois). Valor à família em R$ de hoje, já descontados todos os custos. Clique numa linha para vê-la no gráfico.';
-  const nivelDe = c => !c.protegeJa ? 3 : c.cabe === 'sim' ? 0 : c.cabe === 'aParte' ? 1 : 2;
-  const lista = r.caminhos.slice().sort((a, b) => (a.id === v.id ? -1 : b.id === v.id ? 1 : 0) || nivelDe(a) - nivelDe(b) || valorEm(b, 'expectativa') - valorEm(a, 'expectativa'));
+  $('cardsSub').textContent = 'A solução e as duas melhores alternativas, entre ' + r.caminhos.length + ' combinações testadas de estrutura (nada, doação, holding) com liquidez (nada, previdência, whole life ou os dois). Valor à família em R$ de hoje, já descontados todos os custos. Clique numa linha para vê-la no gráfico.';
+  const lista = principais(r, 3);
   const melhor = h => Math.max(...r.caminhos.filter(c => c.protegeJa && c.cabe !== 'nao').map(c => valorEm(c, h)));
   const caixa = c => c.cabe === 'sim' ? '<span class="status ok">Cabe</span>' : c.cabe === 'aParte'
     ? '<span class="status neutral">' + fmtBRL0(c.pagamento.externoMensalMax) + '/mês à parte</span>' : '<span class="status no">Não cabe</span>';
@@ -551,9 +554,10 @@ function renderCards(){
 }
 
 function renderSeguro(){
-  const {r} = ultimo, s = r.seguro;
-  $('blocoSeguro').hidden = !s;
-  if(!s) return;
+  const {r} = ultimo, s = r.seguro, v = venc(r);
+  // só interessa quando a solução usa whole life
+  $('blocoSeguro').hidden = !s || !(v.cfg.C > 0);
+  if($('blocoSeguro').hidden) return;
   const e = r.entrada;
   const cabe = v => v === null ? '' : ' · ' + pct1(v) + ' da renda';
   const wl = e.wholeLife;
@@ -572,8 +576,9 @@ function renderSeguro(){
 
 function renderAluguel(){
   const {r} = ultimo, a = r.aluguel;
-  $('blocoAluguel').hidden = !a;
-  if(!a) return;
+  // só interessa quando a solução tem holding (é a comparação pessoa física × holding)
+  $('blocoAluguel').hidden = !a || !venc(r).cfg.holding;
+  if($('blocoAluguel').hidden) return;
   $('tabAluguel').innerHTML = '<tr><th>Ano</th><th>Aluguel</th><th>PF: IR</th><th>PF: IBS/CBS</th><th>Pessoa física</th><th>Holding</th><th>Diferença</th></tr>' +
     a.map(x => '<tr><td>' + x.ano + '</td><td>' + fmtBRL0(x.receita) + '</td><td>' + fmtBRL0(x.pf.ir + x.pf.irpfm) + '</td><td>' + fmtBRL0(x.pf.iva) + '</td>' +
       '<td>' + fmtBRL0(x.pf.total) + ' <small class="suave inline">(' + pct1(x.cargaPF) + ')</small></td><td>' + fmtBRL0(x.holding.total) + ' <small class="suave inline">(' + pct1(x.cargaHolding) + ')</small></td>' +
@@ -585,8 +590,9 @@ function renderAluguel(){
 
 function renderHolding(){
   const {r} = ultimo, h = r.holding;
-  $('blocoHolding').hidden = !h.aplicavel;
-  if(!h.aplicavel) return;
+  // custos da holding: só quando a solução tem holding (quando não tem, o destaque mostra o custo evitado)
+  $('blocoHolding').hidden = !h.aplicavel || !venc(r).cfg.holding;
+  if($('blocoHolding').hidden) return;
   const e = r.entrada, hp = e.holding;
   const v = e.imoveis + (hp.incluirEmpresa ? e.empresa : 0);
   const nua = (T.ESTADOS[e.uf].nuaPropriedadePct || 1);
@@ -661,15 +667,14 @@ function renderResultados(){
  * ========================================================================= */
 let geo = null;
 function caminhosGrafico(r){
-  const v = venc(r), ids = [v.id].concat(r.recomendacao.ordem.filter(id => id !== v.id)).slice(0, 5);
-  if(seg.grafico && !ids.includes(seg.grafico) && r.caminhos.some(c => c.id === seg.grafico)) ids.push(seg.grafico);
+  const ids = principais(r, 3).map(c => c.id);
   return ids.map(porId).filter(c => c && c.id !== 'inventario');
 }
 
 function renderSegGrafico(){
   const {r} = ultimo, lista = caminhosGrafico(r);
   if(!lista.length){ $('segGrafico').innerHTML = ''; return; }
-  if(!r.caminhos.some(c => c.id === seg.grafico) || seg.grafico === 'inventario') seg.grafico = lista[0].id;
+  if(!lista.some(c => c.id === seg.grafico)) seg.grafico = lista[0].id;
   $('segGrafico').innerHTML = lista.map(c => '<button type="button" data-v="' + esc(c.id) + '"' + (c.id === seg.grafico ? ' class="active"' : '') + '>' + nomeDe(c) + '</button>').join('');
 }
 
@@ -742,7 +747,7 @@ function gerarPdf(){
     (e.aluguelMensal ? tr('Aluguéis', fmtBRL0(e.aluguelMensal) + '/mês') : '') +
     tr('Premissas', 'rentabilidade ' + fmtPct(e.premissas.rentabilidade, 1) + ' a.a. · IPCA ' + fmtPct(e.premissas.ipca, 1) + ' · custo esperado do inventário ' + pct0(e.premissas.metaLiquidez) + ' · ITCMD ' + ({vigente:'lei vigente', reforma:'adequação à reforma', estresse:'estresse 16%'})[e.regime]);
   const comp = '<table><tr><th>Caminho</th><th class="n">Próximo ano</th><th class="n">Em 10 anos</th><th class="n">Expectativa</th><th class="n">Cobertura 1º ano</th></tr>' +
-    r.caminhos.slice().sort((a, b) => (a.id === r.recomendacao.vencedor ? -1 : b.id === r.recomendacao.vencedor ? 1 : valorEm(b, 'expectativa') - valorEm(a, 'expectativa'))).map(c => '<tr><td>' + nomeDe(c) + (c.id === r.recomendacao.vencedor ? ' <span class="ok">(solução)</span>' : '') + '</td>' +
+    principais(r, 3).map(c => '<tr><td>' + nomeDe(c) + (c.id === r.recomendacao.vencedor ? ' <span class="ok">(solução)</span>' : '') + '</td>' +
       ['proximo','dez','expectativa'].map(h => '<td class="n">' + fmtBRL0(valorEm(c, h)) + '</td>').join('') +
       '<td class="n ' + (c.protegeJa ? 'ok' : 'no') + '">' + coberturaTxt(c.coberturaAno1) + (c.cabe === 'nao' ? ' · não cabe' : c.cabe === 'aParte' ? ' · à parte' : '') + '</td></tr>').join('') + '</table>';
   const b = r.base;
@@ -751,7 +756,7 @@ function gerarPdf(){
     tr('Com a adequação à reforma · estresse 16%', fmtBRL0(b.regimes.reforma.total) + ' · ' + fmtBRL0(b.regimes.estresse.total)) + '</table>';
   const destaques = [...$('destaques').querySelectorAll('h4, p, .big')].map(x => x.textContent.trim()).join(' ').replace(/\s+/g, ' ').trim();
   const img = graficoParaImpressao();
-  const seguro = r.seguro ? '<div class="bloco"><h2>Whole life</h2><table>' + tr('Capital', fmtBRL0(r.seguro.capital)) +
+  const seguro = r.seguro && venc(r).cfg.C > 0 ? '<div class="bloco"><h2>Whole life</h2><table>' + tr('Capital', fmtBRL0(r.seguro.capital)) +
     tr('Parcela 1º ano · 10º ano', fmtBRL0(r.seguro.parcelaInicial) + ' · ' + fmtBRL0(r.seguro.parcela10) + ' por mês') + tr('Desembolso em 10 anos', fmtBRL0(r.seguro.desembolso)) +
     tr('Aplicação alcança o capital aos (8% · 10% · 12%)', r.seguro.equilibrio.map(q => q.ano ? Math.round(e.idade + q.ano) + ' anos' : 'não alcança').join(' · ')) + '</table></div>' : '';
   $('printArea').innerHTML =
