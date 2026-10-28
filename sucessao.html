@@ -317,13 +317,13 @@
     </section>
 
     <section class="panel">
-      <h2>Whole life <span class="opcional">(planilha Sicoob, ajustada por idade e sexo)</span></h2>
+      <h2>Whole life <span class="opcional">(premissas do seguro)</span></h2>
       <div class="grid">
-        <div class="field"><label for="wlSexoRef">Proposta de referência — sexo</label><div class="row-input"><select id="wlSexoRef"><option value="m">Masculino</option><option value="f">Feminino</option></select></div><div class="hint">Confira na proposta Sicoob usada como base.</div></div>
-        <div class="field"><label for="wlTabua">Tábua de mortalidade</label><div class="row-input"><select id="wlTabua"><option value="2026">BR-EMSmt v.2026 (vigente desde 07/2026)</option><option value="2021">BR-EMSmt v.2021 (até 06/2026)</option></select></div><div class="hint">SUSEP. Use a v.2021 se a proposta for anterior a julho de 2026.</div></div>
-        <div class="field"><label for="wlIdadeRef">Idade da proposta de referência</label><div class="row-input"><input type="number" id="wlIdadeRef" value="48" min="18" max="90" step="1"><span class="suffix">anos</span></div>
+        <div class="field"><label for="wlSexoRef">Sexo na cotação base</label><div class="row-input"><select id="wlSexoRef"><option value="m">Masculino</option><option value="f">Feminino</option></select></div><div class="hint">Sexo do segurado na cotação usada para a parcela.</div></div>
+        <div class="field"><label for="wlTabua">Tábua de mortalidade</label><div class="row-input"><select id="wlTabua"><option value="2026">BR-EMSmt v.2026 (vigente desde 07/2026)</option><option value="2021">BR-EMSmt v.2021 (até 06/2026)</option></select></div><div class="hint">SUSEP. Use a v.2021 se a cotação for anterior a julho de 2026.</div></div>
+        <div class="field"><label for="wlIdadeRef">Idade na cotação base</label><div class="row-input"><input type="number" id="wlIdadeRef" value="48" min="18" max="90" step="1"><span class="suffix">anos</span></div>
           <label class="inline-check small"><input type="checkbox" id="wlAjustar" checked> ajustar a parcela pela idade e pelo sexo do cooperado</label><div class="hint" id="hintWlIdade"></div></div>
-        <div class="field"><label for="wlParcela">Parcela mensal por R$ 100 mil, na idade de referência</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlParcela" class="money" value="637,15"></div><div class="hint">Corrigida pelo IPCA por 10 anos.</div></div>
+        <div class="field"><label for="wlParcela">Parcela mensal por R$ 100 mil (cotação base)</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlParcela" class="money" value="637,15"></div><div class="hint">Corrigida pelo IPCA por 10 anos.</div></div>
         <div class="field"><label for="wlBasica">… dos quais cobertura básica</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlBasica" class="money" value="397,23"></div><div class="hint">Forma a reserva (valor resgatável).</div></div>
         <div class="field"><label for="wlGanho">Ganho real atuarial</label><div class="row-input"><input type="number" id="wlGanho" value="2.5" step="0.1"><span class="suffix">% a.a. + IPCA</span></div></div>
       </div>
@@ -414,7 +414,7 @@
           <li><b>Conferência do inventário:</b> ITCMD pela tabela do estado sobre o quinhão de cada herdeiro, honorários, escritura ou custas, registro, certidões e multa opcional. <b>Previdência e seguro</b> não entram no inventário nem pagam ITCMD (LC 227/2026, art. 150, III); a previdência paga IR regressivo sobre o rendimento; a indenização do seguro é isenta.</li>
           <li><b>Dimensionamento:</b> previdência e seguro são o menor valor que paga o custo esperado do inventário e as despesas da família em todos os anos até a expectativa de vida. Quando as aplicações não bastam para a previdência, o seguro cobre o restante.</li>
           <li><b>Holding:</b> integraliza imóveis (e empresas, se marcado); doação total das cotas com usufruto ou gradual. ITCMD das cotas a valor de mercado (LC 227/2026, art. 154). Aluguéis comparados entre pessoa física e lucro presumido, com dividendos (Lei 15.270/2025) e IBS/CBS (LC 214/2025).</li>
-          <li><b>Limitações:</b> herdeiros com quinhões iguais; imóveis no estado escolhido; doação tributada pelo valor total; não considera a parte disponível do testamento nem a colação em detalhe; whole life pela proposta de referência da planilha, ajustada por idade e sexo pela tábua BR-EMS; o custo esperado de 18% é a média de MT e MS e pode ser menor em patrimônios muito grandes.</li>
+          <li><b>Limitações:</b> herdeiros com quinhões iguais; imóveis no estado escolhido; doação tributada pelo valor total; não considera a parte disponível do testamento nem a colação em detalhe; whole life pela cotação base informada, ajustada por idade e sexo pela tábua BR-EMS; o custo esperado de 18% é a média de MT e MS e pode ser menor em patrimônios muito grandes.</li>
         </ul>
       </div>
 

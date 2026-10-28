@@ -134,7 +134,7 @@ function lerEntradas(){
 /** erros de campo que o motor não vê (campos numéricos vazios ou fora do intervalo) */
 function errosDeCampo(inp){
   const e = [];
-  const campos = [['depVeic','Depreciação dos veículos'],['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade da proposta de referência'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Custo esperado do inventário'],['honCart','Honorários'],['hJur','Jurídico da holding']];
+  const campos = [['depVeic','Depreciação dos veículos'],['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade na cotação base'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Custo esperado do inventário'],['honCart','Honorários'],['hJur','Jurídico da holding']];
   campos.forEach(([id, nome]) => { if(!isFinite(num(id))) e.push(nome + ': preencha o campo.'); });
   if(inp.nResidenciais > inp.nImoveisAlugados) e.push('Os imóveis residenciais não podem passar dos alugados.');
   if(inp.wholeLife.basicaPor100k > inp.wholeLife.parcelaPor100k) e.push('A cobertura básica do whole life não pode passar da parcela.');
@@ -199,7 +199,7 @@ function atualizarDicas(){
     const f = E.fatorIdadeWholeLife(idade, { idadeReferencia: wlRef, parcelaPor100k: money('wlParcela'), ganhoReal: pctCampo('wlGanho'),
       sexo: $('sexo').value, sexoReferencia: $('wlSexoRef').value, tabua: $('wlTabua').value });
     $('hintWlIdade').textContent = (($('sexo').value === 'f') ? 'Mulher' : 'Homem') + ' de ' + idade + ' anos: ' + fmtBRL(money('wlParcela') * f.fator) + ' por R$ 100 mil (fator ' + f.fator.toLocaleString('pt-BR', {maximumFractionDigits:3}) + ', ' + f.tabua + ').';
-  } else $('hintWlIdade').textContent = 'Parcela fixa da proposta, para qualquer idade e sexo.';
+  } else $('hintWlIdade').textContent = 'Parcela fixa da cotação base, para qualquer idade e sexo.';
   if(!itbiTocado) $('hItbi').value = alug ? 2 : 0;
   $('hintItbi').textContent = alug ? 'Com aluguéis, a holding tende a ter atividade imobiliária preponderante e pagar ITBI integral (2% a 3% conforme o município).' : 'Imune quando a atividade preponderante não é imobiliária (STF, Tema 796: até o valor do capital).';
 }
@@ -358,12 +358,12 @@ function faixaAnos(l){
 function passos(v, r){
   const e = r.entrada, out = [];
   const comuns = e.conjuge.regime === 'parcial' || e.conjuge.regime === 'universal';
-  if(v.cfg.X > 0) out.push({ titulo: 'Previdência (VGBL)', quem: 'Sicoob', itens: [
+  if(v.cfg.X > 0) out.push({ titulo: 'Previdência (VGBL)', quem: 'Instituição financeira ou seguradora', itens: [
     'Abrir um VGBL de ' + fmtBRL0(v.cfg.X) + ' com recursos das aplicações (veja IR e carência dos produtos que serão resgatados).',
     'Indicar os herdeiros como beneficiários, com o percentual de cada um.',
     'Escolher a tabela regressiva de IR (cai para 10% após 10 anos).',
     'Revisar os beneficiários sempre que a família mudar (casamento, nascimento, divórcio).'] });
-  if(v.cfg.C > 0) out.push({ titulo: 'Whole life', quem: 'Corretor / Sicoob Seguros', itens: [
+  if(v.cfg.C > 0) out.push({ titulo: 'Whole life', quem: 'Corretor de seguros', itens: [
     'Pedir a cotação com capital de ' + fmtBRL0(v.cfg.C) + ' para ' + (e.wholeLife.sexo === 'f' ? 'mulher' : 'homem') + ' de ' + e.idade + ' anos.',
     'Preencher a declaração de saúde (a seguradora pode pedir exames).',
     'Indicar os beneficiários: o capital paga o inventário e chega em dias.',
@@ -383,7 +383,7 @@ function passos(v, r){
     'Escolher a jurisdição e abrir a empresa com o especialista.',
     'Transferir os bens no exterior para a empresa.',
     'Declarar à Receita e pagar o IR anual de 15% (Lei 14.754/2023).'] });
-  if(e.previdencia > 0 || e.seguroExistente > 0) out.push({ titulo: 'Previdência e seguro que já existem', quem: 'Sicoob / seguradora', itens: [
+  if(e.previdencia > 0 || e.seguroExistente > 0) out.push({ titulo: 'Previdência e seguro que já existem', quem: 'Instituição financeira ou seguradora', itens: [
     'Confirmar que os beneficiários são os herdeiros: ' + [e.previdencia > 0 ? fmtBRL0(e.previdencia) + ' de previdência' : '', e.seguroExistente > 0 ? fmtBRL0(e.seguroExistente) + ' de seguro' : ''].filter(Boolean).join(' e ') + ' já entram no pagamento do inventário.',
     'Conferir se o seguro existente é vitalício; seguro com prazo pode acabar antes do falecimento.'] });
   const sn = ultimo.inp.sinais;
@@ -562,8 +562,8 @@ function renderSeguro(){
   const cabe = v => v === null ? '' : ' · ' + pct1(v) + ' da renda';
   const wl = e.wholeLife;
   $('seguroSub').textContent = wl.fatorIdade !== 1
-    ? 'Parcela da proposta Sicoob (' + (wl.sexoReferencia === 'f' ? 'mulher' : 'homem') + ' de ' + wl.idadeReferencia + ' anos: ' + fmtBRL(wl.parcelaReferencia) + ' por R$ 100 mil), ajustada para ' + (wl.sexo === 'f' ? 'mulher' : 'homem') + ' de ' + e.idade + ' anos pela tábua ' + wl.tabuaNome + ' da SUSEP (fator ' + wl.fatorIdade.toLocaleString('pt-BR', {maximumFractionDigits:3}) + '): ' + fmtBRL(wl.parcelaPor100k) + ' por R$ 100 mil. A proposta real pode ser diferente.'
-    : 'Parcela da proposta Sicoob (' + fmtBRL(wl.parcelaPor100k) + ' por R$ 100 mil), proporcional ao capital. A proposta real pode ser diferente.';
+    ? 'Parcela da cotação base (' + (wl.sexoReferencia === 'f' ? 'mulher' : 'homem') + ' de ' + wl.idadeReferencia + ' anos: ' + fmtBRL(wl.parcelaReferencia) + ' por R$ 100 mil), ajustada para ' + (wl.sexo === 'f' ? 'mulher' : 'homem') + ' de ' + e.idade + ' anos pela tábua ' + wl.tabuaNome + ' da SUSEP (fator ' + wl.fatorIdade.toLocaleString('pt-BR', {maximumFractionDigits:3}) + '): ' + fmtBRL(wl.parcelaPor100k) + ' por R$ 100 mil. A proposta real pode ser diferente.'
+    : 'Parcela da cotação base (' + fmtBRL(wl.parcelaPor100k) + ' por R$ 100 mil), proporcional ao capital. A proposta real pode ser diferente.';
   $('seguroCards').innerHTML =
     '<div class="eq-card"><div class="k">Capital segurado (' + nomeId(s.caminho) + ')</div><div class="v">' + fmtBRL0(s.capital) + '</div><div class="s">Corrigido a IPCA + ' + fmtPct(e.wholeLife.ganhoReal, 1) + ' ao ano, vitalício.</div></div>' +
     '<div class="eq-card"><div class="k">A parcela cabe?</div><div class="v">' + fmtBRL0(s.parcelaInicial) + '/mês</div><div class="s">No 1º ano' + cabe(s.pctRenda) + '. No 10º ano: ' + fmtBRL0(s.parcela10) + '/mês' + cabe(s.pctRenda10) + '.</div></div>' +
@@ -623,7 +623,7 @@ function renderAlertas(){
   if(e.partilha.conjugeHerdeiro) out.push('<b>O cônjuge é herdeiro junto com os filhos</b> (CC, art. 1.829, I)' + (e.conjuge.regime === 'parcial' ? ', só sobre os bens particulares' : '') + ': recebe ' + pct1(e.partilha.fracConjuge) + ' da herança' + (e.conjuge.ascendenteComum && e.herdeiros >= 3 ? ', com o mínimo de 1/4 por ser pai ou mãe de todos (art. 1.832)' : '') + '. Previdência e seguro podem indicá-lo como beneficiário à parte.');
   if(e.conjuge.regime === 'obrigatoria') out.push('<b>Separação obrigatória:</b> pela Súmula 377 do STF, os bens adquiridos com esforço comum podem ser partilhados como meação. A simulação considera meação zero; confirme com o advogado.');
   if(e.conjuge.regime === 'universal' || e.conjuge.regime === 'parcial') out.push('<b>Doação de bens comuns</b> precisa da concordância do cônjuge, que também doa a sua meação.');
-  if(e.wholeLife.fatorIdade !== 1 && e.idade >= 65 && r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life aos ' + e.idade + ' anos:</b> as seguradoras limitam a idade de entrada e o capital sem exames; a parcela usada é estimada pela tábua ' + e.wholeLife.tabuaNome + ' a partir da proposta de ' + e.wholeLife.idadeReferencia + ' anos. Peça a cotação antes de apresentar.');
+  if(e.wholeLife.fatorIdade !== 1 && e.idade >= 65 && r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life aos ' + e.idade + ' anos:</b> as seguradoras limitam a idade de entrada e o capital sem exames; a parcela usada é estimada pela tábua ' + e.wholeLife.tabuaNome + ' a partir da cotação base de ' + e.wholeLife.idadeReferencia + ' anos. Peça a cotação antes de apresentar.');
   if(r.caminhos.some(c => c.cfg.doaImoveis || c.cfg.holding)) out.push('<b>Doação a filhos é adiantamento da herança</b> (CC, arts. 544 e 2.002) e vai à colação, salvo se sair da parte disponível; a parte que passa da disponível é nula (art. 549). Cláusulas de inalienabilidade sobre a legítima exigem justa causa (art. 1.848).');
   if(s.incapaz) out.push('<b>Herdeiro menor ou incapaz:</b> o inventário em cartório só é possível nas condições da Res. CNJ 571/2024 (parte ideal em cada bem e concordância do Ministério Público); senão, é judicial.');
   if(s.conflito) out.push('<b>Risco de conflito:</b> testamento e regras de governança reduzem disputas. Uma holding com acordo de sócios pode compensar mesmo sem vencer nos números; avalie com advogado.');
@@ -633,7 +633,7 @@ function renderAlertas(){
   ufsCaso.forEach(u => { const est = T.ESTADOS[u]; if(est && est.alerta) out.push('<b>' + est.nome + (u === e.uf ? ' (domicílio)' : ' (imóveis)') + ':</b> ' + est.alerta); });
   if(ufsCaso.length > 1) out.push('<b>Bens em mais de um estado:</b> o ITCMD dos imóveis é pago a cada estado onde ficam, com a tabela de cada um; o inventário é aberto no domicílio, mas avaliação e guias seguem as regras de cada Sefaz.');
   if(e.veiculos > 0) out.push('<b>Veículos:</b> são bens móveis, pagam ITCMD no domicílio e não entram na holding nem na doação simulada; consideramos depreciação de ' + pct0(e.premissas.depreciacaoVeiculos) + ' ao ano.');
-  if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; a parcela usada vem da planilha Sicoob' + (e.wholeLife.fatorIdade !== 1 ? ', ajustada pela idade' : '') + '.');
+  if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; a parcela usada vem da cotação base informada' + (e.wholeLife.fatorIdade !== 1 ? ', ajustada pela idade' : '') + '.');
   if(e.exterior > 0) out.push('<b>Bens no exterior:</b> desde 2026 pagam ITCMD no estado de domicílio (LC 227/2026) e os rendimentos pagam IR de 15% ao ano (Lei 14.754/2023).');
   out.push('<b>Testamento</b> organiza a parte disponível e reduz conflitos em qualquer caminho; não evita o inventário.');
   out.push('<b>Imposto da herança é o da data do falecimento; o da doação, o da data da doação</b> (LC 227/2026, art. 156, § 1º). Quem antecipa trava a regra de hoje.');
@@ -648,7 +648,7 @@ function renderFontes(){
     ...outras.map(o => 'ITCMD de ' + o.nome + ' (imóveis): ' + o.lei + '. ' + (o.fonte || '')),
     'Honorários: ' + E.honorariosPadrao(r.entrada.uf).fonte,
     'Expectativa de vida: IBGE, Tábua Completa de Mortalidade 2024 (ambos os sexos).',
-    'Whole life: planilha "Sicoob - Seguro Whole Life" (R$ ' + r.entrada.wholeLife.parcelaReferencia.toLocaleString('pt-BR', {minimumFractionDigits:2}) + '/mês por R$ 100 mil aos ' + r.entrada.wholeLife.idadeReferencia + ' anos)' +
+    'Whole life: cotação base informada (R$ ' + r.entrada.wholeLife.parcelaReferencia.toLocaleString('pt-BR', {minimumFractionDigits:2}) + '/mês por R$ 100 mil, ' + (r.entrada.wholeLife.sexoReferencia === 'f' ? 'mulher' : 'homem') + ' de ' + r.entrada.wholeLife.idadeReferencia + ' anos)' +
       (r.entrada.wholeLife.fatorIdade !== 1 ? '; fator de idade e sexo pela tábua ' + r.entrada.wholeLife.tabuaNome + ' (SUSEP), juros técnicos implícitos de ' + fmtPct(r.entrada.wholeLife.taxaTecnica, 2) + ' a.a. reais.' : '.'),
     'Partilha: Código Civil, arts. 1.658 a 1.688 (regimes), 1.829, 1.832 e 1.846; STJ, REsp 1.368.123 e 1.382.170.',
     'Aluguéis: Lei 15.270/2025 (IR e dividendos), LC 214/2025 (IBS/CBS na locação), LC 224/2025 (presumido).',
