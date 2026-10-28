@@ -5,87 +5,119 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inteligência Financeira</title>
 <script src="assets/tema.js"></script>
-<meta name="description" content="Simule e compare investimentos, faça seu planejamento financeiro de longo prazo e compare consórcio, financiamento e capital próprio.">
+<meta name="description" content="Simulador de investimentos em renda fixa e consultoria financeira: planejamento de patrimônio, estratégia de aquisição e planejamento sucessório.">
 <link rel="stylesheet" href="assets/base.css">
 <link rel="stylesheet" href="paginas/index.css">
 </head>
 <body>
-<div class="wrap">
 
-  <header>
-    <div class="brand">
-      <div class="brand-mark" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 15l5-5 4 3 7-8" stroke="var(--l-turq)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="5" r="1.8" fill="var(--hl)"/></svg>
+<div class="faixa">
+  <div class="wrap">
+    <nav class="topo" aria-label="Principal">
+      <a class="marca" href="index.html" aria-label="Inteligência Financeira, página inicial">
+        <span class="marca-sinal" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 15l5-5 4 3 7-8" stroke="#00AE9D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="5" r="1.8" fill="#C9D200"/></svg></span>
+        <span class="marca-nome">Inteligência Financeira</span>
+      </a>
+      <div class="topo-links">
+        <a href="investimentos.html">Simulador de Investimentos</a>
+        <a href="#consultoria">Consultoria Financeira</a>
+        <button class="theme-toggle" id="btnTema" type="button">🌙</button>
       </div>
-      <div>
-        <div class="brand-name">Inteligência Financeira</div>
-        <div class="brand-sub">Simulação e planejamento</div>
-      </div>
-    </div>
-    <button class="theme-toggle" id="btnTema" type="button">🌙</button>
-  </header>
+    </nav>
 
-  <section class="hero">
-    <h1>Decida com números claros, hoje e no longo prazo.</h1>
-    <p>Quatro ferramentas na mesma plataforma: compare investimentos de renda fixa com impostos e prazos reais, planeje o patrimônio que você precisa para viver de renda, escolha a melhor forma de comprar um bem sem desmontar esse plano e organize a sucessão com o menor custo para a família.</p>
+    <section class="abertura">
+      <div class="abertura-texto">
+        <h1>Renda fixa e patrimônio, com as contas à vista.</h1>
+        <p>Compare investimentos com imposto, prazo e dias úteis reais. Depois, planeje o patrimônio de longo prazo, a compra de um bem e a sucessão da família, com cada premissa aberta para conferência.</p>
+        <div class="abertura-acoes">
+          <a class="botao botao-cheio" href="investimentos.html">Abrir o simulador</a>
+          <a class="botao botao-linha" href="#consultoria">Ver a consultoria</a>
+        </div>
+      </div>
+
+      <aside class="mesa" aria-labelledby="mesaTitulo" aria-live="polite">
+        <div class="mesa-cab">
+          <h2 id="mesaTitulo">Indicadores de hoje</h2>
+          <span class="mesa-estado" id="mesaEstado">consultando o Banco Central…</span>
+        </div>
+        <dl class="mesa-linhas">
+          <div class="linha">
+            <dt>Meta Selic<small>Copom · SGS 432</small></dt>
+            <dd><span class="v" id="indSelic">—</span><small id="indSelicData"></small></dd>
+          </div>
+          <div class="linha">
+            <dt>CDI estimado<small>Meta Selic − 0,10 p.p.</small></dt>
+            <dd><span class="v" id="indCdi">—</span><small>ao ano</small></dd>
+          </div>
+          <div class="linha">
+            <dt>IPCA 12 meses<small>IBGE via BCB · SGS 13522</small></dt>
+            <dd><span class="v" id="indIpca">—</span><small id="indIpcaData"></small></dd>
+          </div>
+          <div class="linha">
+            <dt>Juro real<small>(1 + Selic) ÷ (1 + IPCA 12m) − 1</small></dt>
+            <dd><span class="v" id="indReal">—</span><small>calculado</small></dd>
+          </div>
+          <div class="linha">
+            <dt>Selic no fim do ano<small>Boletim Focus · mediana do mercado</small></dt>
+            <dd><span class="v" id="indFocus">—</span><small id="indFocusData"></small></dd>
+          </div>
+        </dl>
+        <p class="mesa-nota">Dados públicos do Banco Central do Brasil. O Focus é a expectativa do mercado, não uma previsão oficial.</p>
+      </aside>
+    </section>
+  </div>
+</div>
+
+<main class="wrap divisoes">
+
+  <section class="divisao divisao-sim" id="simulador" aria-labelledby="tSim">
+    <h2 id="tSim">Simulador de Investimentos</h2>
+    <p class="divisao-lead">Simule cada aplicação isoladamente ou compare duas lado a lado, no mesmo prazo e com o mesmo valor.</p>
+    <table class="produtos">
+      <caption>Produtos disponíveis no simulador</caption>
+      <thead><tr><th scope="col">Produto</th><th scope="col">Como o simulador calcula</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">LCA</th><td>Rendimento sobre o CDI, sem IR para pessoa física</td></tr>
+        <tr><th scope="row">RDC</th><td>Rendimento sobre o CDI, com IR regressivo e IOF</td></tr>
+        <tr><th scope="row">Compromissada</th><td>Rendimento sobre o CDI, com IR regressivo e IOF</td></tr>
+      </tbody>
+    </table>
+    <ul class="pontos">
+      <li>Taxa equivalente: quanto a LCA precisa render para empatar com o RDC</li>
+      <li>Resultado bruto, líquido e real, contado em dias úteis</li>
+      <li>CDI atualizado pelo Banco Central com um clique</li>
+    </ul>
+    <a class="botao botao-cheio" href="investimentos.html">Abrir o simulador</a>
   </section>
 
-  <main class="modules">
-    <a class="module" href="investimentos.html" style="--c:var(--gold); --cb:var(--l-turq)">
-      <span class="num">01</span>
-      <h2>Investimentos</h2>
-      <p class="lead">Simulador e comparador de ativos</p>
-      <div class="tags"><span class="tag">LCA</span><span class="tag">RDC</span><span class="tag">Compromissada</span></div>
-      <ul>
-        <li>Simule cada investimento com IR, IOF e dias úteis</li>
-        <li>Compare a rentabilidade líquida entre ativos</li>
-        <li>Compare cenários e prazos lado a lado</li>
-        <li>Veja os resultados bruto, líquido e real</li>
-      </ul>
-      <span class="cta">Abrir simulador <span class="arrow">→</span></span>
-    </a>
+  <section class="divisao divisao-cons" id="consultoria" aria-labelledby="tCons">
+    <h2 id="tCons">Consultoria Financeira</h2>
+    <p class="divisao-lead">Três análises para decisões de longo prazo, cada uma com premissas editáveis e cenários.</p>
+    <ul class="ferramentas">
+      <li>
+        <a href="planejamento.html">
+          <span class="f-nome">Planejamento Financeiro</span>
+          <span class="f-desc">Quanto patrimônio você precisa para viver de renda, se os aportes chegam lá e quando. Cenários conservador, base e otimista.</span>
+        </a>
+      </li>
+      <li>
+        <a href="aquisicao.html">
+          <span class="f-nome">Estratégia de Aquisição</span>
+          <span class="f-desc">Consórcio, financiamento ou capital próprio para comprar o mesmo bem, e se a renda do capital investido paga a parcela.</span>
+        </a>
+      </li>
+      <li>
+        <a href="sucessao.html">
+          <span class="f-nome">Planejamento Sucessório</span>
+          <span class="f-desc">Custo do inventário nos 27 estados e qual combinação de previdência, seguro, doação ou holding entrega mais à família.</span>
+        </a>
+      </li>
+    </ul>
+  </section>
 
-    <a class="module" href="planejamento.html" style="--c:var(--teal); --cb:var(--l-verde)">
-      <span class="num">02</span>
-      <h2>Planejamento Financeiro</h2>
-      <p class="lead">Metas patrimoniais e liberdade financeira</p>
-      <div class="tags"><span class="tag">Aposentadoria</span><span class="tag">Objetivos</span><span class="tag">3 cenários</span></div>
-      <ul>
-        <li>Calcule o patrimônio necessário para a renda desejada</li>
-        <li>Projete a evolução do patrimônio e o aporte necessário</li>
-        <li>Veja se seus objetivos de vida cabem no plano</li>
-        <li>Compare cenários conservador, base e otimista</li>
-      </ul>
-      <span class="cta">Abrir planejamento <span class="arrow">→</span></span>
-    </a>
-    <a class="module" href="aquisicao.html" style="--c:var(--blue); --cb:var(--l-roxo)">
-      <span class="num">03</span>
-      <h2>Estratégia de Aquisição</h2>
-      <p class="lead">Consórcio, financiamento ou capital próprio</p>
-      <div class="tags"><span class="tag">Imóvel</span><span class="tag">Carro</span><span class="tag">Terreno</span></div>
-      <ul>
-        <li>Compare os três caminhos para comprar o mesmo bem</li>
-        <li>Veja se a renda do capital investido paga a parcela</li>
-        <li>Descubra o CDI em que cada caminho deixa de compensar</li>
-        <li>Acompanhe o patrimônio do cliente mês a mês, com PDF</li>
-      </ul>
-      <span class="cta">Abrir análise <span class="arrow">→</span></span>
-    </a>
-    <a class="module" href="sucessao.html" style="--c:var(--ink-muted); --cb:var(--hl)">
-      <span class="num">04</span>
-      <h2>Planejamento Sucessório</h2>
-      <p class="lead">Inventário, previdência, seguro ou holding</p>
-      <div class="tags"><span class="tag">ITCMD</span><span class="tag">Whole life</span><span class="tag">Holding</span></div>
-      <ul>
-        <li>Calcule o custo do inventário em MT, MS, RO e PA</li>
-        <li>Dimensione previdência e whole life para pagá-lo</li>
-        <li>Saiba quando a holding não é necessária e quanto custo evita</li>
-        <li>Compare o valor que chega à família em cada caminho</li>
-      </ul>
-      <span class="cta">Abrir análise <span class="arrow">→</span></span>
-    </a>
-  </main>
+</main>
 
+<div class="wrap">
   <div class="note"><span aria-hidden="true">⚠️</span><span>As ferramentas fazem <strong>simulações</strong> com base nos parâmetros que você informa. Os resultados não são garantia de rentabilidade nem recomendação de investimento.</span></div>
 
   <footer>
@@ -93,6 +125,8 @@
     <p>As informações têm caráter meramente informativo e não constituem oferta, recomendação de investimento ou promessa de rentabilidade. Rentabilidade passada não garante rentabilidade futura. Consulte um profissional certificado antes de decidir.</p>
   </footer>
 </div>
-<script>Tema.ligarBotao(document.getElementById('btnTema'));</script>
+
+<script src="assets/bcb.js"></script>
+<script src="paginas/index.js"></script>
 </body>
 </html>
