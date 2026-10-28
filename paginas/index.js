@@ -17,7 +17,6 @@
     selic = v; selicAtual = atual;
     $('indSelic').textContent = pct(v);
     $('indSelicData').textContent = (atual ? 'vigente desde ' : 'referência de ') + data;
-    $('indCdi').textContent = pct(v - (window.BCB ? BCB.SPREAD_CDI_SELIC : ref.spreadCdi));
   }
   function mostrarIpca(v, mesRef, atual) {
     ipca = v; ipcaAtual = atual;
@@ -39,8 +38,22 @@
   const estado = $('mesaEstado');
   if (!window.BCB || !window.fetch) { estado.textContent = 'valores de referência · consulta indisponível neste navegador'; estado.classList.add('ref'); return; }
 
+  const num = (v, c) => v.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
+  const variacao = v => (v === null ? '' : (v > 0 ? '+' : v < 0 ? '−' : '') + num(Math.abs(v) * 100, 2) + '% no dia · ');
+  /** cotação diária: só mostra o número se o último fechamento for recente; senão avisa a data */
+  function mostrarDiaria(r, idV, idD, texto) {
+    if (r.status !== 'fulfilled') { $(idD).textContent = 'indisponível agora'; return false; }
+    const d = r.value;
+    if (!d.recente) { $(idD).textContent = 'sem atualização desde ' + d.data; return false; }
+    $(idV).textContent = texto(d.valor);
+    $(idD).textContent = variacao(d.variacao) + d.data;
+    return true;
+  }
+
   const ano = new Date().getFullYear();
-  Promise.allSettled([BCB.metaSelic(), BCB.ipca12m(), BCB.focusSelic(ano)]).then(([s, i, f]) => {
+  Promise.allSettled([BCB.metaSelic(), BCB.ipca12m(), BCB.focusSelic(ano), BCB.dolarPtax(), BCB.ibovespa()]).then(([s, i, f, usd, ibov]) => {
+    const okUsd = mostrarDiaria(usd, 'indDolar', 'indDolarData', v => 'R$ ' + num(v, 4));
+    const okIbov = mostrarDiaria(ibov, 'indIbov', 'indIbovData', v => num(v, 0));
     if (s.status === 'fulfilled') mostrarSelic(s.value.metaSelic, s.value.data, true);
     if (i.status === 'fulfilled') mostrarIpca(i.value.valor, i.value.mesRef, true);
     mostrarReal();
@@ -51,9 +64,9 @@
     } else {
       $('indFocusData').textContent = 'indisponível agora';
     }
-    const ok = [s, i, f].filter(x => x.status === 'fulfilled').length;
-    if (ok === 3) { estado.textContent = 'atualizado agora'; estado.classList.add('ok'); }
+    const ok = [s, i, f].filter(x => x.status === 'fulfilled').length + okUsd + okIbov;
+    if (ok === 5) { estado.textContent = 'atualizado agora'; estado.classList.add('ok'); }
     else if (ok === 0) { estado.textContent = 'valores de referência · o Banco Central não respondeu agora'; estado.classList.add('ref'); }
-    else { estado.textContent = 'parte dos dados é referência · o Banco Central respondeu em parte'; estado.classList.add('ref'); }
+    else { estado.textContent = 'parte dos dados indisponível agora'; estado.classList.add('ref'); }
   });
 })();
