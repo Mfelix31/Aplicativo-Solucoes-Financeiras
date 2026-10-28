@@ -74,6 +74,31 @@ let mesesTocado = false;    // idem para os meses de sustento (padrão pelo tipo
 const LIMITE_MESES_TABELA = 6;   // tabela de ITCMD com referência mais antiga que isso gera alerta
 
 /* =========================================================================
+ * 3b. Lista de bens (tipo, estado onde fica, quantidade, valor)
+ * ========================================================================= */
+const TIPO_BEM = { urbano: 'Imóvel urbano', terreno: 'Terreno', fazenda: 'Fazenda / imóvel rural', veiculo: 'Automóvel / veículo' };
+const BENS_INICIAIS = [{ tipo: 'urbano', uf: 'MT', qtd: 3, valor: 2500000 }];
+const opcoesUF = sel => T.SIGLAS.map(uf => '<option value="' + uf + '"' + (uf === sel ? ' selected' : '') + '>' + esc(T.ESTADOS[uf].nome) + '</option>').join('');
+function linhaBem(b){
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td><select class="bem-tipo" aria-label="Tipo do bem">' + Object.keys(TIPO_BEM).map(k => '<option value="' + k + '"' + (k === b.tipo ? ' selected' : '') + '>' + TIPO_BEM[k] + '</option>').join('') + '</select></td>' +
+    '<td><select class="bem-uf" aria-label="Estado onde fica">' + opcoesUF(b.uf || $('uf').value) + '</select></td>' +
+    '<td><input class="bem-qtd" type="number" min="0" step="1" value="' + (Number(b.qtd) || 1) + '" aria-label="Quantidade"></td>' +
+    '<td><input class="bem-valor money" type="text" inputmode="decimal" value="' + moeda(Number(b.valor) || 0) + '" aria-label="Valor total"></td>' +
+    '<td><button type="button" class="bem-rem" title="Remover" aria-label="Remover bem">×</button></td>';
+  mascara(tr.querySelector('.bem-valor'));
+  return tr;
+}
+function desenharBens(lista){
+  const tb = $('bens'); tb.innerHTML = '';
+  (lista && lista.length ? lista : []).forEach(b => tb.appendChild(linhaBem(b)));
+}
+function lerBens(){
+  return [...$('bens').querySelectorAll('tr')].map(tr => ({ tipo: tr.querySelector('.bem-tipo').value, uf: tr.querySelector('.bem-uf').value,
+    qtd: parseInt(tr.querySelector('.bem-qtd').value, 10) || 0, valor: lerMoeda(tr.querySelector('.bem-valor')) }));
+}
+
+/* =========================================================================
  * 4. Entradas
  * ========================================================================= */
 function lerEntradas(){
@@ -83,7 +108,7 @@ function lerEntradas(){
     sustento: { despesaMensal: money('despesaFamilia'), meses: num('mesesSustento') },
     sobraMensal: money('sobraMensal'), sucessaoCasal: $('sucessaoCasal').checked,
     regime: seg.regime,
-    imoveis: money('imoveis'), nImoveis: num('nImoveis') || 0, aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'),
+    bens: lerBens(), aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'),
     previdenciaTipo: $('prevTipo').value,
     previdencia: money('previdencia'), previdenciaAportado: money('previdencia') > 0 ? Math.min(money('prevAportado') || money('previdencia'), money('previdencia')) : 0,
     previdenciaAnos: num('prevAnos') || 0, seguroExistente: money('seguroExist'),
@@ -91,7 +116,7 @@ function lerEntradas(){
     aluguelMensal: money('aluguel'), deducoesAluguelMensal: money('dedAluguel'), nImoveisAlugados: num('nAlugados') || 0, nResidenciais: num('nResid') || 0,
     doacaoCustoPct: pctCampo('dCusto'),
     premissas: { rentabilidade: pctCampo('rentab'), ipca: pctCampo('ipca'), metaLiquidez: pctCampo('meta'), irAplicacoes: pctCampo('irAplic'),
-      margemEmpate: pctCampo('margem'), comprometimentoRenda: pctCampo('comprometimento'), taxaAdmPrevidencia: pctCampo('taxaAdm'), rentabilidadeBruta: $('rentBruta').checked, anoInicial: HOJE.getFullYear() },
+      margemEmpate: pctCampo('margem'), comprometimentoRenda: pctCampo('comprometimento'), depreciacaoVeiculos: pctCampo('depVeic'), taxaAdmPrevidencia: pctCampo('taxaAdm'), rentabilidadeBruta: $('rentBruta').checked, anoInicial: HOJE.getFullYear() },
     custos: { honorarios: { cartorio: pctCampo('honCart'), judicial: pctCampo('honJud'), litigio: pctCampo('honLit') },
       escrituraPct: pctCampo('escPct'), custasPct: pctCampo('custasPct'), registroPct: pctCampo('regPct'), certidoes: money('certidoes'), multaPctImposto: pctCampo('multa') },
     holding: { juridicoPct: pctCampo('hJur'), juridicoMin: money('hJurMin'), cartorioPct: pctCampo('hCart'), itbiPct: pctCampo('hItbi'), laudo: money('hLaudo'),
@@ -109,7 +134,7 @@ function lerEntradas(){
 /** erros de campo que o motor não vê (campos numéricos vazios ou fora do intervalo) */
 function errosDeCampo(inp){
   const e = [];
-  const campos = [['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade da proposta de referência'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Custo esperado do inventário'],['honCart','Honorários'],['hJur','Jurídico da holding']];
+  const campos = [['depVeic','Depreciação dos veículos'],['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade da proposta de referência'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Custo esperado do inventário'],['honCart','Honorários'],['hJur','Jurídico da holding']];
   campos.forEach(([id, nome]) => { if(!isFinite(num(id))) e.push(nome + ': preencha o campo.'); });
   if(inp.nResidenciais > inp.nImoveisAlugados) e.push('Os imóveis residenciais não podem passar dos alugados.');
   if(inp.wholeLife.basicaPor100k > inp.wholeLife.parcelaPor100k) e.push('A cobertura básica do whole life não pode passar da parcela.');
@@ -126,10 +151,16 @@ function atualizarDicas(){
     const e = E.expectativaSobrevida(idade);
     $('hintIdade').textContent = 'Expectativa de vida pela tábua do IBGE (2024): mais ' + e.toLocaleString('pt-BR') + ' anos, até cerca de ' + Math.round(idade + e) + ' anos.';
   } else $('hintIdade').textContent = '';
-  $('hintUf').textContent = 'ITCMD: ' + est.lei + '. ' + est.somaDoacoes;
+  $('hintUf').textContent = 'ITCMD: ' + est.lei + '. ' + est.somaDoacoes + (uf === 'MT' || uf === 'MS' ? '' : ' Confirme se a média de 18% de MT e MS vale para os clientes deste estado.');
+  // resumo da lista de bens
+  const bl = lerBens(), somaTipo = k => bl.filter(b => b.tipo === k).reduce((t, b) => t + b.valor, 0);
+  const ufsImoveis = [...new Set(bl.filter(b => b.tipo !== 'veiculo' && b.valor > 0).map(b => b.uf))];
+  const partesTxt = Object.keys(TIPO_BEM).filter(k => somaTipo(k) > 0).map(k => TIPO_BEM[k].toLowerCase() + ' ' + fmtBRL0(somaTipo(k)));
+  $('hintBens').textContent = (partesTxt.length ? 'Total: ' + partesTxt.join(' · ') + '. ' : 'Nenhum bem informado. ') +
+    (ufsImoveis.some(u => u !== uf) ? 'O ITCMD dos imóveis é pago no estado onde ficam; veículos, aplicações e cotas, no estado de domicílio.' : 'Veículos, aplicações e cotas pagam ITCMD no estado de domicílio.');
   $('hintMulta').textContent = est.multa;
   $('hintRegime').textContent = seg.regime === 'vigente' ? 'Tabela em vigor no estado (referência ' + est.dataRef.split('-').reverse().join('/') + ').'
-    : seg.regime === 'reforma' ? (est.reformaIgualVigente ? 'O estado já cumpre a LC 227/2026: igual à lei vigente.' : (T.ESTADOS[uf].reforma.hipotese))
+    : seg.regime === 'reforma' ? (est.reformaIgualVigente ? 'O estado já cumpre a LC 227/2026: igual à lei vigente.' : T.hipoteseReforma(uf))
     : 'Alíquotas da reforma em dobro, até 16% (PRS 57/2019, em tramitação, não aprovado). Teste de robustez.';
   // honorários de referência do estado (só troca se o usuário não alterou os campos daquele estado)
   if(ufHonorarios !== uf){
@@ -496,9 +527,10 @@ function renderBase(){
     '<tr class="now"><td>Total</td>' + ['vigente','reforma','estresse'].map(x => '<td>' + fmtBRL0(rg[x].total) + ' <small class="suave inline">(' + pct1(rg[x].pct) + ')</small></td>').join('') + '</tr>';
   $('baseNota').textContent = 'O custo esperado de ' + pct0(e.premissas.metaLiquidez) + ' é a média observada em MT e MS para todo o trâmite (ITCMD, advogado, cartório, contador, avaliações, certidões) e é o custo usado na comparação; a conta item por item é só uma conferência. ' +
     (b.patrimonioGrande ? 'Patrimônio acima de ' + fmtBRL0(b.limitePatrimonioGrande) + ': honorários e cartório costumam ser negociados ou ter teto, e o custo real em percentual tende a ser menor; revise o percentual. ' : '') +
-    (e.uf === 'RO' || e.uf === 'PA' ? 'Em ' + T.ESTADOS[e.uf].nome + ', confirme se a média de 18% de MT e MS vale para os seus clientes. ' : '') +
+    (e.uf !== 'MT' && e.uf !== 'MS' ? 'Em ' + T.ESTADOS[e.uf].nome + ', confirme se a média de 18% de MT e MS vale para os seus clientes. ' : '') +
+    (Object.keys(b.custoHoje.itcmdPorUF).length > 1 ? 'ITCMD por estado: ' + Object.keys(b.custoHoje.itcmdPorUF).map(u => u + ' ' + fmtBRL0(b.custoHoje.itcmdPorUF[u])).join(' · ') + ' (lei vigente). ' : '') +
     (e.partilha.conjugeHerdeiro ? 'O ITCMD considera o cônjuge como herdeiro, com ' + pct1(e.partilha.fracConjuge) + ' da herança. ' : '') +
-    (T.ESTADOS[e.uf].reformaIgualVigente ? '' : 'Adequação à reforma: ' + T.ESTADOS[e.uf].reforma.hipotese);
+    (T.ESTADOS[e.uf].reformaIgualVigente ? '' : 'Adequação à reforma: ' + T.hipoteseReforma(e.uf));
 }
 
 function renderCards(){
@@ -557,7 +589,8 @@ function renderHolding(){
   if(!h.aplicavel) return;
   const e = r.entrada, hp = e.holding;
   const v = e.imoveis + (hp.incluirEmpresa ? e.empresa : 0);
-  const itcmdCotas = E.itcmdDividido(v, e.herdeiros, e.uf, e.regime, 'doacao');
+  const nua = (T.ESTADOS[e.uf].nuaPropriedadePct || 1);
+  const itcmdCotas = E.itcmdDividido(v * nua, e.herdeiros, e.uf, 'vigente', 'doacaoMoveis');
   const lin = (k, val, nota) => '<tr><td class="k">' + k + '</td><td>' + fmtBRL0(val) + '</td><td>' + (nota || '') + '</td></tr>';
   $('tabHolding').innerHTML = '<tr><th>Item</th><th>Valor</th><th>Base</th></tr>' +
     lin('Jurídico de estruturação', Math.max(hp.juridicoMin, v * hp.juridicoPct), fmtPct(hp.juridicoPct, 1) + ' de ' + fmtBRL0(v) + ' integralizados') +
@@ -590,9 +623,10 @@ function renderAlertas(){
   if(s.conflito) out.push('<b>Risco de conflito:</b> testamento e regras de governança reduzem disputas. Uma holding com acordo de sócios pode compensar mesmo sem vencer nos números; avalie com advogado.');
   if(s.empresa) out.push('<b>Empresa operacional:</b> a sucessão da gestão (quem decide) costuma pesar mais que o imposto. Holding com governança pode se justificar por esse motivo.');
   if(e.aluguelMensal > 0) out.push('<b>ITBI:</b> holding com atividade imobiliária preponderante (locação) não tem a imunidade do ITBI na integralização; e a imunidade não alcança o valor acima do capital (STF, Tema 796).');
-  if(e.uf === 'MS') out.push('<b>MS ainda não adotou o ITCMD progressivo</b> exigido pela LC 227/2026. Enquanto a lei não muda, doar custa 3% contra 6% na herança; uma lei nova só vale no ano seguinte e após 90 dias.');
-  if(e.uf === 'RO') out.push('<b>RO aplica a alíquota da faixa sobre o quinhão inteiro;</b> a LC 227/2026 exige faixas sucessivas. Pode haver discussão sobre qual regra prevalece.');
-  if(e.uf === 'PA') out.push('<b>PA:</b> a lei aplica as faixas de forma sucessiva (art. 8º, § 1º), mas há quem leia de outro modo; confirme o cálculo com a Sefa-PA.');
+  const ufsCaso = [...new Set([e.uf].concat(Object.keys(e.imoveisPorUF || {})))];
+  ufsCaso.forEach(u => { const est = T.ESTADOS[u]; if(est && est.alerta) out.push('<b>' + est.nome + (u === e.uf ? ' (domicílio)' : ' (imóveis)') + ':</b> ' + est.alerta); });
+  if(ufsCaso.length > 1) out.push('<b>Bens em mais de um estado:</b> o ITCMD dos imóveis é pago a cada estado onde ficam, com a tabela de cada um; o inventário é aberto no domicílio, mas avaliação e guias seguem as regras de cada Sefaz.');
+  if(e.veiculos > 0) out.push('<b>Veículos:</b> são bens móveis, pagam ITCMD no domicílio e não entram na holding nem na doação simulada; consideramos depreciação de ' + pct0(e.premissas.depreciacaoVeiculos) + ' ao ano.');
   if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; a parcela usada vem da planilha Sicoob' + (e.wholeLife.fatorIdade !== 1 ? ', ajustada pela idade' : '') + '.');
   if(e.exterior > 0) out.push('<b>Bens no exterior:</b> desde 2026 pagam ITCMD no estado de domicílio (LC 227/2026) e os rendimentos pagam IR de 15% ao ano (Lei 14.754/2023).');
   out.push('<b>Testamento</b> organiza a parte disponível e reduz conflitos em qualquer caminho; não evita o inventário.');
@@ -602,8 +636,10 @@ function renderAlertas(){
 
 function renderFontes(){
   const {r} = ultimo, est = T.ESTADOS[r.entrada.uf];
+  const outras = Object.keys(r.entrada.imoveisPorUF || {}).filter(u => u !== r.entrada.uf).map(u => T.ESTADOS[u]);
   $('fontes').innerHTML = '<h3>Premissas e fontes</h3><ul>' + [
-    'ITCMD de ' + est.nome + ': ' + est.lei + ' (unidade de ' + est.dataRef.split('-').reverse().join('/') + ', revisado em ' + est.revisadoEm.split('-').reverse().join('/') + '; ' + est.unidade.nome + (est.unidade.valor !== 1 ? ' = R$ ' + est.unidade.valor.toLocaleString('pt-BR', {maximumFractionDigits:4}) : '') + '). Normas gerais: LC 227/2026.',
+    'ITCMD de ' + est.nome + ': ' + est.lei + ' (unidade de ' + est.dataRef.split('-').reverse().join('/') + ', revisado em ' + est.revisadoEm.split('-').reverse().join('/') + '; ' + est.unidade.nome + (est.unidade.valor !== 1 ? ' = R$ ' + est.unidade.valor.toLocaleString('pt-BR', {maximumFractionDigits:4}) : '') + '). Normas gerais: LC 227/2026. ' + (est.fonte || 'Conferido na lei estadual.'),
+    ...outras.map(o => 'ITCMD de ' + o.nome + ' (imóveis): ' + o.lei + '. ' + (o.fonte || '')),
     'Honorários: ' + E.honorariosPadrao(r.entrada.uf).fonte,
     'Expectativa de vida: IBGE, Tábua Completa de Mortalidade 2024 (ambos os sexos).',
     'Whole life: planilha "Sicoob - Seguro Whole Life" (R$ ' + r.entrada.wholeLife.parcelaReferencia.toLocaleString('pt-BR', {minimumFractionDigits:2}) + '/mês por R$ 100 mil aos ' + r.entrada.wholeLife.idadeReferencia + ' anos)' +
@@ -699,7 +735,8 @@ function gerarPdf(){
     (e.sobraMensal > 0 ? tr('Sobra mensal investida', fmtBRL0(e.sobraMensal) + '/mês') : '') +
     (e.meacaoPct > 0 ? tr('Inventário do cônjuge', e.sucessaoCasal ? 'incluído (a meação também passa aos filhos)' : 'não incluído') : '') +
     (e.sustento.despesaMensal > 0 ? tr('Despesas da família incluídas', fmtBRL0(e.sustento.despesaMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
-    tr('Imóveis · aplicações', fmtBRL0(e.imoveis) + ' · ' + fmtBRL0(e.aplicacoes)) +
+    (e.bens || []).filter(x => x.valor > 0).map(x => tr(TIPO_BEM[x.tipo] + ' (' + x.uf + ')', (x.qtd ? x.qtd + ' · ' : '') + fmtBRL0(x.valor))).join('') +
+    tr('Aplicações financeiras', fmtBRL0(e.aplicacoes)) +
     (e.empresa ? tr('Participações em empresas', fmtBRL0(e.empresa)) : '') + (e.exterior ? tr('Bens no exterior', fmtBRL0(e.exterior)) : '') +
     (e.previdencia ? tr('Previdência existente', fmtBRL0(e.previdencia)) : '') + (e.seguroExistente ? tr('Seguro existente', fmtBRL0(e.seguroExistente)) : '') +
     (e.aluguelMensal ? tr('Aluguéis', fmtBRL0(e.aluguelMensal) + '/mês') : '') +
@@ -748,7 +785,7 @@ function salvarArquivo(){
   const campos = {};
   camposDaTela().forEach(el => { campos[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
   const dados = { modulo: 'sucessao', versao: VERSAO_ARQUIVO, salvoEm: HOJE.toISOString().slice(0, 10),
-    regime: seg.regime, tocados: { itbi: itbiTocado, meses: mesesTocado }, campos };
+    regime: seg.regime, tocados: { itbi: itbiTocado, meses: mesesTocado }, campos, bens: lerBens() };
   const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -776,6 +813,11 @@ function abrirArquivo(arquivo){
       aplicados++;
     });
     itbiTocado = !!(d.tocados && d.tocados.itbi); mesesTocado = !!(d.tocados && d.tocados.meses);
+    if(Array.isArray(d.bens)) desenharBens(d.bens.filter(b => b && TIPO_BEM[b.tipo] && T.ESTADOS[b.uf]).slice(0, 60));
+    else if(d.campos.imoveis){   // arquivo da versão anterior: imóveis num campo só, no estado de domicílio
+      const v = lerMoeda({ value: String(d.campos.imoveis) });
+      desenharBens([{ tipo: 'urbano', uf: $('uf').value, qtd: parseInt(d.campos.nImoveis, 10) || 1, valor: v }]);
+    }
     ufHonorarios = $('uf').value;   // mantém os honorários do arquivo
     if(['vigente', 'reforma', 'estresse'].includes(d.regime)){
       seg.regime = d.regime;
@@ -809,7 +851,11 @@ function ligarSeg(id, chave, depois){
 }
 
 function iniciar(){
-  document.querySelectorAll('.money').forEach(mascara);
+  $('uf').innerHTML = opcoesUF('MT');
+  desenharBens(BENS_INICIAIS);
+  $('btnAddBem').addEventListener('click', () => { $('bens').appendChild(linhaBem({ tipo: 'urbano', uf: $('uf').value, qtd: 1, valor: 0 })); agendar(); });
+  $('bens').addEventListener('click', ev => { const b = ev.target.closest('.bem-rem'); if(b){ b.closest('tr').remove(); agendar(); } });
+  document.querySelectorAll('.money:not(.bem-valor)').forEach(mascara);
   document.querySelectorAll('.step-btn').forEach(b => b.addEventListener('click', () => irPara(parseInt(b.dataset.step, 10))));
   document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => irPara(parseInt(b.dataset.goto, 10))));
   ['step-1', 'step-2'].forEach(id => { $(id).addEventListener('input', agendar); $(id).addEventListener('change', agendar); });

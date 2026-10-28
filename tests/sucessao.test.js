@@ -322,7 +322,8 @@ test('doação feita hoje paga o ITCMD da lei de hoje, mesmo no regime de estres
   const vig = S.analisar(c), est = S.analisar(Object.assign({}, c, { regime: 'estresse' }));
   const d = r => r.caminhos.find(x => x.id === 'doacao').sim.custoEstruturacao;
   perto(d(est), d(vig), 1e-6);
-  perto(d(vig), S.itcmdDividido(4e6, 2, 'MT', 'vigente', 'doacao') + 4e6 * 0.01, 1e-6);
+  // MT: doação com usufruto paga sobre a nua-propriedade (70% do valor); a consolidação é isenta
+  perto(d(vig), S.itcmdDividido(4e6 * 0.7, 2, 'MT', 'vigente', 'doacao') + 4e6 * 0.01, 1e-6);
 });
 
 test('falta de caixa: quem não cabe nas aplicações aparece com o valor à parte, e sempre há uma solução', () => {
@@ -409,4 +410,71 @@ test('custo do inventário na comparação = custo esperado (18%), inclusive no 
   perto(b.familia, b.monte * 0.82 - 0.18 * b.monte * 0.5, 1e-6);
   const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 60e6, aplicacoes: 1e6 });
   assert.equal(r.base.patrimonioGrande, true);
+});
+
+/* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
+test('27 estados: tabelas válidas nos três regimes', () => {
+  assert.equal(T.SIGLAS.length, 27);
+  for (const uf of T.SIGLAS) for (const rg of ['vigente', 'reforma', 'estresse']) {
+    const t = T.tabela(uf, rg);
+    for (const k of ['heranca', 'doacao']) {
+      const r = t[k];
+      assert.ok(['sucessivas', 'total', 'unica'].includes(r.metodo), uf + rg + k);
+      const v = S.itcmdValor(2e6, r);
+      assert.ok(v >= 0 && v <= 2e6 * 0.16 + 1e-6, uf + ' ' + rg + ' ' + k + ' = ' + v);
+      if (r.faixas) for (let i = 1; i < r.faixas.length; i++) assert.ok(r.faixas[i].ate > r.faixas[i - 1].ate, uf + ' faixas em ordem');
+    }
+    if (rg === 'reforma') assert.equal(t.heranca.metodo, 'sucessivas', uf + ': reforma faixa a faixa');
+  }
+});
+
+test('ITCMD por estado: faixas sucessivas, alíquota sobre o total, base no monte e isenção do espólio', () => {
+  // GO, quinhão de R$ 1 mi: 25 mil × 2% + 175 mil × 4% + 400 mil × 6% + 400 mil × 8% = 63.500
+  perto(S.itcmdValor(1e6, T.tabela('GO', 'vigente').heranca), 63500, 1e-6);
+  // RJ, quinhão de R$ 800 mil: lei estadual 5% sobre tudo = 40.000; reforma faixa a faixa = 35.783,66
+  perto(S.itcmdValor(800000, T.tabela('RJ', 'vigente').heranca), 40000, 1e-6);
+  perto(S.itcmdValor(800000, T.tabela('RJ', 'reforma').heranca), 347228 * 0.04 + (496040 - 347228) * 0.045 + (800000 - 496040) * 0.05, 1e-6);
+  // PB, herança de R$ 1,5 mi para 3 filhos: lei estadual aplica a tabela ao total (89.500); reforma, por quinhão (3 × 19.500)
+  perto(S.itcmdDividido(1.5e6, 3, 'PB', 'vigente', 'heranca'), 2500 + 11000 + 36000 + 40000, 1e-6);
+  perto(S.itcmdDividido(1.5e6, 3, 'PB', 'reforma', 'heranca'), 3 * (2500 + 11000 + 6000), 1e-6);
+  // AM: espólio até R$ 1 mi não paga
+  assert.equal(S.custoInventario({ monte: 9e5, herdeiros: 2, uf: 'AM', tipo: 'cartorio' }).itcmd, 0);
+  assert.ok(S.custoInventario({ monte: 1.2e6, herdeiros: 2, uf: 'AM', tipo: 'cartorio' }).itcmd > 0);
+  // SP 4% fixo; SE: doação de cotas (móveis) a 2%
+  perto(S.itcmdDividido(1e6, 2, 'SP', 'vigente', 'heranca'), 40000, 1e-6);
+  perto(S.itcmdDividido(1e6, 2, 'SE', 'vigente', 'doacaoMoveis'), 20000, 1e-6);
+  perto(S.itcmdDividido(1e6, 2, 'MT', 'vigente', 'doacaoMoveis'), S.itcmdDividido(1e6, 2, 'MT', 'vigente', 'doacao'), 1e-9);
+});
+
+test('bens em vários estados: imóvel paga onde fica, móveis no domicílio; mesmo estado soma antes das faixas', () => {
+  const tabMT = T.tabela('MT', 'vigente').heranca;
+  const inv = S.custoInventario({ monte: 3e6, herdeiros: 1, uf: 'MT', tipo: 'cartorio',
+    partes: [{ uf: 'SP', valor: 1e6 }, { uf: 'MT', valor: 1e6 }, { uf: 'MT', valor: 1e6 }] });
+  perto(inv.itcmdPorUF.SP, 40000, 1e-6);
+  perto(inv.itcmdPorUF.MT, S.itcmdValor(2e6, tabMT), 1e-6);
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 1, aplicacoes: 1e6,
+    bens: [{ tipo: 'urbano', uf: 'SP', qtd: 1, valor: 1e6 }, { tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 2e6 }, { tipo: 'veiculo', uf: 'MT', qtd: 2, valor: 300000 }] });
+  assert.ok(r.ok);
+  assert.equal(r.entrada.imoveis, 3e6); assert.equal(r.entrada.nImoveis, 2); assert.equal(r.entrada.veiculos, 300000);
+  perto(r.base.custoHoje.itcmdPorUF.SP, 40000, 1e-6);
+  perto(r.base.custoHoje.itcmdPorUF.MT, S.itcmdValor(2e6 + 1e6 + 300000, tabMT), 1e-6);   // fazenda + aplicações + veículos
+});
+
+test('veículos: depreciam e ficam fora da holding e da doação', () => {
+  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, aplicacoes: 1e6, bens: [{ tipo: 'urbano', uf: 'MT', qtd: 1, valor: 2e6 }, { tipo: 'veiculo', uf: 'MT', qtd: 1, valor: 200000 }] });
+  const inv = S.simular(e, {}, 2).anos, hold = S.simular(e, { holding: 'total' }, 2).anos;
+  perto(inv[0].veiculos, 180000, 1e-6); perto(inv[1].veiculos, 162000, 1e-6);
+  perto(hold[0].monte, hold[0].aplicacoes + 180000, 1e-6);   // só aplicações e veículos seguem para o inventário
+});
+
+test('nua-propriedade: base reduzida na doação; no falecimento, paga o restante onde a consolidação não é isenta', () => {
+  const caso2 = uf => S.normalizar({ idade: 55, uf, herdeiros: 2, aplicacoes: 2e6, bens: [{ tipo: 'urbano', uf, qtd: 1, valor: 1e6 }] });
+  const sc = S.simular(caso2('SC'), { doaImoveis: true }, 1);
+  perto(sc.pagamentos[0].itens.itcmdDoacao, S.itcmdDividido(1e6 * 0.5, 2, 'SC', 'vigente', 'doacao'), 1e-6);
+  perto(sc.anos[0].extincaoUsufruto, S.itcmdDividido(1e6 * 1.04 * 0.5, 2, 'SC', 'vigente', 'heranca'), 1e-6);
+  const mt = S.simular(caso2('MT'), { doaImoveis: true }, 1);
+  assert.equal(mt.anos[0].extincaoUsufruto, 0);                     // MT: consolidação isenta
+  const sp = S.simular(caso2('SP'), { doaImoveis: true }, 1);
+  perto(sp.pagamentos[0].itens.itcmdDoacao, 40000, 1e-6);           // fonte não informa redução: valor cheio
+  assert.equal(sp.anos[0].extincaoUsufruto, 0);
 });

@@ -12,18 +12,18 @@ const hoje = process.env.HOJE ? new Date(process.env.HOJE + 'T12:00:00') : new D
 const meses = ref => { const [a, m] = ref.split('-').map(Number); return (hoje.getFullYear() - a) * 12 + (hoje.getMonth() + 1 - m); };
 const LIMITE = 3;
 
-const FONTES = {
-  MT: 'UPF/MT: portaria mensal da Sefaz-MT (sefaz.mt.gov.br). ITCMD: Lei 7.850/2002, art. 19.',
-  MS: 'ITCMD: Lei 1.810/1997. Acompanhar projeto de lei de adequação à LC 227/2026 (tabela progressiva).',
-  RO: 'UPF/RO: decreto anual. ITCMD: Lei 959/2000. Acompanhar adequação à LC 227/2026 (faixas sucessivas).',
-  PA: 'UPF-PA: portaria anual da Sefa-PA. ITCMD: Lei 5.529/1989 (redação da Lei 8.868/2019).'
-};
+// o que conferir em cada estado: a lei e a unidade fiscal (quando houver)
+const FONTES = Object.fromEntries(T.SIGLAS.map(uf => {
+  const e = T.ESTADOS[uf];
+  return [uf, 'ITCMD: ' + e.lei + '.' + (e.unidade.valor !== 1 ? ' Unidade: ' + e.unidade.nome + '.' : '') + (e.fonte ? ' Fonte usada: ' + e.fonte : '')];
+}));
 
 const linhas = [];
 let vencidas = 0;
 linhas.push('Revisão trimestral das tabelas de ITCMD e custos do **Planejamento Sucessório** (`dados/itcmd-uf.js`).', '');
 linhas.push('| Estado | Lei | Unidade (mês) | Última revisão | Meses desde a revisão |', '|---|---|---|---|---|');
-for (const [uf, e] of Object.entries(T.ESTADOS)) {
+for (const uf of T.SIGLAS) {
+  const e = T.ESTADOS[uf];
   const n = meses(e.revisadoEm);
   if (n > LIMITE) vencidas++;
   linhas.push(`| ${uf} | ${e.lei} | ${e.unidade.nome}${e.unidade.valor !== 1 ? ' = R$ ' + e.unidade.valor : ''} (${e.dataRef}) | ${e.revisadoEm} | ${n}${n > LIMITE ? ' ⚠️' : ''} |`);

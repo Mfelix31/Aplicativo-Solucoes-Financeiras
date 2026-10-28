@@ -8,7 +8,7 @@ Plataforma estática (HTML/CSS/JS, sem build) com três módulos:
 | `investimentos.html` | Simulador e comparador de LCA, RDC e Operação Compromissada |
 | `planejamento.html` | Planejamento financeiro: patrimônio necessário, cenários, objetivos de vida e PDF |
 | `aquisicao.html` | Estratégia de Aquisição: consórcio × financiamento × capital próprio, com a renda do capital pagando a parcela |
-| `sucessao.html` | Planejamento Sucessório: inventário × previdência × whole life × doação com usufruto × holding × offshore, em MT, MS, RO e PA |
+| `sucessao.html` | Planejamento Sucessório: inventário × previdência × whole life × doação com usufruto × holding × offshore, nos 27 estados, com bens em mais de um estado |
 
 ## Estrutura
 
@@ -35,7 +35,7 @@ Motores de cálculo (funções puras, sem tela, testadas):
 - `engine/aquisicao.js` — estratégia de aquisição (financiamento no padrão Sicoob, consórcio, IR no resgate).
 - `engine/sucessao.js` — planejamento sucessório (custo do inventário, previdência e whole life dimensionados para pagá-lo, doação, holding, aluguel PF × holding, recomendação).
 - `dados/tabuas-br-ems.js` — tábuas de mortalidade BR-EMSmt da SUSEP (v.2021 e v.2026, por sexo), para o preço do whole life por idade.
-- `dados/itcmd-uf.js` — tabelas de ITCMD de MT, MS, RO e PA (vigente, adequação à LC 227/2026 e estresse de 16%) e honorários de referência.
+- `dados/itcmd-uf.js` — tabelas de ITCMD dos 27 estados (vigente, adequação à LC 227/2026 e estresse de 16%), base da nua-propriedade por estado e honorários de referência.
 - `engine/propostas.js` — leitura das simulações do Sicoob em PDF.
 
 Ordem de carregamento em cada página: `assets/tema.js` → `assets/base.css` → (`assets/componentes.css`) → `paginas/<página>.css` → … → `assets/*.js` → `engine/*.js` → `paginas/<página>.js`.
@@ -65,6 +65,7 @@ O que os testes cobrem: cálculos dos motores (conferidos com a planilha e com a
   - Sucessão do casal: com meação, o 2º inventário (do cônjuge, sobre a meação) entra no valor que chega à família; doação e holding evitam os dois para os bens transferidos.
   - Doações feitas hoje pagam ITCMD pela lei vigente; os regimes de reforma e estresse valem só para a herança e as doações futuras.
   - Simulação pode ser salva e reaberta em arquivo `.json` (só os campos da tela, sem dados pessoais).
+  - Patrimônio por tipo (imóvel urbano, terreno, fazenda, veículo), cada um com estado, quantidade e valor. ITCMD dos imóveis no estado onde ficam; móveis, cotas, veículos e exterior no domicílio (CF, art. 155, § 1º). Veículos depreciam e ficam fora da holding e da doação.
   - Tabelas de ITCMD: `dados/itcmd-uf.js`, com `revisadoEm` por estado. No início de cada trimestre o GitHub abre uma issue de revisão (`.github/workflows/revisao-dados.yml`, que roda `scripts/verificar-dados.js`); a página alerta quando a revisão passa de 6 meses.
 - **Aquisição:** base mensal; o capital rende e paga a parcela; patrimônio líquido = capital + bem − saldo devedor; bem valoriza pelo IPCA. Financiamento no padrão da proposta Sicoob (TR projetada, juros nominais ÷ 12, MIP por idade, DFI, TAC). Consórcio no padrão da simulação de lance Sicoob (nº de parcelas, lance em % ou parcelas abatendo antes da parcela da assembleia, seguro proporcional à parcela). IR de produtos tributados cobrado no resgate, sobre o ganho. Simulações do Sicoob em PDF podem preencher os campos (opcional).
 - **Planejamento:** base de 360 dias (12 meses de 30), capitalização mensal com taxa equivalente; valores antes de IR. Outras rendas (INSS, aluguel, previdência) são descontadas da renda desejada antes de calcular o patrimônio necessário.
