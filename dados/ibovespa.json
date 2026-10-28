@@ -1,0 +1,106 @@
+{
+  "indice": "Ibovespa",
+  "unidade": "pontos",
+  "fonte": "B3 — Índice Bovespa, estatísticas históricas (fechamento diário)",
+  "link": "https://b3.com.br/en_us/market-data-and-indices/indices/broad-indices/indice-ibovespa-ibovespa-historic-statistics.htm",
+  "fechamento": {
+    "data": "2026-10-27",
+    "valor": 175710.05
+  },
+  "anterior": {
+    "data": "2026-10-26",
+    "valor": 176608.23
+  },
+  "variacao": -0.005085719957671375,
+  "ultimos": [
+    {
+      "data": "2026-09-25",
+      "valor": 183476.86
+    },
+    {
+      "data": "2026-09-28",
+      "valor": 182991.13
+    },
+    {
+      "data": "2026-09-29",
+      "valor": 183827.59
+    },
+    {
+      "data": "2026-09-30",
+      "valor": 186340.46
+    },
+    {
+      "data": "2026-10-01",
+      "valor": 187197.46
+    },
+    {
+      "data": "2026-10-02",
+      "valor": 192114.55
+    },
+    {
+      "data": "2026-10-05",
+      "valor": 206911.89
+    },
+    {
+      "data": "2026-10-06",
+      "valor": 205835.29
+    },
+    {
+      "data": "2026-10-07",
+      "valor": 204302.33
+    },
+    {
+      "data": "2026-10-08",
+      "valor": 206220.24
+    },
+    {
+      "data": "2026-10-09",
+      "valor": 209066.9
+    },
+    {
+      "data": "2026-10-13",
+      "valor": 206887.52
+    },
+    {
+      "data": "2026-10-14",
+      "valor": 206505.98
+    },
+    {
+      "data": "2026-10-15",
+      "valor": 204324.26
+    },
+    {
+      "data": "2026-10-16",
+      "valor": 205430.33
+    },
+    {
+      "data": "2026-10-19",
+      "valor": 205079.25
+    },
+    {
+      "data": "2026-10-20",
+      "valor": 208295.98
+    },
+    {
+      "data": "2026-10-21",
+      "valor": 206495.23
+    },
+    {
+      "data": "2026-10-22",
+      "valor": 204120.12
+    },
+    {
+      "data": "2026-10-23",
+      "valor": 205082.56
+    },
+    {
+      "data": "2026-10-26",
+      "valor": 176608.23
+    },
+    {
+      "data": "2026-10-27",
+      "valor": 175710.05
+    }
+  ],
+  "consultadoEm": "2026-10-28T16:41:25.904Z"
+}
