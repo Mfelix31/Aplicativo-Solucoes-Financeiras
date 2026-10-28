@@ -24,9 +24,10 @@ jobs:
         with:
           node-version: 20
       - run: node scripts/atualizar-ibovespa.js
+      - run: ls -l dados/ibovespa.json && head -c 400 dados/ibovespa.json || true
       - name: Gravar se houver fechamento novo
         run: |
-          if git diff --quiet -- dados/ibovespa.json; then echo "Nada a gravar."; exit 0; fi
+          if [ -z "$(git status --porcelain -- dados/ibovespa.json)" ]; then echo "Nada a gravar."; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add dados/ibovespa.json
