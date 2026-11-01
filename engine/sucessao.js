@@ -434,6 +434,15 @@
     wl.parcelaReferencia = wl.parcelaPor100k; wl.basicaReferencia = wl.basicaPor100k;
     wl.fatorIdade = 1; wl.taxaTecnica = null; wl.tabuaNome = null;
     const diferente = idade !== wl.idadeReferencia || (wl.sexo || 'm') !== (wl.sexoReferencia || 'm');
+    // cotação do próprio cooperado (capital e parcela informados): vale no lugar da estimativa por idade e sexo;
+    // a parcela é proporcional ao capital e a cobertura básica mantém a proporção da cotação base
+    const cot = wl.cotacao;
+    if (cot && cot.capital > 0 && cot.parcela > 0) {
+      const por100k = cot.parcela / cot.capital * 100000;
+      wl.basicaPor100k = wl.parcelaPor100k > 0 ? wl.basicaPor100k * por100k / wl.parcelaPor100k : 0;
+      wl.parcelaPor100k = por100k; wl.cotacaoCliente = true;
+      return wl;
+    }
     if (wl.ajustarIdade && isFinite(idade) && diferente && wl.parcelaPor100k > 0) {
       const f = fatorIdadeWholeLife(idade, wl);
       wl.fatorIdade = f.fator; wl.taxaTecnica = f.taxaTecnica; wl.tabuaNome = f.tabua;

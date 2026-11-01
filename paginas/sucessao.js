@@ -128,6 +128,7 @@ function lerEntradas(){
     aluguelOpcoes: { lc224: $('hLc224').checked, opcao487: $('h487').checked, aliqRefIVA: pctCampo('hIva') },
     wholeLife: { parcelaPor100k: money('wlParcela'), basicaPor100k: money('wlBasica'), ganhoReal: pctCampo('wlGanho'),
       idadeReferencia: num('wlIdadeRef'), ajustarIdade: $('wlAjustar').checked,
+      cotacao: { capital: money('wlCotCapital'), parcela: money('wlCotParcela') },
       sexo: $('sexo').value, sexoReferencia: $('wlSexoRef').value, tabua: $('wlTabua').value },
     offshore: { limiar: money('oLimiar'), abertura: money('oAbertura'), manutencaoAnual: money('oManut'),
       custoSucessaoExteriorPct: pctCampo('oCustoExt'), impostoExteriorPct: pctCampo('oImpExt') },
@@ -213,6 +214,9 @@ function atualizarDicas(){
       sexo: $('sexo').value, sexoReferencia: $('wlSexoRef').value, tabua: $('wlTabua').value });
     $('hintWlIdade').textContent = (($('sexo').value === 'f') ? 'Mulher' : 'Homem') + ' de ' + idade + ' anos: ' + fmtBRL(money('wlParcela') * f.fator) + ' por R$ 100 mil (fator ' + f.fator.toLocaleString('pt-BR', {maximumFractionDigits:3}) + ', ' + f.tabua + ').';
   } else $('hintWlIdade').textContent = 'Parcela fixa da cotação base, para qualquer idade e sexo.';
+  const cotC = money('wlCotCapital'), cotP = money('wlCotParcela');
+  $('hintWlCot').textContent = cotC > 0 && cotP > 0 ? 'Vale a cotação real: ' + fmtBRL(cotP / cotC * 100000) + ' por R$ 100 mil de capital, no lugar da estimativa por idade e sexo.'
+    : 'Com os dois preenchidos, a cotação real vale no lugar da estimativa por idade e sexo.';
   if(!itbiTocado) $('hItbi').value = alug ? 2 : 0;
   $('hintItbi').textContent = alug ? 'Com aluguéis, a holding tende a ter atividade imobiliária preponderante e pagar ITBI integral (2% a 3% conforme o município).' : 'Imune quando a atividade preponderante não é imobiliária (STF, Tema 796: até o valor do capital).';
 }
@@ -706,7 +710,7 @@ function renderAlertas(){
   if(ufsCaso.length > 1) out.push('<b>Bens em mais de um estado:</b> o ITCMD dos imóveis é pago a cada estado onde ficam, com a tabela de cada um; o inventário é aberto no domicílio, mas avaliação e guias seguem as regras de cada Sefaz.');
   if(e.rebanho > 0) out.push('<b>Rebanho:</b> gado e outros animais são bens móveis: pagam ITCMD no estado de domicílio (mesmo que estejam em fazenda de outro estado), acompanham a inflação na simulação e não entram na holding nem na doação simuladas. O inventário exige a avaliação do rebanho (nota de produtor e cadastro na defesa sanitária animal).');
   if(e.veiculos > 0) out.push('<b>Veículos:</b> são bens móveis, pagam ITCMD no domicílio e não entram na holding nem na doação simulada; consideramos depreciação de ' + pct0(e.premissas.depreciacaoVeiculos) + ' ao ano.');
-  if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; a parcela usada vem da cotação base informada' + (e.wholeLife.fatorIdade !== 1 ? ', ajustada pela idade' : '') + '.');
+  if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; ' + (e.wholeLife.cotacaoCliente ? 'a parcela usada vem da cotação deste cooperado, proporcional ao capital.' : 'a parcela usada vem da cotação base informada' + (e.wholeLife.fatorIdade !== 1 ? ', ajustada pela idade' : '') + '. Com a cotação do próprio cooperado, informe-a na etapa 2.'));
   if(e.exterior > 0) out.push('<b>Bens no exterior:</b> desde 2026 pagam ITCMD no estado de domicílio (LC 227/2026) e os rendimentos pagam IR de 15% ao ano (Lei 14.754/2023).');
   out.push('<b>Testamento</b> organiza a parte disponível e reduz conflitos em qualquer caminho; não evita o inventário.');
   out.push('<b>Imposto da herança é o da data do falecimento; o da doação, o da data da doação</b> (LC 227/2026, art. 156, § 1º). Quem antecipa trava a regra de hoje.');

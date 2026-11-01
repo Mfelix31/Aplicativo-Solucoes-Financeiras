@@ -559,6 +559,17 @@ test('registro: maior entre o % do valor e o mínimo × nº de imóveis (stress 
   perto(caso26({ registroMinimo: 1000 }), 5e6 * 0.004, 1e-6);      // o percentual continua maior
 });
 
+test('whole life: a cotação do próprio cooperado vale no lugar da estimativa (stress test, teste 25: R$ 2 mi por R$ 5 mil/mês)', () => {
+  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, aplicacoes: 1e6, wholeLife: { cotacao: { capital: 2e6, parcela: 5000 } } });
+  perto(e.wholeLife.parcelaPor100k, 250, 1e-9);
+  assert.equal(e.wholeLife.cotacaoCliente, true);
+  perto(e.wholeLife.basicaPor100k, 397.23 * 250 / 637.15, 1e-9);
+  const sim = S.simular(e, { C: 2e6 }, 1);
+  perto(sim.pagamentos[1].itens.seguro, 5000 * 12, 1e-6);
+  // sem cotação, segue a estimativa pela idade (55 anos, fator 1,0946)
+  assert.ok(Math.abs(S.normalizar({ idade: 55, uf: 'MT', aplicacoes: 1e6 }).wholeLife.parcelaPor100k - 637.15 * 1.0945944) < 0.01);
+});
+
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
 test('27 estados: tabelas válidas nos três regimes', () => {
   assert.equal(T.SIGLAS.length, 27);
