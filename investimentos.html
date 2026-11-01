@@ -23,7 +23,7 @@
       <h1>Simulador de Investimentos</h1>
       <p>Simule seus investimentos, organize melhor o seu dinheiro e descubra qual aplicação rende mais para o seu valor e o seu prazo, já com os impostos descontados.</p>
     </div>
-    <div style="display:flex; align-items:flex-start; gap:14px;">
+    <div class="cab-acoes">
       <div class="cdi-hero">
         <div class="label">CDI de referência</div>
         <div class="value" id="cdiHeroValue">13,65%</div>
@@ -158,7 +158,7 @@
         <span class="ico">⚠️</span>
         <span>Esta é uma <strong>simulação</strong> com base nos parâmetros que você informou (taxas, prazo, valores). Os números não representam a realidade garantida do investimento — CDI, IPCA e demais condições de mercado mudam ao longo do tempo e o resultado real pode ser diferente do projetado aqui.</span>
       </div>
-      <div class="ledger" id="s_card" style="--accent: var(--gold); max-width: 460px;">
+      <div class="ledger" id="s_card" style="--accent: var(--gold);">
         <h3 id="s_cardTitle">LCA</h3>
         <div class="desc" id="s_cardDesc">Letra de Crédito do Agronegócio — isenta de IR para pessoa física</div>
         <div class="garantia" id="s_garantia"></div>
@@ -175,16 +175,16 @@
         <div class="lrow"><span class="k">Rentabilidade Mensal</span><span class="v" id="s_pmensal"></span></div>
         <div class="lrow total"><span class="k">Valor Final Líquido</span><span class="v" id="s_final"></span></div>
       </div>
-      <div class="equiv-note hidden" id="s_aporteNote" style="max-width:460px; margin-top:6px;"></div>
+      <div class="equiv-note hidden" id="s_aporteNote"></div>
 
-      <div class="dual-block" style="margin-top:4px;">
-        <div class="equiv-box" id="s_equivBox" style="--accent: var(--gold); max-width:none; margin-top:0;">
+      <div class="dual-block dual-sim">
+        <div class="equiv-box" id="s_equivBox" style="--accent: var(--gold);">
           <div class="equiv-label" id="s_equivLabel">Equivalente em RDC (bruto)</div>
           <div class="equiv-value" id="s_equivValue">—</div>
           <div class="equiv-note" id="s_equivNote"></div>
         </div>
 
-        <div class="equiv-box" id="s_realBox" style="--accent: var(--gold); max-width:none; margin-top:0;">
+        <div class="equiv-box" id="s_realBox" style="--accent: var(--gold);">
           <div class="equiv-label">Rentabilidade Real (após IPCA)</div>
           <div class="equiv-value" id="s_realValue">—</div>
           <div class="equiv-subvalue"><span class="lbl">Valor final em poder de compra de hoje</span><span id="s_realMoney">—</span></div>
@@ -194,7 +194,7 @@
 
       <div class="ref-box" id="s_refBox">
         <div class="chart-title">Comparativo com referências de mercado</div>
-        <div class="equiv-note" style="margin:0;">Mesmo valor, prazo e aportes da simulação acima, valor final líquido de impostos.</div>
+        <div class="equiv-note sem-margem">Mesmo valor, prazo e aportes da simulação acima, valor final líquido de impostos.</div>
         <div class="ref-inputs">
           <div class="field">
             <label for="s_refCdb">CDB — % do CDI</label>
@@ -206,7 +206,7 @@
           </div>
         </div>
         <div class="ref-scroll"><table class="ref-table" id="s_refTable"></table></div>
-        <div class="equiv-note" id="s_refNote" style="margin-top:10px;"></div>
+        <div class="equiv-note" id="s_refNote"></div>
       </div>
 
       <div class="chart-box">
@@ -216,21 +216,21 @@
 
       <div class="scenario-box">
         <div class="scenario-header">
-          <div class="chart-title" style="margin:0;">Cenários Salvos</div>
+          <div class="chart-title sem-margem">Cenários Salvos</div>
         </div>
         <div class="scenario-add">
           <input type="text" id="s_cenarioNome" placeholder="Nome do cenário (opcional)">
           <button class="ghost" id="s_btnSalvarCenario" type="button">+ Salvar cenário atual</button>
         </div>
         <div id="s_cenariosLista" class="scenario-list"></div>
-        <div class="equiv-note" id="s_cenariosVazio" style="margin-top:4px;">Nenhum cenário salvo ainda — calcule uma simulação e clique em "Salvar cenário atual" para comparar depois.</div>
+        <div class="equiv-note" id="s_cenariosVazio">Nenhum cenário salvo ainda — calcule uma simulação e clique em "Salvar cenário atual" para comparar depois.</div>
 
-        <div id="s_cenarioCompareWrap" class="hidden" style="margin-top:16px;">
+        <div id="s_cenarioCompareWrap" class="hidden">
           <button class="ghost" id="s_btnCompararCenarios" type="button" disabled>Comparar os 2 cenários selecionados</button>
-          <div class="chart-box hidden" id="s_cenarioChartBox" style="margin-top:12px;">
+          <div class="chart-box hidden" id="s_cenarioChartBox">
             <div class="chart-title">Evolução comparada dos cenários selecionados</div>
             <canvas id="s_cenarioChart" width="600" height="240"></canvas>
-            <button class="ghost" id="s_btnPdfComparativo" type="button" style="margin-top:12px;">Baixar PDF comparativo</button>
+            <button class="ghost" id="s_btnPdfComparativo" type="button">Baixar PDF comparativo</button>
           </div>
         </div>
       </div>
@@ -243,7 +243,7 @@
     <section class="panel">
       <h2><span class="n">01</span> Dados do investimento</h2>
 
-      <div class="idx-switch" id="c_parSwitch" style="--accent: var(--gold); margin-bottom:20px;">
+      <div class="idx-switch" id="c_parSwitch" style="--accent: var(--gold);">
         <div class="seg-opt active" data-par="lca">Comparar RDC com LCA</div>
         <div class="seg-opt" data-par="compromissada">Comparar RDC com Operação Compromissada</div>
       </div>
@@ -358,7 +358,7 @@
       </div>
       <div class="compare">
         <div class="ledger" id="c_cardLCA" style="--accent: var(--gold);">
-          <span class="tag" id="c_tagLCA" style="display:none;">MELHOR OPÇÃO</span>
+          <span class="tag" id="c_tagLCA">MELHOR OPÇÃO</span>
           <h3 id="c_lca_cardTitle">LCA</h3>
           <div class="desc" id="c_lca_cardDesc">Letra de Crédito do Agronegócio — isenta de IR para pessoa física</div>
           <div class="garantia" id="c_lca_garantia"></div>
@@ -375,7 +375,7 @@
         </div>
 
         <div class="ledger" id="c_cardRDC" style="--accent: var(--teal);">
-          <span class="tag" id="c_tagRDC" style="display:none;">MELHOR OPÇÃO</span>
+          <span class="tag" id="c_tagRDC">MELHOR OPÇÃO</span>
           <h3>RDC</h3>
           <div class="desc">Recibo de Depósito Cooperativo — tributado pela tabela regressiva de IR</div>
           <div class="garantia" id="c_rdc_garantia"></div>
@@ -398,12 +398,12 @@
       </div>
 
       <div class="dual-block">
-        <div class="equiv-box" id="c_lca_realBox" style="--accent: var(--gold); max-width:none; margin-top:0;">
+        <div class="equiv-box" id="c_lca_realBox" style="--accent: var(--gold);">
           <div class="equiv-label" id="c_lca_realLabel">Rentabilidade Real de LCA (após IPCA)</div>
           <div class="equiv-value" id="c_lca_realValue">—</div>
           <div class="equiv-subvalue"><span class="lbl">Valor final em poder de compra de hoje</span><span id="c_lca_realMoney">—</span></div>
         </div>
-        <div class="equiv-box" id="c_rdc_realBox" style="--accent: var(--teal); max-width:none; margin-top:0;">
+        <div class="equiv-box" id="c_rdc_realBox" style="--accent: var(--teal);">
           <div class="equiv-label">Rentabilidade Real de RDC (após IPCA)</div>
           <div class="equiv-value" id="c_rdc_realValue">—</div>
           <div class="equiv-subvalue"><span class="lbl">Valor final em poder de compra de hoje</span><span id="c_rdc_realMoney">—</span></div>
@@ -416,11 +416,11 @@
         <div class="bars">
           <div class="bar-row">
             <div class="bar-label"><span id="c_barLCALabel">LCA</span><span id="c_barLCAval"></span></div>
-            <div class="bar-track"><div class="bar-fill" id="c_barLCA" style="background:var(--gold); width:0%;"></div></div>
+            <div class="bar-track"><div class="bar-fill" id="c_barLCA"></div></div>
           </div>
           <div class="bar-row">
             <div class="bar-label"><span>RDC</span><span id="c_barRDCval"></span></div>
-            <div class="bar-track"><div class="bar-fill" id="c_barRDC" style="background:var(--teal); width:0%;"></div></div>
+            <div class="bar-track"><div class="bar-fill" id="c_barRDC"></div></div>
           </div>
         </div>
       </div>
@@ -435,7 +435,7 @@
     <p>5 - Rentabilidade passada não representa garantia de rentabilidade futura. Todo investimento envolve riscos e pode resultar em perdas do capital investido.</p>
     <p>6 - CDI automático estimado a partir da série histórica da Meta Selic definida pelo Copom (Banco Central, SGS 432), descontando o spread padrão de 0,10 p.p. entre CDI e Selic — essa fonte reflete decisões do Copom no mesmo dia, sem a defasagem de publicação da série de CDI realizado. IPCA automático consultado na série de IPCA acumulado em 12 meses (SGS 13522), atualizada mensalmente pelo IBGE/Banco Central. Se a consulta falhar (rede bloqueada, CORS, etc.), ajuste os valores manualmente.</p>
   </footer>
-    
+
 </div>
 
 <script src="assets/formato.js"></script>

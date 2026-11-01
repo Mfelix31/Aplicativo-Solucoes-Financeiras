@@ -60,9 +60,11 @@ test('todos os arquivos JavaScript têm sintaxe válida', () => {
   }
 });
 
-test('nenhum estilo em linha fixo nas páginas (só variáveis de cor por item)', () => {
-  for (const pagina of ['aquisicao.html', 'index.html', 'sucessao.html']) {
-    const estilos = [...ler(pagina).matchAll(/\sstyle="([^"]*)"/g)].map(m => m[1]).filter(s => !/^--c[bl]?:/.test(s.trim()));
+test('nenhum estilo em linha fixo nas páginas (só variáveis CSS por item, como --c ou --accent)', () => {
+  // permitido: style="--accent: var(--gold);" (o script troca a variável); proibido: margens, cores e tamanhos fixos
+  const soVariaveis = s => s.split(';').map(d => d.trim()).filter(Boolean).every(d => /^--[\w-]+\s*:/.test(d));
+  for (const pagina of PAGINAS) {
+    const estilos = [...ler(pagina).matchAll(/\sstyle="([^"]*)"/g)].map(m => m[1]).filter(s => !soVariaveis(s));
     assert.deepEqual(estilos, [], pagina);
   }
 });

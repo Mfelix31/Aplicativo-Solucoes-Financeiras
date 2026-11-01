@@ -101,20 +101,20 @@
           <div class="hint">Alternativa à renda perpétua: saques maiores que zeram o patrimônio nessa idade.</div>
         </div>
       </div>
-      <div class="field" style="margin-bottom:6px;"><label>Rentabilidade nominal anual na fase de acumulação — 3 cenários</label></div>
+      <div class="field field-titulo"><label>Rentabilidade nominal anual na fase de acumulação — 3 cenários</label></div>
       <div class="scen-inputs">
         <div class="field">
-          <label for="tx0"><span class="dot" style="background:var(--blue)"></span>Conservador</label>
+          <label for="tx0"><span class="dot dot-conservador"></span>Conservador</label>
           <div class="row-input"><input type="number" id="tx0" value="8" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
           <div class="hint" id="tx0Real"></div>
         </div>
         <div class="field">
-          <label for="tx1"><span class="dot" style="background:var(--gold)"></span>Base</label>
+          <label for="tx1"><span class="dot dot-base"></span>Base</label>
           <div class="row-input"><input type="number" id="tx1" value="10" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
           <div class="hint" id="tx1Real"></div>
         </div>
         <div class="field">
-          <label for="tx2"><span class="dot" style="background:var(--teal)"></span>Otimista</label>
+          <label for="tx2"><span class="dot dot-otimista"></span>Otimista</label>
           <div class="row-input"><input type="number" id="tx2" value="12" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
           <div class="hint" id="tx2Real"></div>
         </div>
@@ -184,7 +184,7 @@
   <div class="step-panel" id="step-3">
     <div class="warn-box"><span>⚠️</span><span>Esta é uma <strong>simulação</strong> com taxas médias fixas e valores <strong>antes de IR</strong>. Rentabilidade e inflação reais variam ano a ano; o resultado efetivo pode ser diferente.</span></div>
 
-    <p class="sub" id="scenNote" style="font-size:12.5px; color:var(--ink-faint); margin:0 0 10px;"></p>
+    <p class="sub" id="scenNote"></p>
     <div class="scen-cards" id="scenCards"></div>
 
     <div class="chart-box">
@@ -221,7 +221,7 @@
     <p id="modalIntro"></p>
     <ul id="modalList"></ul>
     <p class="modal-rec" id="modalRec">Reveja o valor e o prazo, ou avalie consórcio e financiamento para esse objetivo.</p>
-    <div class="modal-actions" style="text-align:right;"><button class="primary" type="button" id="modalOk">Entendi</button></div>
+    <div class="modal-actions"><button class="primary" type="button" id="modalOk">Entendi</button></div>
   </div>
 </div>
 

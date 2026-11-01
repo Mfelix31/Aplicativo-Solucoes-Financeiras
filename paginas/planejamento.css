@@ -126,3 +126,11 @@ button.ghost{background:transparent; border:1px solid var(--teal-dim); color:var
 }
 .kpi .s .extra[hidden]{display:none;}
 .kpi .s .extra{display:block; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-family:Arial, Helvetica, sans-serif; font-size:12.5px; color:var(--ink);}
+
+/* Ajustes de layout que antes ficavam em style="" no HTML */
+.field-titulo{margin-bottom:6px;}
+.dot-conservador{background:var(--blue);}
+.dot-base{background:var(--gold);}
+.dot-otimista{background:var(--teal);}
+#scenNote{font-size:12.5px; color:var(--ink-faint); margin:0 0 10px;}
+.modal-actions{text-align:right;}

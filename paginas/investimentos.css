@@ -497,3 +497,20 @@ footer{
   .print-active .pr-verdict{margin-top:16px; font-size:13px; color:#003641; font-weight:700; border-left:4px solid #00AE9D; padding:8px 12px; background:#F3F8F8;}
   .print-active .pr-footer{margin-top:24px; font-size:10.5px; color:#4F7178;}
 }
+
+/* Ajustes de layout que antes ficavam em style="" no HTML */
+.cab-acoes{display:flex; align-items:flex-start; gap:14px;}
+#s_card{max-width:460px;}
+#s_aporteNote{max-width:460px; margin-top:6px;}
+.dual-sim{margin-top:4px;}
+#s_equivBox, #s_realBox, #c_lca_realBox, #c_rdc_realBox{max-width:none; margin-top:0;}
+.sem-margem{margin:0;}
+#s_refNote{margin-top:10px;}
+#s_cenariosVazio{margin-top:4px;}
+#s_cenarioCompareWrap{margin-top:16px;}
+#s_cenarioChartBox, #s_btnPdfComparativo{margin-top:12px;}
+#c_parSwitch{margin-bottom:20px;}
+#c_tagLCA, #c_tagRDC{display:none;}      /* o script mostra o selo do vencedor */
+.bar-fill{width:0;}
+#c_barLCA{background:var(--gold);}
+#c_barRDC{background:var(--teal);}
