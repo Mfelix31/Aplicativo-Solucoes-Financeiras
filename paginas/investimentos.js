@@ -14,9 +14,6 @@ function fmtBRLShort(v){
   if(Math.abs(v) >= 1000) return 'R$ ' + (v/1000).toFixed(1).replace('.',',') + 'mil';
   return fmtBRL(v);
 }
-function taxaReal(taxaAnualLiquidaPct, ipcaPct){
-  return ((1 + taxaAnualLiquidaPct/100) / (1 + ipcaPct/100) - 1) * 100;
-}
 
 const escHTML = Formato.esc;
 
@@ -56,129 +53,20 @@ function atualizarCaixasRealCmp(){
 }
 
 
-const IOF_TABLE = [96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,46,43,40,36,33,30,26,23,20,16,13,10,6,3];
-function iofAliquota(dias){
-  if(dias >= 30) return 0;
-  const idx = Math.max(1, Math.floor(dias)) - 1;
-  return IOF_TABLE[Math.min(idx, IOF_TABLE.length-1)];
-}
-function irAliquota(dias){
-  if(dias <= 180) return 22.5;
-  if(dias <= 360) return 20;
-  if(dias <= 720) return 17.5;
-  return 15;
-}
-/* ---------------- CALENDÁRIO: dias corridos e dias úteis (base 252) ----------------
-   Convenção de mercado para CDB/LCA/RDC/compromissada:
-   - rendimento: (1 + taxa)^(DU/252), DU = dias úteis de [aplicação, resgate)
-   - IR e IOF: dias corridos entre aplicação e resgate
-   Feriados nacionais (calendário ANBIMA): fixos + móveis calculados pela Páscoa. */
+/* ---------------- CÁLCULO ----------------
+   As regras (IR, IOF, dias úteis base 252, feriados, aportes e referências de mercado)
+   ficam no motor engine/investimentos.js, testado em tests/investimentos.test.js.
+   A página só lê os campos, chama o motor e mostra os resultados. */
 const HOJE0 = (()=>{ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); })();
-function pascoa(ano){
-  const a = ano % 19, b = Math.floor(ano/100), c = ano % 100, d = Math.floor(b/4), e = b % 4;
-  const f = Math.floor((b+8)/25), g = Math.floor((b-f+1)/3), h = (19*a + b - d - g + 15) % 30;
-  const i = Math.floor(c/4), k = c % 4, l = (32 + 2*e + 2*i - h - k) % 7, m = Math.floor((a + 11*h + 22*l)/451);
-  const mes = Math.floor((h + l - 7*m + 114)/31), dia = ((h + l - 7*m + 114) % 31) + 1;
-  return new Date(ano, mes-1, dia);
-}
-const _feriados = {};
-function feriadosNacionais(ano){
-  if(_feriados[ano]) return _feriados[ano];
-  const set = new Set(['1-1','4-21','5-1','9-7','10-12','11-2','11-15','12-25']);
-  if(ano >= 2024) set.add('11-20'); // Dia Nacional de Zumbi e da Consciência Negra (Lei 14.759/2023)
-  const p = pascoa(ano);
-  [-48, -47, -2, 60].forEach(off=>{ // Carnaval (seg e ter), Sexta-feira Santa, Corpus Christi
-    const d = new Date(p.getFullYear(), p.getMonth(), p.getDate() + off);
-    set.add((d.getMonth()+1) + '-' + d.getDate());
-  });
-  return (_feriados[ano] = set);
-}
-function ehDiaUtil(d){
-  const w = d.getDay();
-  if(w === 0 || w === 6) return false;
-  return !feriadosNacionais(d.getFullYear()).has((d.getMonth()+1) + '-' + d.getDate());
-}
-const _cumDU = [0]; // _cumDU[n] = dias úteis em [hoje, hoje + n)
-function diasUteisAte(n){
-  n = Math.max(0, Math.round(n));
-  while(_cumDU.length <= n){
-    const i = _cumDU.length - 1;
-    const d = new Date(HOJE0.getFullYear(), HOJE0.getMonth(), HOJE0.getDate() + i);
-    _cumDU.push(_cumDU[i] + (ehDiaUtil(d) ? 1 : 0));
-  }
-  return _cumDU[n];
-}
-function diasUteisEntre(offIni, offFim){ return diasUteisAte(offFim) - diasUteisAte(offIni); }
-function diasAteMesesDepois(n){
-  const dia = HOJE0.getDate();
-  const alvo = new Date(HOJE0.getFullYear(), HOJE0.getMonth() + n, 1);
-  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
-  alvo.setDate(Math.min(dia, ultimo));
-  return Math.round((alvo - HOJE0) / 864e5);
-}
-function prazoEmDias(valor, unidade){
-  if(unidade === 'dias') return Math.round(valor);
-  if(unidade === 'meses') return diasAteMesesDepois(Math.round(valor));
-  return diasAteMesesDepois(Math.round(valor * 12));
-}
+const Calc = InvestEngine.calculadora(HOJE0);
+const {taxaReal, irAliquota} = InvestEngine;
+const {prazoEmDias, datasAportes, taxaEquivalente, simular} = Calc;
+
 function textoPrazo(valor, unidade){
   const v = Math.round(valor);
   if(unidade === 'dias') return v + (v===1 ? ' dia' : ' dias');
   if(unidade === 'meses') return v + (v===1 ? ' mês' : ' meses');
   return v + (v===1 ? ' ano' : ' anos');
-}
-
-/* ---------------- TAXA CONSTANTE OU CURVA POR ANO ----------------
-   taxa = número (% a.a., constante)  ou  {curva: {ano: CDI % a.a.}, mult: % do CDI / 100, add: p.p. somados}
-   O fator de rendimento compõe ano a ano: Π (1 + taxa_ano)^(DU_ano/252). */
-function taxaNoAno(taxa, ano){
-  if(typeof taxa === 'number') return taxa;
-  const anos = Object.keys(taxa.curva).map(Number).sort((a,b)=>a-b);
-  let v = taxa.curva[anos[0]];
-  for(const a of anos){ if(a <= ano) v = taxa.curva[a]; }
-  return v * (taxa.mult == null ? 1 : taxa.mult) + (taxa.add || 0);
-}
-function fatorRend(taxa, ini, fim){
-  if(typeof taxa === 'number') return Math.pow(1 + taxa/100, diasUteisEntre(ini, fim)/252);
-  let f = 1, c = ini;
-  while(c < fim){
-    const d = new Date(HOJE0.getFullYear(), HOJE0.getMonth(), HOJE0.getDate() + c);
-    const ano = d.getFullYear();
-    const inicioProxAno = Math.round((new Date(ano + 1, 0, 1) - HOJE0) / 864e5);
-    const seg = Math.min(fim, inicioProxAno);
-    f *= Math.pow(1 + taxaNoAno(taxa, ano)/100, diasUteisEntre(c, seg)/252);
-    c = seg;
-  }
-  return f;
-}
-/** taxa anual equivalente (base 252) de uma taxa constante ou curva, num intervalo */
-function taxaEquivalente(taxa, dias, ini){
-  if(typeof taxa === 'number') return taxa;
-  const i = Math.round(ini || 0), du = diasUteisEntre(i, i + Math.round(dias));
-  return du > 0 ? (Math.pow(fatorRend(taxa, i, i + Math.round(dias)), 252/du) - 1) * 100 : taxaNoAno(taxa, HOJE0.getFullYear());
-}
-
-function simular(pv, taxaAnualPct, dias, isentoIR, isentoIOF, inicioOffset){
-  // dias = dias corridos da aplicação ao resgate; inicioOffset = dias corridos entre hoje e a aplicação
-  const ini = Math.round(inicioOffset || 0);
-  const du = diasUteisEntre(ini, ini + Math.round(dias));
-  const fv = pv * fatorRend(taxaAnualPct, ini, ini + Math.round(dias));
-  const bruto = fv - pv;
-
-  const aliqIOF = isentoIOF ? 0 : iofAliquota(dias);
-  const iofValor = bruto * (aliqIOF/100);
-  const aposIOF = bruto - iofValor;
-
-  const aliqIR = isentoIR ? 0 : irAliquota(dias);
-  const irValor = aposIOF * (aliqIR/100);
-  const liquido = aposIOF - irValor;
-
-  const valorFinal = pv + liquido;
-  const pPeriodo = (liquido/pv)*100;
-  const taxaAnualLiquida = du > 0 ? (Math.pow(valorFinal/pv, 252/du) - 1) * 100 : 0;
-  const pMensal = (Math.pow(1+taxaAnualLiquida/100, 1/12) - 1) * 100;
-
-  return {bruto, pBrutoAnual: taxaEquivalente(taxaAnualPct, dias, ini), iofValor, aliqIOF, isentoIOF: !!isentoIOF, irValor, aliqIR, liquido, valorFinal, pPeriodo, panual: taxaAnualLiquida, pmensal: pMensal, du, dc: Math.round(dias)};
 }
 
 function preencherCard(prefix, r, pv){
@@ -232,41 +120,7 @@ async function buscarIPCA(inputId, statusId){
 }
 
 /* ---------------- GRÁFICO DE EVOLUÇÃO ---------------- */
-/* datas (em dias corridos a partir de hoje) dos aportes mensais dentro do prazo */
-function datasAportes(diasTotal){
-  const datas = [];
-  for(let k=1; ; k++){
-    const off = diasAteMesesDepois(k);
-    if(off > diasTotal) break;
-    datas.push(off);
-  }
-  return datas;
-}
-function evolucaoMensal(pv, aporte, taxa, diasTotal, isentoIR, isentoIOF){
-  const datas = aporte > 0 ? datasAportes(diasTotal) : [];
-  const nPontos = Math.min(24, Math.max(6, Math.round(diasTotal/15)));
-  const pontos = [];
-  for(let i=0; i<=nPontos; i++){
-    const diaAtual = Math.round((diasTotal * i) / nPontos);
-    let liquidoTotal = 0;
-    let capitalTotal = pv;
-    if(diaAtual > 0){
-      const rIni = simular(pv, taxa, diaAtual, isentoIR, isentoIOF);
-      liquidoTotal += rIni.liquido;
-    }
-    for(const off of datas){
-      if(off > diaAtual) break;
-      capitalTotal += aporte;
-      const diasAporte = diaAtual - off;
-      if(diasAporte > 0){
-        const rAp = simular(aporte, taxa, diasAporte, isentoIR, isentoIOF, off);
-        liquidoTotal += rAp.liquido;
-      }
-    }
-    pontos.push({dia: diaAtual, valor: capitalTotal + liquidoTotal});
-  }
-  return pontos;
-}
+const evolucaoMensal = Calc.evolucao;
 
 function coresTemaAtual(){
   const cs = getComputedStyle(document.documentElement);
@@ -629,7 +483,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
    Depois do último ano do Focus, mantém o último valor. Todos os anos futuros são editáveis.
    Se a consulta falhar, nada é inventado: os anos ficam com o CDI informado e o aviso é exibido. */
 const ANO_ATUAL = HOJE0.getFullYear();
-const SPREAD_CDI_SELIC_PP = 0.10;
+const SPREAD_CDI_SELIC_PP = InvestEngine.SPREAD_CDI_SELIC;
 let modoCDI = 'constante';
 let curvaCDI = null;          // {ano: CDI % a.a.}
 let focusInfo = {estado: 'inicial', texto: ''};
@@ -715,59 +569,20 @@ function selecionarModoCDI(modo){
    CDB:      % do CDI; IR regressivo e IOF (mesma regra do RDC).
    Tesouro Selic: Selic ≈ CDI + 0,10 p.p.; IR regressivo e IOF; taxa de custódia B3 de 0,20% a.a.
              sobre o valor que exceder R$ 10 mil por CPF (estimada mês a mês). */
-function mesesCompletos(dias){ let k = 0; while(diasAteMesesDepois(k + 1) <= dias) k++; return k; }
-function lotesAplicacao(pv, aporte, dias){
-  const lotes = [{off: 0, v: pv}];
-  if(aporte > 0) datasAportes(dias).forEach(o => lotes.push({off: o, v: aporte}));
-  return lotes;
-}
-function liquidoRendaFixa(lotes, taxa, dias, isentoIR, isentoIOF){
-  let liq = 0;
-  lotes.forEach(l=>{ if(dias - l.off > 0) liq += simular(l.v, taxa, dias - l.off, isentoIR, isentoIOF, l.off).liquido; });
-  return liq;
-}
-function calcularReferencias(pv, aporte, dias, cdi, valorFinalSim, capitalSim, duTotal){
-  const lotes = lotesAplicacao(pv, aporte, dias);
-  const capital = lotes.reduce((a,l)=>a + l.v, 0);
-  // taxa interna de retorno anual (base 252): considera o tempo que cada aporte ficou aplicado
-  const anual = vf => {
-    const fluxos = lotes.map(l => ({v: l.v, du: diasUteisEntre(l.off, dias)}));
-    const total = r => fluxos.reduce((a,f)=>a + f.v * Math.pow(1 + r, f.du/252), 0);
-    if(!(capital > 0) || !(duTotal > 0)) return 0;
-    let lo = -0.99, hi = 5;
-    for(let k = 0; k < 80; k++){ const m = (lo + hi)/2; if(total(m) > vf) hi = m; else lo = m; }
-    return ((lo + hi)/2) * 100;
-  };
-  const selic = cdi + SPREAD_CDI_SELIC_PP;
-  const linhas = [];
-
-  // Poupança
-  const tr = (parseFloat($('s_refTr').value) || 0) / 100;
-  const rBase = selic > 8.5 ? 0.005 : Math.pow(1 + 0.7*selic/100, 1/12) - 1;
-  const rMes = (1 + rBase) * (1 + tr) - 1;
-  const mTot = mesesCompletos(dias);
-  let vfPoup = 0;
-  lotes.forEach((l, i)=>{ const m = Math.max(0, mTot - i); vfPoup += l.v * Math.pow(1 + rMes, m); });
-  linhas.push({nome: 'Poupança', sub: fmtPct(rMes*100, 4) + ' a.m.', vf: vfPoup, garantia: 'FGC/FGCoop até R$ 250 mil'});
-
-  // CDB
+function calcularReferencias(pv, aporte, dias, cdi, valorFinalSim){
   const percCdb = parseFloat($('s_refCdb').value) || 0;
-  const taxaCdb = taxaPosFixada(cdi, percCdb);
-  const vfCdb = capital + liquidoRendaFixa(lotes, taxaCdb, dias, false, false);
-  linhas.push({nome: 'CDB', sub: fmtPct(percCdb, 0) + ' do CDI', vf: vfCdb, garantia: 'FGC até R$ 250 mil'});
-
-  // Tesouro Selic
-  const taxaSelic = typeof taxaCdb === 'number' ? selic : {curva: taxaCdb.curva, mult: 1, add: SPREAD_CDI_SELIC_PP};
-  let custodia = 0, ant = 0;
-  for(let k = 1; ant < dias; k++){
-    const o = Math.min(dias, diasAteMesesDepois(k));
-    let saldo = 0;
-    lotes.forEach(l=>{ if(l.off < o) saldo += l.v * fatorRend(taxaSelic, l.off, o); });
-    custodia += 0.002 * Math.max(0, saldo - 10000) * ((o - ant) / 365);
-    ant = o;
-  }
-  const vfSelic = capital + liquidoRendaFixa(lotes, taxaSelic, dias, false, false) - custodia;
-  linhas.push({nome: 'Tesouro Selic', sub: 'Selic ' + fmtPct(taxaEquivalente(taxaSelic, dias)) + ' a.a.' + (custodia > 0.005 ? ' · custódia ≈ ' + fmtBRL(custodia) : ''), vf: vfSelic, garantia: 'Tesouro Nacional'});
+  const ref = Calc.referencias({
+    pv, aporte, dias, cdi,
+    trMensal: parseFloat($('s_refTr').value) || 0,
+    taxaCdb: taxaPosFixada(cdi, percCdb)
+  });
+  const anual = ref.tir;               // taxa interna de retorno anual: considera o tempo de cada aporte
+  const mTot = ref.meses, custodia = ref.tesouroSelic.custodia, taxaCdb = ref.cdb.taxa;
+  const linhas = [
+    {nome: 'Poupança', sub: fmtPct(ref.poupanca.taxaMensal, 4) + ' a.m.', vf: ref.poupanca.vf, garantia: 'FGC/FGCoop até R$ 250 mil'},
+    {nome: 'CDB', sub: fmtPct(percCdb, 0) + ' do CDI', vf: ref.cdb.vf, garantia: 'FGC até R$ 250 mil'},
+    {nome: 'Tesouro Selic', sub: 'Selic ' + fmtPct(ref.tesouroSelic.taxaEquivalente) + ' a.a.' + (custodia > 0.005 ? ' · custódia ≈ ' + fmtBRL(custodia) : ''), vf: ref.tesouroSelic.vf, garantia: 'Tesouro Nacional'}
+  ];
 
   const nomeSim = produtoLabels[tipoSelecionado];
   let html = '<tr><th>Investimento</th><th class="n">Valor final líquido</th><th class="n">Rent. líquida a.a.</th><th class="n">Diferença</th><th>Garantia</th></tr>';
@@ -812,9 +627,9 @@ function validarPrazo(prefixo, ehLCA){
     return null;
   }
   if(ehLCA){
-    const minimo = prazoEmDias(6, 'meses');
+    const minimo = prazoEmDias(InvestEngine.LCA_PRAZO_MINIMO_MESES, 'meses');
     if(dias < minimo){
-      el.value = 6; un.value = 'meses'; dias = minimo;
+      el.value = InvestEngine.LCA_PRAZO_MINIMO_MESES; un.value = 'meses'; dias = minimo;
       msg.textContent = 'A LCA tem prazo mínimo de 6 meses (Resolução CMN nº 5.215/2025). O prazo foi ajustado para 6 meses.';
       msg.classList.add('warn');
     }
@@ -905,35 +720,12 @@ function calcularSimulacao(){
     taxa = taxaPosFixada(cdiAtualSim, perc);
   }
 
-  const rInicial = simular(pv, taxa, dias, isentoIR, isentoIOF);
-
-  let totalBruto = rInicial.bruto;
-  let totalIOF = rInicial.iofValor;
-  let totalIR = rInicial.irValor;
-  let totalLiquido = rInicial.liquido;
-  let totalCapital = pv;
-  let nAportes = 0;
-
-  if(aporte > 0){
-    const datas = datasAportes(dias);
-    nAportes = datas.length;
-    for(const off of datas){
-      const diasAporte = dias - off;
-      if(diasAporte <= 0){ totalCapital += aporte; continue; } // aporte no dia do resgate: entra sem render
-      const rAporte = simular(aporte, taxa, diasAporte, isentoIR, isentoIOF, off);
-      totalBruto += rAporte.bruto;
-      totalIOF += rAporte.iofValor;
-      totalIR += rAporte.irValor;
-      totalLiquido += rAporte.liquido;
-      totalCapital += aporte;
-    }
-  }
-
-  const valorFinal = totalCapital + totalLiquido;
-  const pPeriodo = totalCapital > 0 ? (totalLiquido/totalCapital)*100 : 0;
-  const duTotal = rInicial.du;
-  const taxaAnualLiquida = duTotal > 0 && totalCapital > 0 ? (Math.pow(valorFinal/totalCapital, 252/duTotal) - 1) * 100 : 0;
-  const pMensal = (Math.pow(1+taxaAnualLiquida/100, 1/12) - 1) * 100;
+  const res = Calc.simularComAportes(pv, aporte, taxa, dias, isentoIR, isentoIOF);
+  const rInicial = res.inicial;
+  const {nAportes, valorFinal, pPeriodo} = res;
+  const totalCapital = res.capital, totalLiquido = res.liquido;
+  const totalBruto = res.bruto, totalIOF = res.iofValor, totalIR = res.irValor;
+  const taxaAnualLiquida = res.panual, pMensal = res.pmensal;
 
   const taxaCalc = taxa;                     // constante ou curva — usada nos cálculos
   taxa = taxaEquivalente(taxaCalc, dias);    // número equivalente — usado nos textos
@@ -1004,12 +796,11 @@ function calcularSimulacao(){
   $('s_resultsBlock').style.display = 'block';
 
   const aliqIR = irAliquota(dias);
-  let equivalente, nota;
+  const equivalente = InvestEngine.taxaEquivalenteIR(taxa, dias, isentoIR);
+  let nota;
   if(isentoIR){
-    equivalente = taxa / (1 - aliqIR/100);
     nota = 'Um RDC precisaria pagar essa taxa bruta ao ano para, após ' + fmtPct(aliqIR,1) + ' de IR (prazo de ' + Math.round(dias) + ' dias), render o mesmo líquido que essa LCA.';
   } else {
-    equivalente = taxa * (1 - aliqIR/100);
     const nomeProduto = tipoSelecionado === 'rdc' ? 'esse RDC' : 'essa Operação Compromissada';
     nota = 'Uma LCA (isenta de IR) precisaria pagar essa taxa ao ano para render o mesmo líquido que ' + nomeProduto + ', que perde ' + fmtPct(aliqIR,1) + ' de IR nesse prazo.';
   }
@@ -1022,7 +813,7 @@ function calcularSimulacao(){
     $('s_equivValue').textContent = fmtPct(equivalente) + ' a.a.';
   }
   $('s_equivNote').textContent = nota;
-  calcularReferencias(pv, aporte, dias, cdiAtualSim || (parseFloat($('s_cdi').value) || 0), valorFinal, totalCapital, duTotal);
+  calcularReferencias(pv, aporte, dias, cdiAtualSim || (parseFloat($('s_cdi').value) || 0), valorFinal);
 }
 $('s_btnCalc').addEventListener('click', calcularSimulacao);
 $('s_prazoUnidade').addEventListener('change', calcularSimulacao);

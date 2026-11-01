@@ -17,6 +17,8 @@ Taxa real, em todos os módulos: (1 + nominal) ÷ (1 + inflação) − 1. Nunca 
 
 ## Simulador de Investimentos
 
+Motor: `engine/investimentos.js` · testes: `tests/investimentos.test.js`.
+
 - **LCA:** isenta de IR para pessoa física. Prazo mínimo de 6 meses (Resolução CMN 5.215/2025): o simulador trava o prazo e avisa.
 - **RDC:** IR regressivo e IOF regressivo nos resgates antes de 30 dias.
 - **Operação Compromissada:** lastreada em título de crédito privado, sem IOF, com IR regressivo.
@@ -29,6 +31,8 @@ Taxa real, em todos os módulos: (1 + nominal) ÷ (1 + inflação) − 1. Nunca 
 
 ## Planejamento Financeiro
 
+Motor: `engine/planejamento.js` · testes: `tests/planejamento.test.js`.
+
 - Aportes e retiradas no **fim** de cada mês (como VF/PGTO do Excel com tipo 0). Aporte mensal nominal fixo, sem reajuste.
 - Rentabilidade da acumulação **nominal e bruta** (antes de IR), em três cenários editáveis: 8%, 10% e 12% a.a. Inflação média fixa (padrão 4% a.a.).
 - **Patrimônio necessário** (R$ de hoje) = (renda desejada − outras rendas) ÷ taxa real mensal equivalente de IPCA + 5,16% a.a. Exemplo: R$ 20 mil ÷ 0,4202% ≈ R$ 4,76 milhões. É uma perpetuidade real: paga a renda corrigida pela inflação sem consumir o principal.
@@ -39,6 +43,8 @@ Taxa real, em todos os módulos: (1 + nominal) ÷ (1 + inflação) − 1. Nunca 
 
 ## Estratégia de Aquisição
 
+Motor: `engine/aquisicao.js` · testes: `tests/aquisicao.test.js`.
+
 - **Critério:** patrimônio líquido = capital investido + valor do bem − saldo devedor, no horizonte escolhido (padrão 10 anos), nominal e em R$ de hoje.
 - Todo mês o capital rende pela taxa líquida e a parcela sai dele; o que sobra fica investido, o que falta é descapitalização. Aporte mensal opcional entra igual em todos os caminhos.
 - **Financiamento** no padrão da proposta Sicoob: saldo corrigido pela TR projetada; juros = saldo corrigido × taxa nominal ÷ 12; SAC ou Price; seguro MIP por faixa de idade e DFI sobre o imóvel; tarifa mensal; despesas não incorporadas saem do capital; 1ª parcela um mês após a contratação. Conferido contra a proposta de 23/10/2026 (diferença de centavos por parcela).
@@ -48,6 +54,8 @@ Taxa real, em todos os módulos: (1 + nominal) ÷ (1 + inflação) − 1. Nunca 
 - **Valorização do bem:** IPCA por padrão; valor próprio opcional (negativo para veículos).
 
 ## Planejamento Sucessório
+
+Motor: `engine/sucessao.js` · testes: `tests/sucessao.test.js`.
 
 - **Custo esperado do inventário:** 18% do que vai a inventário (média observada em clientes de MT e MS). É o custo usado na comparação dos caminhos, inclusive no 2º inventário (do cônjuge, sobre a meação). A conta item por item (ITCMD por quinhão, honorários, escritura ou custas, registro, certidões, multa) aparece como conferência.
 - **Meta de liquidez:** 18% + despesas da família durante o inventário (meses padrão: 3 em cartório, 24 judicial, 36 com conflito), corrigidas pelo IPCA.

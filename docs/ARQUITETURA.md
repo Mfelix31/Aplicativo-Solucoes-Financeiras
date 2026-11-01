@@ -37,6 +37,7 @@ Como o código está organizado e por quê. Para as regras financeiras, veja [CA
 
 | Arquivo | Global | Usado por |
 |---|---|---|
+| `engine/investimentos.js` | `InvestEngine` | Simulador de Investimentos: calendário (feriados e dias úteis), IR, IOF, aportes, evolução e referências de mercado |
 | `engine/planejamento.js` | `PlanEngine` | Planejamento Financeiro |
 | `engine/aquisicao.js` | `AquisicaoEngine` | Estratégia de Aquisição |
 | `engine/propostas.js` | `PropostasSicoob` | Estratégia de Aquisição (leitura dos PDFs do Sicoob) |
@@ -45,6 +46,8 @@ Como o código está organizado e por quê. Para as regras financeiras, veja [CA
 | `dados/tabuas-br-ems.js` | `TabuasBREMS` | Planejamento Sucessório: tábuas de mortalidade da SUSEP |
 | `dados/referencias-mercado.js` | `ReferenciasMercado` | Página inicial: valores de referência enquanto o BCB não responde |
 | `dados/ibovespa.json` | — | Página inicial: fechamento do Ibovespa, gravado pela automação diária |
+
+O calendário do Simulador depende do dia da aplicação, por isso o `InvestEngine` cria uma calculadora para uma data: `InvestEngine.calculadora(new Date())`. Nos testes, a data é fixa, o que torna os resultados reproduzíveis.
 
 Os motores e os arquivos de dados usam o mesmo padrão de módulo, que funciona no navegador (global) e no Node (`require`):
 
@@ -83,6 +86,5 @@ Os commits automáticos do Ibovespa ("Ibovespa: fechamento de AAAA-MM-DD") são 
 
 ## Pontos de atenção conhecidos
 
-- **Simulador de Investimentos sem motor separado.** As regras de LCA, RDC e Compromissada (dias úteis, IR, IOF, feriados) ainda estão em `paginas/investimentos.js`, não em `engine/`, e por isso não têm testes unitários próprios. É o módulo mais antigo; a extração para `engine/investimentos.js`, com testes, é o próximo passo recomendado.
 - **Ibovespa sem API documentada.** A B3 só oferece API oficial para empresas (com credenciais); a automação lê a página pública de estatísticas, que pode mudar de formato.
 - **Tabelas de ITCMD de fontes secundárias** fora de MT, MS, RO e PA. Precisam de conferência por advogado ou contador de cada estado.
