@@ -1,0 +1,98 @@
+/*
+ * Ajuda da plataforma (assets/ajuda.js): botão "?", balão, dica das etapas e guia "Como usar".
+ * Usa só os tokens de base.css, então funciona no tema claro e no escuro.
+ */
+
+/* botão "?" ao lado de rótulos e títulos */
+.ajuda-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:17px; height:17px; margin-left:6px; padding:0; vertical-align:middle; flex:0 0 auto;
+  border-radius:50%; border:1px solid var(--l-turq); background:transparent; color:var(--acc);
+  font:700 11px/1 Arial, Helvetica, sans-serif; cursor:pointer;
+  transition:background-color .15s ease, color .15s ease;
+}
+.ajuda-btn:hover, .ajuda-btn[aria-expanded="true"]{background:var(--l-turq); color:var(--on-accent); border-color:var(--l-turq);}
+:root:not([data-theme="dark"]) .ajuda-btn:hover, :root:not([data-theme="dark"]) .ajuda-btn[aria-expanded="true"]{color:#FFFFFF; background:#007A73; border-color:#007A73;}
+.ajuda-btn:focus-visible{outline:2px solid var(--hl); outline-offset:2px;}
+/* área de toque maior sem aumentar o desenho */
+.ajuda-btn{position:relative;}
+.ajuda-btn::after{content:''; position:absolute; inset:-8px;}
+h2 .ajuda-btn, h3 .ajuda-btn{width:18px; height:18px; font-size:11.5px;}
+
+/* balão de ajuda */
+.ajuda-pop{
+  position:absolute; z-index:60; box-sizing:border-box;
+  background:var(--panel); color:var(--ink); border:1px solid var(--line); border-top:3px solid var(--l-turq);
+  border-radius:8px; padding:12px 34px 4px 14px;
+  box-shadow:0 10px 30px rgba(0,30,36,.22);
+  font:400 13px/1.5 Arial, Helvetica, sans-serif; text-align:left;
+}
+.ajuda-pop[hidden]{display:none;}
+.ajuda-pop-tit{font-weight:700; font-size:13px; margin-bottom:6px;}
+.ajuda-pop-txt p{margin:0 0 8px; color:var(--ink-muted);}
+.ajuda-pop-txt strong{color:var(--ink);}
+.ajuda-pop-x{position:absolute; top:6px; right:6px; width:24px; height:24px; border:none; background:transparent; color:var(--ink-faint); font-size:18px; line-height:1; cursor:pointer; border-radius:4px;}
+.ajuda-pop-x:hover{color:var(--ink); background:var(--line-soft);}
+
+/* dica no topo de cada etapa */
+.ajuda-etapa{
+  display:flex; align-items:flex-start; gap:10px;
+  background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--l-turq); border-radius:6px;
+  padding:10px 12px; margin:0 0 16px; font-size:12.5px; color:var(--ink-muted);
+}
+.ajuda-etapa[hidden]{display:none;}
+.ajuda-etapa-ico{flex:0 0 auto; width:18px; height:18px; border-radius:50%; background:var(--l-turq); color:#FFFFFF; font:700 12px/18px Georgia, serif; text-align:center; font-style:italic; margin-top:1px;}
+.ajuda-etapa-txt{flex:1;}
+.ajuda-etapa-txt p{margin:0 0 4px;}
+.ajuda-etapa-txt p:last-child{margin-bottom:0;}
+.ajuda-etapa-txt strong{color:var(--ink);}
+.ajuda-etapa-x{flex:0 0 auto; border:none; background:transparent; color:var(--ink-faint); font-size:11.5px; cursor:pointer; padding:2px 4px; text-decoration:underline;}
+.ajuda-etapa-x:hover{color:var(--ink);}
+@media(max-width:560px){ .ajuda-etapa{flex-wrap:wrap;} .ajuda-etapa-x{margin-left:28px;} }
+
+/* botão "Como usar" ao lado do botão de tema */
+.ajuda-guia-btn{
+  display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 14px 0 10px;
+  border-radius:19px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink);
+  font:600 13px/1 Arial, Helvetica, sans-serif; cursor:pointer; white-space:nowrap; flex:0 0 auto;
+}
+.ajuda-guia-btn:hover{border-color:var(--l-turq);}
+.ajuda-guia-btn:focus-visible{outline:2px solid var(--hl); outline-offset:2px;}
+.ajuda-guia-btn-ico{width:20px; height:20px; border-radius:50%; background:var(--l-turq); color:#FFFFFF; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;}
+@media(max-width:560px){ .ajuda-guia-btn{padding:0 10px;} .ajuda-guia-btn-txt{display:none;} }
+
+/* guia "Como usar" */
+body.ajuda-sem-rolagem{overflow:hidden;}
+.ajuda-guia-bg{position:fixed; inset:0; z-index:70; background:rgba(0,30,36,.55); display:flex; align-items:center; justify-content:center; padding:16px;}
+.ajuda-guia-bg[hidden]{display:none;}
+.ajuda-guia{
+  background:var(--panel); color:var(--ink); border-radius:10px; border:1px solid var(--line);
+  width:100%; max-width:600px; max-height:calc(100vh - 32px); display:flex; flex-direction:column;
+  box-shadow:0 20px 50px rgba(0,0,0,.3); font:400 14px/1.55 Arial, Helvetica, sans-serif; text-align:left;
+}
+.ajuda-guia-cab{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 20px; background:#003641; color:#FFFFFF; border-radius:10px 10px 0 0; border-bottom:3px solid #00AE9D;}
+.ajuda-guia-cab h2{margin:0; font-size:18px; font-weight:700; color:#FFFFFF;}
+.ajuda-guia-x{border:none; background:transparent; color:#FFFFFF; font-size:24px; line-height:1; cursor:pointer; width:32px; height:32px; border-radius:6px;}
+.ajuda-guia-x:hover{background:rgba(255,255,255,.12);}
+.ajuda-guia-corpo{overflow-y:auto; padding:18px 20px 6px;}
+.ajuda-guia-intro p{margin:0 0 12px; color:var(--ink-muted);}
+.ajuda-guia-passos{list-style:none; margin:0 0 8px; padding:0;}
+.ajuda-guia-passos li{display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--line);}
+.ajuda-guia-passos li:first-child{border-top:none;}
+.ajuda-guia-n{flex:0 0 auto; width:26px; height:26px; border-radius:50%; background:var(--btn); color:var(--on-btn); font-weight:700; font-size:13px; display:inline-flex; align-items:center; justify-content:center;}
+.ajuda-guia-pt{font-weight:700; margin-bottom:3px;}
+.ajuda-guia-passos p{margin:0 0 6px; color:var(--ink-muted); font-size:13.5px;}
+.ajuda-guia-sub{font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-faint); margin:10px 0 6px;}
+.ajuda-guia-dicas{margin:0 0 10px; padding-left:20px;}
+.ajuda-guia-dicas li{margin-bottom:4px; color:var(--ink-muted); font-size:13.5px;}
+.ajuda-guia-dicas p{margin:0;}
+.ajuda-guia strong{color:var(--ink);}
+.ajuda-guia-rod{font-size:12.5px; color:var(--ink-faint); border-top:1px solid var(--line); padding-top:12px; margin:8px 0 12px;}
+.ajuda-btn-demo{cursor:default; margin:0 2px;}
+.ajuda-guia-acoes{display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 20px 16px; border-top:1px solid var(--line);}
+.ajuda-guia-ok{background:var(--btn); color:var(--on-btn); border:none; border-radius:6px; padding:10px 22px; font:700 14px Arial, Helvetica, sans-serif; cursor:pointer;}
+.ajuda-guia-sec{background:transparent; border:1px solid var(--line); color:var(--ink-muted); border-radius:6px; padding:9px 14px; font:13px Arial, Helvetica, sans-serif; cursor:pointer;}
+.ajuda-guia-sec:hover{color:var(--ink); border-color:var(--l-turq);}
+.ajuda-guia-ok:focus-visible, .ajuda-guia-sec:focus-visible, .ajuda-guia-x:focus-visible{outline:2px solid var(--hl); outline-offset:2px;}
+
+@media print{ .ajuda-btn, .ajuda-pop, .ajuda-etapa, .ajuda-guia-btn, .ajuda-guia-bg{display:none !important;} }

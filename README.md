@@ -28,6 +28,7 @@ Compartilhado entre as páginas:
 - `assets/formato.js` — moeda, porcentagem, prazos e máscara de valores.
 - `assets/grafico.js` — gráfico de linhas em canvas com tooltip.
 - `assets/bcb.js` — consultas ao Banco Central: Meta Selic (SGS 432), IPCA 12 meses (SGS 13522) e Boletim Focus.
+- `assets/ajuda.js` + `assets/ajuda.css` — ajuda da plataforma: botão "?" ao lado dos campos e títulos, dica no topo de cada etapa (pode ser ocultada; a escolha fica lembrada) e o guia "Como usar" ao lado do botão de tema. Os textos de cada página ficam em `paginas/<página>-ajuda.js`, carregado depois do script da página.
 
 Motores de cálculo (funções puras, sem tela, testadas):
 
@@ -47,7 +48,8 @@ Ordem de carregamento em cada página: `assets/tema.js` → `assets/base.css` �
 3. **Campo novo:** crie o elemento com um `id` no HTML → leia o campo em `paginas/<página>.js` (seção "Entradas") → valide → passe ao motor → teste. O teste de estrutura avisa se algum `id` usado no JavaScript não existir no HTML.
 4. **Cor ou espaçamento:** use os tokens de `assets/base.css` (`--ink`, `--line`, `--red`…). Não escreva cores fixas nem `style="..."` no HTML.
 5. **Textos ao usuário** ficam na página (`paginas/<página>.js`). Sempre indicar que é simulação e não recomendação.
-6. **Dados pessoais:** o app não coleta, não guarda e não envia dados pessoais. Não acrescente nome, CPF, data de nascimento ou contato, nem em arquivos de teste.
+6. **Ajuda:** campo novo ou renomeado → acrescente ou ajuste o texto em `paginas/<página>-ajuda.js` (`campos`, pelo `id`; `topicos`, pelo texto do título ou por `#id`). O teste `tests/ajuda.test.js` avisa se a ajuda apontar para algo que não existe.
+7. **Dados pessoais:** o app não coleta, não guarda e não envia dados pessoais. Não acrescente nome, CPF, data de nascimento ou contato, nem em arquivos de teste.
 
 O que os testes cobrem: cálculos dos motores (conferidos com a planilha e com as propostas do Sicoob), leitura dos PDFs, e a estrutura das páginas (arquivos referenciados existem, `id`s usados existem e não se repetem, sintaxe de todos os scripts, ausência de estilos em linha).
 

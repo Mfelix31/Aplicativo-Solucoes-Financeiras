@@ -12,6 +12,10 @@ body{background:var(--bg); color:var(--ink); font-family:Arial, Helvetica, sans-
 .faixa .topo-links a{color:var(--band-muted);}
 .faixa .topo-links a:hover{color:var(--band-ink);}
 .faixa .theme-toggle{background:transparent; border-color:var(--band-line); color:var(--band-ink);}
+.faixa .ajuda-guia-btn{background:transparent; border-color:var(--band-line); color:var(--band-ink);}
+.faixa .ajuda-guia-btn:hover{border-color:var(--l-turq);}
+.mesa .ajuda-btn{color:#7FE0D5; border-color:#00AE9D;}
+.mesa .ajuda-btn:hover, .mesa .ajuda-btn[aria-expanded="true"]{color:#003641; background:#00AE9D;}
 
 .abertura{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:56px; align-items:center; padding-top:52px;}
 .abertura h1{font-weight:700; font-size:clamp(32px, 4.6vw, 50px); line-height:1.06; letter-spacing:-.8px; margin:0 0 20px; max-width:15ch;}
