@@ -456,6 +456,14 @@
   }
   /** Onde o ITCMD é devido: imóveis no estado de cada um; o resto (móveis, cotas, exterior) no domicílio. */
   const partesITCMD = (e, imoveis, moveis) => imoveisNosEstados(e, imoveis).concat(moveis > 0 ? [{ uf: e.uf, valor: moveis }] : []);
+  /** Dívidas do espólio: abatidas do monte antes do ITCMD e dos custos (a base é o patrimônio líquido transmitido),
+   *  na proporção de cada parte (estado). Devolve o monte líquido, as partes ajustadas e o que a dívida passa dos bens. */
+  function abaterDividas(partes, bruto, divida) {
+    const d = Math.max(0, divida || 0);
+    if (!(d > 0) || !(bruto > 0)) return { monte: Math.max(0, bruto), partes, excedente: bruto > 0 ? 0 : d };
+    const f = Math.max(0, 1 - d / bruto);
+    return { monte: bruto * f, partes: partes.map(p => ({ uf: p.uf, valor: p.valor * f })), excedente: Math.max(0, d - bruto) };
+  }
   const nuaPct = uf => (ITCMD.ESTADOS[uf] && ITCMD.ESTADOS[uf].nuaPropriedadePct) || 1;
   const extincaoIsenta = uf => !!(ITCMD.ESTADOS[uf] && ITCMD.ESTADOS[uf].usufrutoExtincaoIsenta);
 
@@ -474,7 +482,7 @@
     return Object.assign({
       idade: 55, uf: 'MT', herdeiros: 2, meacaoPct: 0, tipoInventario: 'cartorio', regime: 'vigente',
       imoveis: 0, nImoveis: 0, aplicacoes: 0, previdencia: 0, previdenciaAportado: null, previdenciaAnos: 10, previdenciaTipo: 'vgbl',
-      seguroExistente: 0, empresa: 0, exterior: 0, rendaMensal: 0,
+      seguroExistente: 0, empresa: 0, exterior: 0, dividas: 0, rendaMensal: 0,
       aluguelMensal: 0, deducoesAluguelMensal: 0, nImoveisAlugados: 0, nResidenciais: 0, outrasRendasMensais: 0,
       doacaoCustoPct: 0.01, sobraMensal: 0, sucessaoCasal: true
     }, e, {
@@ -609,8 +617,10 @@
       const imovInv = (cfg.holding || cfg.doaImoveis) ? 0 : imov;
       const empInv = (cfg.holding && hp.incluirEmpresa) ? 0 : emp;
       const moveisInv = Math.max(0, empInv + cotasInv + aplic + ext + veic);
-      const monte = Math.max(0, imovInv + moveisInv);
-      const partes = partesITCMD(e, imovInv, moveisInv);
+      // dívidas do espólio (R$ de hoje, corrigidas pelo IPCA): saem do monte antes do ITCMD e dos custos
+      const divida = (e.dividas || 0) * Math.pow(1 + ipca, t);
+      const liq = abaterDividas(partesITCMD(e, imovInv, moveisInv), Math.max(0, imovInv + moveisInv), divida);
+      const monte = liq.monte, partes = liq.partes;
       const inv = custoInventario({ monte, imoveis: imovInv, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes,
         uf: e.uf, partes, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
       // usufruto: onde a doação pagou só a nua-propriedade e a consolidação não é isenta, o restante paga no falecimento
@@ -641,10 +651,10 @@
           uf: e.uf, partes: partes.map(p => ({ uf: p.uf, valor: p.valor * e.meacaoPct })), regime: e.regime, tipo: e.tipoInventario, custos: e.custos })
         : null;
       const custoEsperadoConjuge = invConjuge ? custoEsperadoDe(pr, invConjuge, monte * e.meacaoPct) : 0;
-      const familia = monte - custoEsperado - custoEsperadoConjuge - custoExterior - irLatente - extincaoUsufruto + doadoValor + previdenciaLiquida + seguro - externoFV;
+      const familia = monte - liq.excedente - custoEsperado - custoEsperadoConjuge - custoExterior - irLatente - extincaoUsufruto + doadoValor + previdenciaLiquida + seguro - externoFV;
       const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + prevP + seguro);
       anos.push({
-        ano: t, monte, veiculos: veic, inventario: inv, inventarioConjuge: invConjuge, custoEsperado, custoEsperadoConjuge, extincaoUsufruto, sustento, custoExterior, previdenciaLiquida, pgbl: prevP, irPgbl: irPrevP, seguro, liquidez, meta,
+        ano: t, monte, divida, veiculos: veic, inventario: inv, inventarioConjuge: invConjuge, custoEsperado, custoEsperadoConjuge, extincaoUsufruto, sustento, custoExterior, previdenciaLiquida, pgbl: prevP, irPgbl: irPrevP, seguro, liquidez, meta,
         cobertura: meta > 0 ? liquidez / meta : Infinity, aplicacoes: aplic, familia, externoAcumulado: externoFV,
         familiaReal: familia / Math.pow(1 + ipca, t), travado: monte / brutoFamilia, custosReais: custoRealAcum
       });
@@ -785,8 +795,9 @@
 
     const sem = caminhos.find(c => c.id === 'inventario');
     const hoje = sem.sim.anos[0];
-    const monte0 = e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos;
-    const partes0 = partesITCMD(e, e.imoveis, monte0 - e.imoveis);
+    const bruto0 = e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos;
+    const liq0 = abaterDividas(partesITCMD(e, e.imoveis, bruto0 - e.imoveis), bruto0, e.dividas);
+    const monte0 = liq0.monte, partes0 = liq0.partes;
     const custoHoje = custoInventario({ monte: monte0, imoveis: e.imoveis, partes: partes0,
       meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
     const regimes = ['vigente', 'reforma', 'estresse'].reduce((o, rg) => {
@@ -801,7 +812,7 @@
     const pctEsperado = monte0 > 0 ? metaInventarioHoje / monte0 : (e.premissas.custoModo === 'fixo' ? e.premissas.metaLiquidez : 0);
     return {
       ok: true, entrada: e, Texp, H, hipoteses, caminhos, recomendacao: rec, estabilidade,
-      base: { custoHoje, metaInventarioHoje, pctEsperado, custoModo: e.premissas.custoModo, margemMercado: e.premissas.margemMercado, monteHoje: monte0,
+      base: { custoHoje, metaInventarioHoje, pctEsperado, custoModo: e.premissas.custoModo, margemMercado: e.premissas.margemMercado, monteHoje: monte0, brutoHoje: bruto0, dividas: e.dividas || 0, dividaExcedente: liq0.excedente,
         sustentoHoje: mensalTravado(e) * e.sustento.meses,
         sustentoFamiliaHoje: e.sustento.despesaMensal * e.sustento.meses,
         custoBensHoje: e.sustento.custoBensMensal * e.sustento.meses,
@@ -939,6 +950,7 @@
     if (REGIMES_BENS.indexOf(e.conjuge.regime) < 0) erros.push('Regime de bens desconhecido.');
     if (!(e.conjuge.pctComuns >= 0 && e.conjuge.pctComuns <= 1)) erros.push('Os bens comuns precisam estar entre 0% e 100% do patrimônio.');
     if (!(e.sobraMensal >= 0)) erros.push('A sobra mensal não pode ser negativa.');
+    if (!(e.dividas >= 0)) erros.push('As dívidas não podem ser negativas.');
     if (['vgbl', 'pgbl'].indexOf(e.previdenciaTipo) < 0) erros.push('Tipo de previdência desconhecido.');
     const pg = e.pgbl;
     if (!(pg.rendaTributavelAnual >= 0)) erros.push('PGBL: a renda tributável não pode ser negativa.');

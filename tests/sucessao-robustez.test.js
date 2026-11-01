@@ -20,7 +20,7 @@ function casoAleatorio() {
     tipoInventario: umDe(['cartorio', 'judicial', 'litigio']), regime: umDe(['vigente', 'reforma', 'estresse']),
     conjuge: { regime: umDe(['sem', 'parcial', 'universal', 'separacao', 'obrigatoria']), pctComuns: rnd(), ascendenteComum: rnd() < 0.7 },
     bens: Array.from({ length: Math.floor(rnd() * 5) }, () => ({ tipo: umDe(['urbano', 'terreno', 'fazenda', 'veiculo']), uf: umDe(T.SIGLAS), qtd: 1 + Math.floor(rnd() * 4), valor: valor(30e6, 0.1) })),
-    aplicacoes: valor(20e6, 0.2), empresa: valor(10e6, 0.6), exterior: valor(8e6, 0.75),
+    aplicacoes: valor(20e6, 0.2), empresa: valor(10e6, 0.6), exterior: valor(8e6, 0.75), dividas: valor(15e6, 0.6),
     previdencia: valor(3e6, 0.7), previdenciaAnos: Math.floor(rnd() * 20), seguroExistente: valor(2e6, 0.8),
     rendaMensal: valor(300000, 0.2), outrasRendasMensais: valor(60000, 0.5), sobraMensal: valor(150000, 0.4),
     aluguelMensal: alugados ? valor(300000, 0.1) : 0, nImoveisAlugados: alugados, nResidenciais: Math.floor(rnd() * (alugados + 1)),

@@ -504,6 +504,29 @@ test('custo esperado: o 2º inventário do cônjuge usa a mesma regra sobre a me
   assert.equal(S.analisar(Object.assign(ref10('cartorio'), { premissas: { margemMercado: -0.01 } })).ok, false);
 });
 
+/* ---------- dívidas do espólio (stress test MT, teste 28: R$ 20 mi brutos, R$ 8 mi de custeio rural) ---------- */
+const espolio = over => Object.assign({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 16e6 }], aplicacoes: 4e6 }, over);
+test('dívidas: saem da base do inventário; no modo fixo, 18% de R$ 12 mi = R$ 2,16 mi (teste 28)', () => {
+  const r = S.analisar(espolio({ dividas: 8e6, premissas: { custoModo: 'fixo' } }), { semEstresse: true });
+  perto(r.base.monteHoje, 12e6, 1e-6);
+  perto(r.base.metaInventarioHoje, 2.16e6, 1e-6);
+  // pela lei: o mesmo que um espólio de R$ 12 mi com a mesma proporção entre fazenda e aplicações
+  const comDiv = S.analisar(espolio({ dividas: 8e6 }), { semEstresse: true }).base.custoHoje;
+  const liquido = S.analisar(espolio({ bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 16e6 * 0.6 }], aplicacoes: 4e6 * 0.6 }), { semEstresse: true }).base.custoHoje;
+  perto(comDiv.itcmd, liquido.itcmd, 1e-6);
+});
+test('dívidas: o valor à família cai pela dívida paga; dívida maior que os bens não deixa monte negativo', () => {
+  const sem = S.analisar(espolio(), { semEstresse: true }), com = S.analisar(espolio({ dividas: 8e6 }), { semEstresse: true });
+  const a0 = sem.caminhos.find(c => c.id === 'inventario').sim.anos[0], a1 = com.caminhos.find(c => c.id === 'inventario').sim.anos[0];
+  perto(a1.divida, 8e6 * 1.04, 1e-6);
+  assert.ok(a0.familia - a1.familia > a1.divida * 0.8, 'a família recebe menos, quase o valor da dívida (o custo do inventário também cai)');
+  const grande = S.analisar(espolio({ dividas: 30e6 }), { semEstresse: true });
+  assert.ok(grande.ok);
+  assert.equal(grande.base.monteHoje, 0);
+  perto(grande.base.dividaExcedente, 10e6, 1e-6);
+  assert.equal(S.analisar(espolio({ dividas: -1 })).ok, false);
+});
+
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
 test('27 estados: tabelas válidas nos três regimes', () => {
   assert.equal(T.SIGLAS.length, 27);
