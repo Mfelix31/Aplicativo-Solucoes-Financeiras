@@ -939,7 +939,22 @@
     const v = e.imoveis + (hp.incluirEmpresa ? e.empresa : 0);
     let custoEvitado = Math.max(hp.juridicoMin, v * hp.juridicoPct) + e.imoveis * hp.cartorioPct + e.imoveis * hp.itbiPct + hp.laudo;
     for (let t = 1; t <= Texp; t++) custoEvitado += hp.contabilMensal * 12 / Math.pow(1 + ipca, t);
-    return { aplicavel: true, recomendada, motivos, custoEvitado, melhor: melhorH.id };
+    return { aplicavel: true, recomendada, motivos, custoEvitado, melhor: melhorH.id, equilibrio: equilibrioHolding(e, caminhos, recomendada ? venc : melhorH, Texp) };
+  }
+
+  /** Ano em que a melhor holding passa a entregar mais à família que a melhor opção sem holding (e não volta a perder
+   *  até a expectativa de vida). null = não passa no horizonte. Compara caminhos que protegem desde o 1º ano. */
+  function equilibrioHolding(e, caminhos, melhorH, Texp) {
+    const sem = caminhos.filter(c => !c.cfg.holding && c.id !== 'inventario' && c.protegeJa && (c.cabe !== 'nao' || melhorH.cabe === 'nao'))
+      .sort((a, b) => b.em.expectativa.familiaReal - a.em.expectativa.familiaReal)[0];
+    if (!sem || !melhorH) return null;
+    const n = Math.min(Texp, melhorH.sim.anos.length, sem.sim.anos.length);
+    let ano = null;
+    for (let t = n; t >= 1; t--) {
+      if (melhorH.sim.anos[t - 1].familiaReal >= sem.sim.anos[t - 1].familiaReal) ano = t; else break;
+    }
+    return { ano, idade: ano ? e.idade + ano : null, holding: melhorH.id, alternativa: sem.id,
+      diferencaExpectativa: melhorH.sim.anos[n - 1].familiaReal - sem.sim.anos[n - 1].familiaReal };
   }
 
   function detalheSeguro(e, caminhos, rec) {

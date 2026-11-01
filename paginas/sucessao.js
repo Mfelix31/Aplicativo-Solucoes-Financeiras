@@ -324,7 +324,8 @@ function motivos(v, r){
     const m = r.holding.motivos[0], h = porId(r.holding.melhor);
     const pq = !m ? 'não traz vantagem neste caso' : m.id === 'numeros' ? 'a melhor opção com holding (' + nomeDe(h) + ') entregaria ' + fmtBRL0(m.diferenca) + ' a menos'
       : m.id === 'caixa' ? 'não cabe no orçamento (' + porqueNao(h, v, r) + ')' : m.id === 'financeiro' ? 'o patrimônio é principalmente financeiro' : m.id === 'poucosImoveis' ? 'há poucos imóveis' : 'pagaria mais imposto sobre os aluguéis';
-    out.push('<b>Sem holding:</b> ' + pq + '. Deixar de abrir evita ' + fmtBRL0(r.holding.custoEvitado) + ' de custo.');
+    const eq = r.holding.equilibrio;
+    out.push('<b>Sem holding:</b> ' + pq + '. Deixar de abrir evita ' + fmtBRL0(r.holding.custoEvitado) + ' de custo' + (eq && eq.ano && eq.alternativa === v.id ? '; a holding só passaria esta solução a partir do ' + eq.ano + 'º ano (aos ' + eq.idade + ' anos)' : '') + '.');
   }
   const sn = ultimo.inp.sinais;
   if((sn.conflito || sn.empresa) && r.holding.aplicavel && !r.holding.recomendada){
@@ -676,7 +677,10 @@ function renderHolding(){
     lin('Laudo de avaliação', hp.laudo, 'por doação de cotas (LC 227/2026, art. 154)') +
     lin('Contabilidade', hp.contabilMensal * 12, 'por ano') +
     '<tr class="now"><td>Custo evitado se não abrir</td><td>' + fmtBRL0(h.custoEvitado) + '</td><td>estruturação + manutenção até a expectativa, R$ de hoje</td></tr>' +
-    lin('ITCMD da doação das cotas (informativo)', itcmdCotas, 'tabela de doação de ' + e.uf + '; também existe na doação direta');
+    lin('ITCMD da doação das cotas (informativo)', itcmdCotas, 'tabela de doação de ' + e.uf + '; também existe na doação direta') +
+    (h.equilibrio ? '<tr class="now"><td>Ponto de equilíbrio</td><td>' + (h.equilibrio.ano ? h.equilibrio.ano + 'º ano' : '—') + '</td><td>' +
+      (h.equilibrio.ano ? nomeId(h.equilibrio.holding) + ' entrega mais que ' + nomeId(h.equilibrio.alternativa) + ' a partir daí (aos ' + h.equilibrio.idade + ' anos), até a expectativa de vida'
+        : nomeId(h.equilibrio.holding) + ' não passa ' + nomeId(h.equilibrio.alternativa) + ' até a expectativa de vida') + '</td></tr>' : '');
 }
 
 function renderAlertas(){

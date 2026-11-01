@@ -570,6 +570,20 @@ test('whole life: a cotação do próprio cooperado vale no lugar da estimativa 
   assert.ok(Math.abs(S.normalizar({ idade: 55, uf: 'MT', aplicacoes: 1e6 }).wholeLife.parcelaPor100k - 637.15 * 1.0945944) < 0.01);
 });
 
+test('holding: ano de equilíbrio contra a melhor opção sem holding (stress test, teste 27)', () => {
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 4, valor: 20e6 }], aplicacoes: 2e6,
+    rendaMensal: 200000, sobraMensal: 80000, aluguelMensal: 150000, nImoveisAlugados: 4 }, { semEstresse: true });
+  const eq = r.holding.equilibrio;
+  assert.ok(eq, 'há comparação');
+  const h = r.caminhos.find(c => c.id === eq.holding), a = r.caminhos.find(c => c.id === eq.alternativa);
+  assert.ok(!a.cfg.holding);
+  if (eq.ano) {
+    for (let t = eq.ano; t <= r.Texp; t++) assert.ok(h.sim.anos[t - 1].familiaReal >= a.sim.anos[t - 1].familiaReal, 'holding à frente desde o ano ' + eq.ano);
+    if (eq.ano > 1) assert.ok(h.sim.anos[eq.ano - 2].familiaReal < a.sim.anos[eq.ano - 2].familiaReal, 'atrás no ano anterior');
+    assert.equal(eq.idade, 55 + eq.ano);
+  }
+});
+
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
 test('27 estados: tabelas válidas nos três regimes', () => {
   assert.equal(T.SIGLAS.length, 27);
