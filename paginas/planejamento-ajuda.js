@@ -44,6 +44,7 @@ Ajuda.iniciar({
     anosRenda: 'Daqui a quantos anos você quer começar a receber a renda. É o prazo para acumular.',
     inflacao: 'A inflação média que você espera para o período todo. Corrige a renda desejada e os objetivos e traz os resultados para reais de hoje. Padrão: 4% ao ano.',
     spread: 'O ganho acima da inflação que a carteira precisa ter na fase de renda. Quanto menor, maior o patrimônio necessário.\n\nPadrão: IPCA + 5,16% ao ano, média histórica dos títulos do Tesouro atrelados ao IPCA.',
+    idadeFim: 'Até que idade a renda pode consumir o patrimônio. Em cada cenário o app mostra duas rendas possíveis com o patrimônio projetado:\n\n**Perpétua:** saca só o ganho acima da inflação; o patrimônio dura para sempre.\n**Consumindo até essa idade:** saques maiores, que zeram o patrimônio no fim. Padrão: 90 anos.',
     tx0: 'Cenário prudente: a carteira rende menos. Padrão: 8% ao ano.',
     tx1: 'Cenário de referência. Padrão: 10% ao ano.',
     tx2: 'Cenário favorável: a carteira rende mais. Padrão: 12% ao ano.',

@@ -216,3 +216,26 @@ test('padrão do usuário: valor futuro comparado com a meta, mesmo com inflaç�
   assert.equal(Math.ceil(r.mesLiberdade / 12), 33);             // K5
   assert.equal(r.atinge, false);
 });
+
+/* ---------- renda gerada pelo patrimônio (fase de usufruto) ---------- */
+test('renda perpétua é o inverso exato do patrimônio necessário', () => {
+  const meta = E.patrimonioNecessario(20000, 0.0516);
+  perto(E.rendaPerpetua(meta, 0.0516), 20000, 1e-6);
+  perto(E.rendaPerpetua(1391009.223045133, 0.0516), 1391009.223045133 * (Math.pow(1.0516, 1/12) - 1), 1e-6);
+});
+
+test('renda com consumo do capital = PMT do Excel e zera o patrimônio no prazo', () => {
+  const P = 1391009.223045133, i = Math.pow(1.0516, 1/12) - 1, n = 300;
+  const pmt = E.rendaComConsumo(P, 0.0516, n);
+  perto(pmt, P * i / (1 - Math.pow(1 + i, -n)), 1e-6);           // fórmula PMT equivalente
+  let saldo = P; for (let k = 0; k < n; k++) saldo = saldo * (1 + i) - pmt;
+  perto(saldo, 0, 1e-4);                                          // zera exatamente no fim
+  assert.ok(pmt > E.rendaPerpetua(P, 0.0516));                    // consome capital → renda maior
+});
+
+test('renda com consumo: taxa zero, prazo zero e patrimônio zero', () => {
+  perto(E.rendaComConsumo(120000, 0, 120), 1000, 1e-9);
+  assert.equal(E.rendaComConsumo(100000, 0.05, 0), 0);
+  assert.equal(E.rendaComConsumo(0, 0.05, 120), 0);
+  assert.equal(E.rendaPerpetua(0, 0.05), 0);
+});

@@ -89,6 +89,8 @@ function lerEntradas(){
   const taxas = [num('tx0'), num('tx1'), num('tx2')].map(t=>t/100);
   if(!(idade >= 0 && idade < 100)) erros.push('Informe uma idade entre 0 e 99 anos.');
   if(!(lerMoeda($('renda')) > 0)) erros.push('Informe a renda mensal desejada (maior que zero).');
+  const idadeFim = num('idadeFim');
+  if(!(Number.isInteger(idadeFim) && idadeFim > idade + anos && idadeFim <= 120)) erros.push('A idade até a qual a renda consome o patrimônio deve ser um número inteiro maior que a idade de início da renda (' + (idade + anos) + ' anos) e até 120.');
   if(!(anos >= 1 && Number.isInteger(anos))) erros.push('O prazo para começar a receber deve ser de pelo menos 1 ano (número inteiro).');
   if(idade + anos >= 100) erros.push('A idade de início da renda precisa ser menor que 100 anos.');
   if(!(inflacao >= 0 && inflacao <= 0.5)) erros.push('Inflação média deve estar entre 0% e 50% a.a.');
@@ -119,7 +121,7 @@ function lerEntradas(){
   return {
     erros, idade, anos, inflacao, spread, taxas,
     patrimonio: lerMoeda($('patrimonio')), aporte: lerMoeda($('aporte')),
-    renda: lerMoeda($('renda')), outrasRendas: lerMoeda($('outrasRendas')), rentUso: num('rentUso')/100,
+    renda: lerMoeda($('renda')), outrasRendas: lerMoeda($('outrasRendas')), idadeFim: num('idadeFim'), rentUso: num('rentUso')/100,
     consumo: [0,1,2].map(i=>num('cons'+i)/100),
     objetivos: objs
   };
@@ -295,6 +297,8 @@ function renderEtapa3(){
       '<div class="lrow"><span class="k">Patrimônio necessário</span><span class="v">' + fmtCurto(meta) + '</span></div>' +
       '<div class="lrow"><span class="k">' + (c.atinge ? 'Excedente' : 'Lacuna') + '</span><span class="v" style="color:var(' + (c.atinge?'--ok':'--red') + ')">' + fmtCurto(c.atinge ? c.excedente : c.lacuna) + '</span></div>' +
       '<div class="lrow"><span class="k">Aporte necessário p/ ' + idadeRenda + ' anos</span><span class="v">' + apTxt + (apSub ? '<small>' + apSub + '</small>' : '') + '</span></div>' +
+      '<div class="lrow sep"><span class="k">Renda perpétua com esse patrimônio<small>saca só o ganho real; o patrimônio se mantém</small></span><span class="v">' + fmtBRL0(E.rendaPerpetua(c.projetadoNominal, inp.spread)) + '/mês</span></div>' +
+      '<div class="lrow"><span class="k">Renda consumindo até os ' + inp.idadeFim + '<small>saques maiores; o patrimônio zera nessa idade</small></span><span class="v">' + fmtBRL0(E.rendaComConsumo(c.projetadoNominal, inp.spread, (inp.idadeFim - idadeRenda) * 12)) + '/mês</span></div>' +
       '<div class="freedom">' + textoLiberdade(c, inp) + '</div>' +
       linhasObjetivos(c, ci) +
     '</div>';
@@ -466,6 +470,8 @@ function gerarPdf(){
     '<tr><td>Patrimônio necessário</td>' + col(() => fmtBRL0(meta)) + '</tr>' +
     '<tr><td>Lacuna / excedente</td>' + cenarios.map(c => '<td class="n ' + (c.atinge ? 'ok' : 'no') + '">' + (c.atinge ? '+' + fmtBRL0(c.excedente) : '−' + fmtBRL0(c.lacuna)) + '</td>').join('') + '</tr>' +
     '<tr><td>Aporte necessário p/ ' + idadeRenda + ' anos</td>' + col(c => c.aporteNecessario === null ? 'inviável' : (c.aporteNecessario === 0 ? 'nenhum' : fmtBRL0(c.aporteNecessario) + '/mês')) + '</tr>' +
+    '<tr><td>Renda perpétua com o patrimônio projetado</td>' + col(c => fmtBRL0(E.rendaPerpetua(c.projetadoNominal, inp.spread)) + '/mês') + '</tr>' +
+    '<tr><td>Renda consumindo o patrimônio até os ' + inp.idadeFim + ' anos</td>' + col(c => fmtBRL0(E.rendaComConsumo(c.projetadoNominal, inp.spread, (inp.idadeFim - idadeRenda) * 12)) + '/mês') + '</tr>' +
     objLinhas + '</table>' +
     '<table style="margin-top:6px">' + cenarios.map(c => '<tr><td class="k" style="width:18%"><strong>' + c.nome + '</strong></td><td>' + esc(semHtml(textoLiberdade(c, inp))) + '</td></tr>').join('') + '</table>' +
     (temFalha ? '<p class="pr-note no">Objetivo com "Rever planejamento": reveja o valor e o prazo, ou avalie consórcio e financiamento para esse objetivo.</p>' : '');
@@ -487,6 +493,7 @@ function gerarPdf(){
       linha('Início da renda', 'daqui a ' + fmtAnos(inp.anos) + ' — aos ' + idadeRenda + ' anos, em ' + anoRenda) +
       linha('Inflação média prevista', fmtPct(inp.inflacao) + ' a.a.') +
       linha('Rentabilidade Base Mínima', 'IPCA + ' + fmtPct(inp.spread) + ' a.a.') +
+      linha('Renda consumindo o patrimônio até', inp.idadeFim + ' anos') +
       linha('Rentabilidade nominal dos cenários', cenarios.map(c => c.nome + ' ' + fmtPct(c.taxa)).join(' · ')) +
     '</table></div>' +
 
@@ -511,7 +518,7 @@ let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeou
 
 /* ---------- inicialização ---------- */
 document.querySelectorAll('.money').forEach(mascara);
-['idade','patrimonio','aporte','renda','outrasRendas','anosRenda','inflacao','spread','tx0','tx1','tx2'].forEach(id=>$(id).addEventListener('input', agendar));
+['idade','patrimonio','aporte','renda','outrasRendas','idadeFim','anosRenda','inflacao','spread','tx0','tx1','tx2'].forEach(id=>$(id).addEventListener('input', agendar));
 $('rentUso').addEventListener('input', agendar);
 ligarTooltip('chUso', 'ttUso'); ligarTooltip('chPlan', 'ttPlan');
 montarCardsCurvas();

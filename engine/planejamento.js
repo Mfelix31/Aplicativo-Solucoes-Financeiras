@@ -238,6 +238,26 @@
     });
   }
 
+  /* ---------- renda que um patrimônio gera (fase de usufruto) ----------
+   * Taxa real mensal equivalente: i = (1 + real anual)^(1/12) − 1 (mesma da meta).
+   * A) Perpétua: saca só o ganho real → renda = P × i (o principal é preservado
+   *    em poder de compra). É o inverso exato do patrimônio necessário.
+   * B) Com consumo do capital por n meses (anuidade, saque no fim do mês):
+   *    renda = P × i × (1+i)^n / ((1+i)^n − 1)  — equivale ao PMT do Excel.
+   *    Com i = 0: renda = P / n. A renda é em poder de compra constante. */
+  function rendaPerpetua(patrimonio, taxaRealAnual) {
+    const i = taxaMensal(taxaRealAnual);
+    return patrimonio > 0 && i > 0 ? patrimonio * i : 0;
+  }
+  function rendaComConsumo(patrimonio, taxaRealAnual, meses) {
+    const n = Math.round(meses);
+    if (!(patrimonio > 0) || !(n > 0)) return 0;
+    const i = taxaMensal(taxaRealAnual);
+    if (Math.abs(i) < 1e-12) return patrimonio / n;
+    const f = Math.pow(1 + i, n);
+    return patrimonio * i * f / (f - 1);
+  }
+
   /* ---------- utilidades de data ---------- */
   /** meses entre (anoRef, mesRef) e "AAAA-MM"; 1 = mês seguinte */
   function mesesAteData(aaaaMm, hoje) {
@@ -258,6 +278,8 @@
     planejarCenario: planejarCenario,
     aporteNecessario: aporteNecessario,
     curvasConsumo: curvasConsumo,
+    rendaPerpetua: rendaPerpetua,
+    rendaComConsumo: rendaComConsumo,
     mesesAteData: mesesAteData
   };
 });
