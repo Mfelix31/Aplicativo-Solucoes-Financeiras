@@ -195,6 +195,25 @@
           <div class="hint">Parte da renda e dos aluguéis que não é gasta. Entra nas aplicações em todos os caminhos e ajuda a pagar parcelas do seguro, ITCMD e custos da holding. Corrigida pela inflação.</div>
         </div>
       </div>
+      <h3 class="mini-title">PGBL (dedução no imposto de renda)</h3>
+      <label class="inline-check"><input type="checkbox" id="pgblElegivel"> Faz a declaração completa do IR e contribui para o INSS (ou regime próprio)</label>
+      <div class="grid">
+        <div class="field">
+          <label for="pgblRenda">Renda bruta tributável no ano</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="pgblRenda" class="money" value="0,00"><span class="suffix">/ano</span></div>
+          <div class="hint">Salário, pró-labore, aluguéis e resultado da atividade rural. Dividendos não contam. Preenchida com a renda tributável e os aluguéis informados acima; ajuste se preciso.</div>
+        </div>
+        <div class="field">
+          <label for="pgblAliq">Alíquota do IR</label>
+          <div class="row-input"><input type="number" id="pgblAliq" value="27.5" min="0" max="27.5" step="0.5"><span class="suffix">%</span></div>
+          <div class="hint">A maior faixa do IR em que a renda cai (27,5% para rendas altas).</div>
+        </div>
+        <div class="field">
+          <label for="pgblAnos">Anos de aporte</label>
+          <div class="row-input"><input type="number" id="pgblAnos" value="10" min="0" max="40" step="1"><span class="suffix">anos</span></div>
+          <div class="hint" id="hintPgbl"></div>
+        </div>
+      </div>
       <h3 class="mini-title">Aluguéis recebidos</h3>
       <div class="grid">
         <div class="field">

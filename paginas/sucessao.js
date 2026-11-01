@@ -42,6 +42,7 @@ const ESTR_NOME = { nenhuma: '', doacao: 'Doação com usufruto', holdingGradual
 const LIQ_NOME = { nenhuma: '', previdencia: 'previdência', seguro: 'whole life', combinado: 'previdência + whole life' };
 const COR_ESTR = { doacao: '--l-verde', holdingGradual: '--hl', holdingTotal: '--gold' };
 const COR_LIQ = { nenhuma: '--ink-faint', previdencia: '--l-turq', seguro: '--l-roxo', combinado: '--blue-dim' };
+const COR_PGBL = '--l-verde';
 const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
 /** nome de uma combinação, montado da estrutura e da liquidez */
 function nomeDe(c){
@@ -49,9 +50,11 @@ function nomeDe(c){
   let n;
   if(c.estrutura === 'nenhuma') n = c.liquidez === 'nenhuma' ? 'Só o inventário' : cap(LIQ_NOME[c.liquidez]);
   else n = (c.liquidez === 'nenhuma' ? 'Só a ' + ESTR_NOME[c.estrutura].charAt(0).toLowerCase() + ESTR_NOME[c.estrutura].slice(1) : ESTR_NOME[c.estrutura] + ' + ' + LIQ_NOME[c.liquidez]);
+  if(c.pgbl) n = c.estrutura === 'nenhuma' && c.liquidez === 'nenhuma' ? 'PGBL anual' : c.estrutura === 'nenhuma' ? 'PGBL anual + ' + LIQ_NOME[c.liquidez]
+    : c.liquidez === 'nenhuma' ? ESTR_NOME[c.estrutura] + ' + PGBL anual' : ESTR_NOME[c.estrutura] + ' + PGBL anual + ' + LIQ_NOME[c.liquidez];
   return n + (c.offshore ? ' + offshore' : '');
 }
-const corDe = c => c.estrutura === 'nenhuma' ? COR_LIQ[c.liquidez] : COR_ESTR[c.estrutura];
+const corDe = c => c.estrutura === 'nenhuma' ? (c.pgbl && c.liquidez === 'nenhuma' ? COR_PGBL : COR_LIQ[c.liquidez]) : COR_ESTR[c.estrutura];
 const HIP = { proximo: 'No próximo ano', dez: 'Em 10 anos', expectativa: 'Na expectativa de vida' };
 const PRAZO_INV = { cartorio: '30 a 90 dias', judicial: '1 a 3 anos', litigio: '3 anos ou mais' };
 const MOTIVO_HOLDING = {
@@ -71,6 +74,7 @@ let timer = null;
 let ufHonorarios = null;    // estado cujos honorários de referência estão nos campos
 let itbiTocado = false;     // enquanto o planejador não editar o ITBI, ele segue a regra automática
 let mesesTocado = false;    // idem para os meses de sustento (padrão pelo tipo de inventário)
+let pgblTocado = false;     // renda tributável do PGBL segue a renda e os aluguéis informados até o planejador editar
 const LIMITE_MESES_TABELA = 6;   // tabela de ITCMD com referência mais antiga que isso gera alerta
 
 /* =========================================================================
@@ -127,6 +131,7 @@ function lerEntradas(){
       sexo: $('sexo').value, sexoReferencia: $('wlSexoRef').value, tabua: $('wlTabua').value },
     offshore: { limiar: money('oLimiar'), abertura: money('oAbertura'), manutencaoAnual: money('oManut'),
       custoSucessaoExteriorPct: pctCampo('oCustoExt'), impostoExteriorPct: pctCampo('oImpExt') },
+    pgbl: { elegivel: $('pgblElegivel').checked, rendaTributavelAnual: money('pgblRenda'), aliquotaIR: pctCampo('pgblAliq'), anos: num('pgblAnos') },
     sinais: { incapaz: $('sinIncapaz').checked, conflito: $('sinConflito').checked, empresa: $('sinEmpresa').checked }
   };
 }
@@ -134,7 +139,7 @@ function lerEntradas(){
 /** erros de campo que o motor não vê (campos numéricos vazios ou fora do intervalo) */
 function errosDeCampo(inp){
   const e = [];
-  const campos = [['depVeic','Depreciação dos veículos'],['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade na cotação base'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Custo esperado do inventário'],['honCart','Honorários'],['hJur','Jurídico da holding']];
+  const campos = [['depVeic','Depreciação dos veículos'],['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade na cotação base'],['rentab','Rentabilidade'],['ipca','Inflação'],['meta','Custo esperado do inventário'],['honCart','Honorários'],['hJur','Jurídico da holding'],['pgblAliq','Alíquota do IR (PGBL)'],['pgblAnos','Anos de aporte no PGBL']];
   campos.forEach(([id, nome]) => { if(!isFinite(num(id))) e.push(nome + ': preencha o campo.'); });
   if(inp.nResidenciais > inp.nImoveisAlugados) e.push('Os imóveis residenciais não podem passar dos alugados.');
   if(inp.wholeLife.basicaPor100k > inp.wholeLife.parcelaPor100k) e.push('A cobertura básica do whole life não pode passar da parcela.');
@@ -193,6 +198,12 @@ function atualizarDicas(){
   if(!mesesTocado) $('mesesSustento').value = E.MESES_SUSTENTO[tipo];
   $('hintSustento').textContent = 'Padrão: 3 meses em cartório, 24 no judicial, 36 com conflito. ' +
     ((money('despesaFamilia') + money('custoBens')) > 0 && isFinite(num('mesesSustento')) ? 'Soma ' + fmtBRL0((money('despesaFamilia') + money('custoBens')) * num('mesesSustento')) + ' ao que a família precisa ter em dinheiro (R$ de hoje).' : '');
+  // PGBL: renda tributável preenchida pela renda tributável e pelos aluguéis líquidos, até o planejador editar
+  if(!pgblTocado) $('pgblRenda').value = moeda(12 * (money('outrasRendas') + Math.max(0, money('aluguel') - money('dedAluguel'))));
+  const pgRenda = money('pgblRenda'), pgAporte = 0.12 * pgRenda, pgAliq = pctCampo('pgblAliq');
+  $('hintPgbl').textContent = !$('pgblElegivel').checked ? 'Marque a caixa acima para testar o PGBL nas combinações.'
+    : pgRenda > 0 && isFinite(pgAliq) ? 'Aporte de até ' + fmtBRL0(pgAporte) + '/ano (' + fmtBRL0(pgAporte / 12) + '/mês); deixa de pagar ' + fmtBRL0(pgAporte * pgAliq) + ' de IR por ano.'
+    : 'Informe a renda tributável para calcular o aporte.';
   // whole life pela idade
   const wlRef = num('wlIdadeRef');
   if($('wlAjustar').checked && isFinite(idade) && isFinite(wlRef) && money('wlParcela') > 0){
@@ -261,6 +272,7 @@ function componentes(c, r){
   if(c.cfg.holding) out.push({ tipo: 'holding', cor: COR_ESTR[c.estrutura], titulo: c.cfg.holding === 'gradual' ? 'Holding com doação gradual' : 'Holding com doação total',
     texto: 'Integralizar ' + fmtBRL0(e.imoveis + (e.holding.incluirEmpresa ? e.empresa : 0)) + ' e doar ' + (c.cfg.holding === 'gradual' ? 'as cotas aos filhos em ' + fmtAnos(e.holding.anosDoacaoGradual) : 'todas as cotas aos filhos já') + ', com usufruto.' });
   if(c.cfg.doaImoveis) out.push({ tipo: 'doacao', cor: COR_ESTR.doacao, titulo: 'Doação dos imóveis com usufruto', texto: 'Passar ' + fmtBRL0(e.imoveis) + ' em imóveis aos filhos agora; o cooperado continua usando e recebendo a renda.' });
+  if(c.cfg.P) out.push({ tipo: 'pgbl', cor: COR_PGBL, titulo: 'PGBL anual', texto: 'Aportar ' + fmtBRL0(r.pgbl.aporteAno) + ' por ano (12% da renda tributável) por ' + r.pgbl.anos + ' anos, deduzindo do IR: deixa de pagar ' + fmtBRL0(r.pgbl.economiaAno) + ' por ano.' });
   if(c.cfg.X > 0) out.push({ tipo: 'previdencia', cor: COR_LIQ.previdencia, titulo: 'Previdência (VGBL)', texto: 'Levar ' + fmtBRL0(c.cfg.X) + ' das aplicações, com os herdeiros como beneficiários.' });
   if(c.cfg.C > 0) out.push({ tipo: 'seguro', cor: COR_LIQ.seguro, titulo: 'Whole life', texto: 'Capital de ' + fmtBRL0(c.cfg.C) + '; parcela de ' + fmtBRL0(parcelaSeguro(c, e)) + '/mês por ' + e.wholeLife.anosPagamento + ' anos, corrigida pelo IPCA.' });
   if(c.cfg.offshore) out.push({ tipo: 'offshore', cor: '--teal', titulo: 'Offshore', texto: 'Levar ' + fmtBRL0(e.exterior) + ' de bens no exterior para uma empresa no exterior.' });
@@ -285,6 +297,14 @@ function motivos(v, r){
   if(v.cfg.holding || v.cfg.doaImoveis){
     const a1 = v.sim.pagamentos[1] && v.sim.pagamentos[1].itens.aluguel;
     out.push('<b>' + (v.cfg.holding ? 'Holding' : 'Doação') + ':</b> os imóveis saem do inventário' + (e.meacaoPct > 0 && e.sucessaoCasal ? ' do cooperado e do cônjuge' : '') + (v.cfg.holding && a1 < 0 ? ', e a holding paga ' + fmtBRL0(-a1) + ' a menos de imposto sobre os aluguéis por ano' : '') + '. A doação feita agora trava o ITCMD de hoje.');
+  }
+  if(v.cfg.P){
+    const semP = r.caminhos.filter(c => !c.pgbl && c.protegeJa === v.protegeJa && (c.cabe === 'nao') === (v.cabe === 'nao'))
+      .sort((x, y) => valorEm(y, 'expectativa') - valorEm(x, 'expectativa'))[0];
+    const dif = semP ? valorEm(v, 'expectativa') - valorEm(semP, 'expectativa') : 0;
+    out.push('<b>PGBL:</b> o aporte reduz o IR em ' + fmtBRL0(r.pgbl.economiaAno) + ' por ano (' + pct1(r.pgbl.aliquotaIR) + ' do aporte), e o saldo fica fora do inventário e sem ITCMD' +
+      (semP && dif > 0 ? '. Sem o PGBL, a melhor opção (' + nomeDe(semP) + ') entregaria ' + fmtBRL0(dif) + ' a menos' : '') +
+      '. O IR não some: é pago na chegada aos herdeiros, sobre todo o saldo, a 10% para aportes com mais de 10 anos.');
   }
   if(v.cfg.X > 0) out.push('<b>Previdência:</b> usa dinheiro que já está aplicado, sem parcela nova; fica fora do inventário e sem ITCMD.');
   if(v.cfg.C > 0) out.push('<b>Whole life:</b> o capital chega em dias, sem IR nem ITCMD' + (v.cfg.X > 0 ? ', e cobre o que a previdência sozinha não alcança' : '') + '.');
@@ -326,6 +346,7 @@ function comoPagar(v, r){
   if(v.cfg.X > 0) linhas.push(['Previdência', fmtBRL0(v.cfg.X) + ' uma vez', 'transferido das aplicações (não é custo: continua da família)']);
   const anosCom = k => pg.filter(p => p.ano > 0 && p.itens[k] > 0.5);
   const media = (k, l) => l.reduce((a, p) => a + p.itens[k] / Math.pow(1 + e.premissas.ipca, p.ano), 0) / Math.max(1, l.length);
+  if(v.cfg.P) linhas.push(['Aporte no PGBL', fmtBRL0(r.pgbl.aporteAno) + '/ano por ' + r.pgbl.anos + ' anos', 'corrigido pelo IPCA; ' + fmtBRL0(r.pgbl.economiaAno) + ' voltam como IR a menos (não é custo: o saldo continua da família)']);
   if(v.cfg.C > 0) linhas.push(['Parcela do whole life', fmtBRL0(parcelaSeguro(v, e)) + '/mês por ' + e.wholeLife.anosPagamento + ' anos', 'corrigida pelo IPCA']);
   if(v.cfg.holding){
     linhas.push(['Contabilidade da holding', fmtBRL0(e.holding.contabilMensal) + '/mês', 'enquanto a holding existir']);
@@ -342,7 +363,7 @@ function comoPagar(v, r){
     { c: 'p-princ', t: 'dinheiro aplicado (principal)', v: z.daPrincipal }, { c: 'p-fora', t: 'pago à parte', v: z.externo }];
   let resumo;
   if(tot < 1) resumo = 'Não há custo a pagar: a solução usa só o que já existe.';
-  else if(z.externo < 1 && !z.principalConsumido) resumo = '<b>Cabe no orçamento sem mexer no dinheiro aplicado:</b> ' + (z.daSobra > 0 ? 'a sobra mensal' + (z.daRendimento > 0 ? ' e os rendimentos das aplicações pagam' : ' paga') : 'os rendimentos das aplicações pagam') + ' todos os custos.';
+  else if(z.externo < 1 && !z.principalConsumido) resumo = '<b>Cabe no orçamento sem mexer no dinheiro aplicado:</b> ' + (z.daSobra > 0 ? 'a sobra mensal' + (z.daRendimento > 0 ? ' e os rendimentos das aplicações pagam' : ' paga') : 'os rendimentos das aplicações pagam') + ' todos os custos' + (v.cfg.P ? ' e os aportes no PGBL' : '') + '.';
   else if(z.externo < 1) resumo = '<b>Cabe no orçamento, usando parte do dinheiro aplicado:</b> ' + fmtBRL0(z.daPrincipal) + ' (R$ de hoje) saem do principal das aplicações; o resto vem ' + (z.daSobra > 0 ? 'da sobra e ' : '') + 'dos rendimentos.';
   else resumo = '<b>Precisa de dinheiro à parte:</b> ' + (z.externoHoje > 0.5 ? fmtBRL0(z.externoHoje) + ' hoje' + (z.externoMensalMax > 0 ? ' e ' : '') : '') +
     (z.externoMensalMax > 0 ? 'até ' + fmtBRL0(z.externoMensalMax) + ' por mês' + (e.rendaMensal > 0 ? ' (' + pct0(z.externoMensalMax / e.rendaMensal) + ' da renda)' : '') : '') +
@@ -358,6 +379,11 @@ function faixaAnos(l){
 function passos(v, r){
   const e = r.entrada, out = [];
   const comuns = e.conjuge.regime === 'parcial' || e.conjuge.regime === 'universal';
+  if(v.cfg.P) out.push({ titulo: 'PGBL anual', quem: 'Instituição financeira ou seguradora + contador', itens: [
+    'Confirmar com o contador: declaração completa do IR, contribuição ao INSS ou regime próprio e a renda tributável do ano (dividendos não contam).',
+    'Abrir um PGBL e aportar até ' + fmtBRL0(r.pgbl.aporteAno) + ' por ano (12% da renda tributável), de preferência ao longo do ano ou até dezembro.',
+    'Indicar os herdeiros como beneficiários e escolher a tabela regressiva de IR (cai para 10% após 10 anos de cada aporte).',
+    'Informar os aportes na declaração (pagamentos efetuados, código de previdência complementar) para deduzir do IR.'] });
   if(v.cfg.X > 0) out.push({ titulo: 'Previdência (VGBL)', quem: 'Instituição financeira ou seguradora', itens: [
     'Abrir um VGBL de ' + fmtBRL0(v.cfg.X) + ' com recursos das aplicações (veja IR e carência dos produtos que serão resgatados).',
     'Indicar os herdeiros como beneficiários, com o percentual de cada um.',
@@ -649,6 +675,8 @@ function renderAlertas(){
     out.push('<b>Previdência e legítima:</b> metade da herança (' + fmtBRL0(r.base.legitima) + ') é dos herdeiros necessários (Código Civil, art. 1.846). Previdência com beneficiários diferentes deles pode ser questionada. <b>Sem ITCMD em todos os estados</b> (STF, Tema 1.214; LC 227/2026, art. 150), mas o Fisco pode cobrar quando vê planejamento abusivo: aportes grandes perto do falecimento, com idade avançada ou doença já conhecida, ou desproporcionais ao patrimônio. Aportes regulares e com antecedência dão mais segurança.' +
       (prev > r.base.disponivel ? ' <b>Aqui a previdência (' + fmtBRL0(prev) + ') passaria da parte disponível (' + fmtBRL0(r.base.disponivel) + '):</b> indique os herdeiros necessários como beneficiários.' : ''));
   }
+  if(v && v.cfg.P) out.push('<b>PGBL:</b> a dedução só vale para quem faz a declaração completa e contribui para o INSS ou regime próprio, e vai até 12% da renda bruta tributável do ano (Lei 9.532/1997, art. 11); dividendos não entram na base. A simulação considera ' + pct1(r.pgbl.aliquotaIR) + ' de IR economizado sobre cada aporte; confirme com o contador.');
+  else if(r.pgbl.elegivel && !r.pgbl.ativo) out.push('<b>PGBL:</b> informe a renda bruta tributável do ano para testar o PGBL nas combinações.');
   if(r.base.patrimonioGrande) out.push('<b>Patrimônio acima de ' + fmtBRL0(r.base.limitePatrimonioGrande) + ':</b> o custo esperado de ' + pct0(e.premissas.metaLiquidez) + ' é a média dos clientes de MT e MS. Neste porte, honorários e cartório costumam ser negociados ou ter teto; revise o percentual na etapa 2 com base em orçamentos reais.');
   if(e.partilha.conjugeHerdeiro) out.push('<b>O cônjuge é herdeiro junto com os filhos</b> (CC, art. 1.829, I)' + (e.conjuge.regime === 'parcial' ? ', só sobre os bens particulares' : '') + ': recebe ' + pct1(e.partilha.fracConjuge) + ' da herança' + (e.conjuge.ascendenteComum && e.herdeiros >= 3 ? ', com o mínimo de 1/4 por ser pai ou mãe de todos (art. 1.832)' : '') + '. Previdência e seguro podem indicá-lo como beneficiário à parte.');
   if(e.conjuge.regime === 'obrigatoria') out.push('<b>Separação obrigatória:</b> pela Súmula 377 do STF, os bens adquiridos com esforço comum podem ser partilhados como meação. A simulação considera meação zero; confirme com o advogado.');
@@ -768,6 +796,7 @@ function gerarPdf(){
   const dados = tr('Idade · sexo · estado · filhos herdeiros', e.idade + ' anos · ' + (e.wholeLife.sexo === 'f' ? 'feminino' : 'masculino') + ' · ' + T.ESTADOS[e.uf].nome + ' · ' + e.herdeiros) +
     tr('Regime de bens', REG[e.conjuge.regime] + (e.meacaoPct > 0 ? ' · meação ' + pct0(e.meacaoPct) : '') + (e.partilha.conjugeHerdeiro ? ' · cônjuge herdeiro (' + pct1(e.partilha.fracConjuge) + ')' : '')) +
     (e.sobraMensal > 0 ? tr('Sobra mensal investida', fmtBRL0(e.sobraMensal) + '/mês') : '') +
+    (r.pgbl.ativo ? tr('PGBL anual testado', fmtBRL0(r.pgbl.aporteAno) + '/ano (12% de ' + fmtBRL0(r.pgbl.rendaTributavelAnual) + ') por ' + r.pgbl.anos + ' anos; IR de ' + pct1(r.pgbl.aliquotaIR)) : '') +
     (e.meacaoPct > 0 ? tr('Inventário do cônjuge', e.sucessaoCasal ? 'incluído (a meação também passa aos filhos)' : 'não incluído') : '') +
     (e.sustento.despesaMensal > 0 ? tr('Despesas da família incluídas', fmtBRL0(e.sustento.despesaMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
     (e.sustento.custoBensMensal > 0 ? tr('Custos dos bens incluídos', fmtBRL0(e.sustento.custoBensMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
@@ -821,7 +850,7 @@ function salvarArquivo(){
   const campos = {};
   camposDaTela().forEach(el => { campos[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
   const dados = { modulo: 'sucessao', versao: VERSAO_ARQUIVO, salvoEm: HOJE.toISOString().slice(0, 10),
-    regime: seg.regime, tocados: { itbi: itbiTocado, meses: mesesTocado }, campos, bens: lerBens() };
+    regime: seg.regime, tocados: { itbi: itbiTocado, meses: mesesTocado, pgbl: pgblTocado }, campos, bens: lerBens() };
   const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -848,7 +877,7 @@ function abrirArquivo(arquivo){
       else el.value = String(v).slice(0, 40);
       aplicados++;
     });
-    itbiTocado = !!(d.tocados && d.tocados.itbi); mesesTocado = !!(d.tocados && d.tocados.meses);
+    itbiTocado = !!(d.tocados && d.tocados.itbi); mesesTocado = !!(d.tocados && d.tocados.meses); pgblTocado = !!(d.tocados && d.tocados.pgbl);
     if(Array.isArray(d.bens)) desenharBens(d.bens.filter(b => b && TIPO_BEM[b.tipo] && T.ESTADOS[b.uf]).slice(0, 60));
     else if(d.campos.imoveis){   // arquivo da versão anterior: imóveis num campo só, no estado de domicílio
       const v = lerMoeda({ value: String(d.campos.imoveis) });
@@ -915,6 +944,7 @@ function iniciar(){
   ['wlParcela', 'wlBasica'].forEach(id => { $(id).value = moeda(lerMoeda($(id))); });
   $('hItbi').addEventListener('input', () => { itbiTocado = true; });
   $('mesesSustento').addEventListener('input', () => { mesesTocado = true; });
+  $('pgblRenda').addEventListener('input', () => { pgblTocado = true; });
   $('btnSalvar').addEventListener('click', salvarArquivo);
   $('btnAbrir').addEventListener('click', () => $('arqAbrir').click());
   $('arqAbrir').addEventListener('change', ev => { abrirArquivo(ev.target.files[0]); ev.target.value = ''; });

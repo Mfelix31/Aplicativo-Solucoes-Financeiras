@@ -320,6 +320,60 @@ test('custos dos bens travados: somam às despesas da família pelos mesmos mese
   assert.equal(S.analisar(caso({ sustento: { custoBensMensal: -1 } })).ok, false);
 });
 
+/* ---------- PGBL anual (dedução de até 12% da renda tributável) ---------- */
+const comPGBL = over => caso(Object.assign({ sobraMensal: 10000, pgbl: { elegivel: true, rendaTributavelAnual: 480000 } }, over));
+
+test('PGBL: só entra com declaração completa e renda tributável', () => {
+  const sem = S.analisar(caso({ pgbl: { elegivel: false, rendaTributavelAnual: 480000 } }));
+  assert.ok(!sem.caminhos.some(c => c.pgbl), 'sem declaração completa não há PGBL');
+  assert.ok(!S.analisar(caso({ pgbl: { elegivel: true, rendaTributavelAnual: 0 } })).caminhos.some(c => c.pgbl));
+  const r = S.analisar(comPGBL());
+  assert.ok(r.caminhos.some(c => c.id === 'pgbl') && r.caminhos.some(c => c.id === 'pgbl+previdencia'));
+  perto(r.pgbl.aporteAno, 57600, 1e-9);
+  perto(r.pgbl.economiaAno, 57600 * 0.275, 1e-9);
+  perto(r.pgbl.economiaTotal, 57600 * 0.275 * 10, 1e-9);
+});
+
+test('PGBL: aporte e IR economizado entram no fluxo; IR regressivo sobre todo o saldo, aporte a aporte', () => {
+  const r = S.analisar(comPGBL());
+  const c = r.caminhos.find(x => x.id === 'pgbl'), ipca = r.entrada.premissas.ipca, rt = r.entrada.premissas.rentabilidade;
+  const it1 = c.sim.pagamentos[1].itens;
+  perto(it1.pgbl, 57600, 1e-9);
+  perto(it1.irPgbl, -57600 * 0.275, 1e-9);
+  perto(c.sim.pagamentos[2].itens.pgbl, 57600 * (1 + ipca), 1e-9);
+  assert.equal(c.sim.pagamentos[11].itens.pgbl, 0, 'aportes só nos anos configurados');
+  // falecimento no fim do ano 2: aporte do ano 1 rendeu um ano; os dois pagam 35% (até 2 anos)
+  const a2 = c.sim.anos[1], saldo = 57600 * (1 + rt) + 57600 * (1 + ipca);
+  perto(a2.pgbl, saldo, 1e-9);
+  perto(a2.irPgbl, 0.35 * saldo, 1e-9);
+  // depois de mais de 10 anos de cada aporte, todos pagam 10%
+  const a25 = c.sim.anos[24];
+  perto(a25.irPgbl, 0.10 * a25.pgbl, 1e-9);
+});
+
+test('PGBL: fica fora do inventário e aumenta o valor à família; reduz a previdência necessária', () => {
+  const r = S.analisar(comPGBL());
+  const prev = r.caminhos.find(x => x.id === 'previdencia'), pp = r.caminhos.find(x => x.id === 'pgbl+previdencia');
+  assert.ok(pp.em.expectativa.familiaReal > prev.em.expectativa.familiaReal, 'o IR economizado e o saldo fora do inventário favorecem o PGBL');
+  assert.ok(pp.cfg.X <= prev.cfg.X + 1, 'o saldo do PGBL ajuda a pagar o inventário');
+  const inv = r.caminhos.find(x => x.id === 'inventario'), so = r.caminhos.find(x => x.id === 'pgbl');
+  assert.ok(so.em.dez.monte < inv.em.dez.monte, 'o dinheiro do PGBL sai do monte do inventário');
+});
+
+test('PGBL: o aporte é pago pelo fluxo, mas não conta como custo', () => {
+  const r = S.analisar(comPGBL());
+  const c = r.caminhos.find(x => x.id === 'pgbl'), inv = r.caminhos.find(x => x.id === 'inventario');
+  assert.equal(c.sim.custosAno[0], 0);
+  assert.ok(c.pagamento.custo < 1, 'sem custo no resumo');
+  assert.ok(c.pagamento.daSobra > 0, 'a sobra paga o aporte');
+  assert.equal(c.em.expectativa.custosReais, inv.em.expectativa.custosReais);
+});
+
+test('PGBL: validação dos parâmetros', () => {
+  assert.equal(S.analisar(comPGBL({ pgbl: { elegivel: true, rendaTributavelAnual: 1e5, limitePct: 0.2 } })).ok, false);
+  assert.equal(S.analisar(comPGBL({ pgbl: { elegivel: true, rendaTributavelAnual: -1 } })).ok, false);
+});
+
 test('dados: todo estado tem lei, unidade, mês da unidade e mês da última revisão', () => {
   for (const [uf, e] of Object.entries(T.ESTADOS)) {
     assert.match(e.dataRef, /^\d{4}-\d{2}$/, uf);

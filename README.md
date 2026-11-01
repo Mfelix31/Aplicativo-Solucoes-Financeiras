@@ -14,7 +14,7 @@ Site estático (HTML, CSS e JavaScript puros), sem framework, sem etapa de build
 | Simulador de Investimentos | `investimentos.html` | Quanto LCA, RDC e Operação Compromissada rendem no líquido, qual vence e como se comparam com poupança, CDB e Tesouro Selic. |
 | Consultoria Financeira | `planejamento.html` | Quanto patrimônio é preciso para viver de renda, quanto guardar por mês e o que ajustar. |
 | Consultoria Financeira | `aquisicao.html` | Financiamento, consórcio ou à vista para comprar um bem, com o capital investido ajudando a pagar a parcela. |
-| Consultoria Financeira | `sucessao.html` | O caminho que protege a família e entrega mais na sucessão: previdência, whole life, doação, holding ou offshore, nos 27 estados. |
+| Consultoria Financeira | `sucessao.html` | O caminho que protege a família e entrega mais na sucessão: previdência (VGBL e PGBL anual com dedução no IR), whole life, doação, holding ou offshore, nos 27 estados. |
 
 Todas as páginas têm o guia **Como usar**, o botão **?** em cada campo e o tema claro ou escuro.
 

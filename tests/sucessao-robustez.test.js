@@ -24,9 +24,10 @@ function casoAleatorio() {
     previdencia: valor(3e6, 0.7), previdenciaAnos: Math.floor(rnd() * 20), seguroExistente: valor(2e6, 0.8),
     rendaMensal: valor(300000, 0.2), outrasRendasMensais: valor(60000, 0.5), sobraMensal: valor(150000, 0.4),
     aluguelMensal: alugados ? valor(300000, 0.1) : 0, nImoveisAlugados: alugados, nResidenciais: Math.floor(rnd() * (alugados + 1)),
-    sustento: { despesaMensal: valor(60000, 0.5) }, sucessaoCasal: rnd() < 0.8,
+    sustento: { despesaMensal: valor(60000, 0.5), custoBensMensal: valor(30000, 0.5) }, sucessaoCasal: rnd() < 0.8,
     premissas: { rentabilidade: umDe([0.08, 0.10, 0.12, 0.03, 0.15]), ipca: umDe([0.04, 0.02, 0.07, 0]), metaLiquidez: umDe([0.18, 0.10, 0.25]) },
-    wholeLife: { sexo: umDe(['m', 'f']), tabua: umDe(['2026', '2021']) }
+    wholeLife: { sexo: umDe(['m', 'f']), tabua: umDe(['2026', '2021']) },
+    pgbl: { elegivel: rnd() < 0.5, rendaTributavelAnual: valor(3e6, 0.3), aliquotaIR: umDe([0.275, 0.225, 0]), anos: Math.floor(rnd() * 25) }
   };
 }
 

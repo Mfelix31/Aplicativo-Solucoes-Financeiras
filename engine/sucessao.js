@@ -352,6 +352,11 @@
     taxaAdmPrevidencia: 0.00275, rentabilidadeBruta: false, anoInicial: 2026, comprometimentoRenda: 0.30, depreciacaoVeiculos: 0.10 };
   const HOLDING_PADRAO = { juridicoPct: 0.015, juridicoMin: 5000, cartorioPct: 0.005, itbiPct: null, laudo: 5000,
     contabilMensal: 1000, anosDoacaoGradual: 10, incluirEmpresa: true };
+  /** PGBL anual: aporte de até 12% da renda bruta tributável (Lei 9.250/1995, art. 4º, VII, e Lei 9.532/1997, art. 11),
+   *  só para quem faz a declaração completa e contribui para o INSS ou regime próprio. A dedução adia o IR:
+   *  no resgate ou no pagamento aos beneficiários, o IR incide sobre todo o saldo (tabela regressiva). */
+  const PGBL_PADRAO = { elegivel: false, rendaTributavelAnual: 0, aliquotaIR: 0.275, limitePct: 0.12, anos: 10 };
+  const pgblAtivo = e => !!(e.pgbl && e.pgbl.elegivel && e.pgbl.rendaTributavelAnual > 0 && e.pgbl.limitePct > 0 && e.pgbl.anos > 0);
   const OFFSHORE_PADRAO = { limiar: 2000000, abertura: 20000, manutencaoAnual: 25000, custoSucessaoExteriorPct: 0.05, impostoExteriorPct: 0 };
 
   /*
@@ -469,6 +474,7 @@
       custos: Object.assign({}, CUSTOS_PADRAO, e.custos || {}),
       wholeLife: wholeLifeDaIdade(e.idade === undefined ? 55 : e.idade, e.wholeLife),
       offshore: Object.assign({}, OFFSHORE_PADRAO, e.offshore || {}),
+      pgbl: Object.assign({}, PGBL_PADRAO, e.pgbl || {}),
       aluguelOpcoes: Object.assign({}, e.aluguelOpcoes || {})   // lc224, opcao487, aliqRefIVA (opcionais)
     });
   }
@@ -476,6 +482,7 @@
   /**
    * Simula um caminho ano a ano e devolve o resultado em cada ano de falecimento 1..H.
    * cfg = { X (transferência das aplicações para a previdência), C (capital de whole life novo),
+   *         P (PGBL anual: aporte de até 12% da renda tributável, com o IR economizado de volta às aplicações),
    *         doaImoveis, holding: null|'total'|'gradual', offshore }
    *
    * QUEM PAGA OS CUSTOS (ordem fixa, igual em todos os caminhos):
@@ -491,6 +498,8 @@
     const pr = e.premissas, r = pr.rentabilidade, ipca = pr.ipca, s = pr.metaLiquidez;
     const hp = e.holding, wl = e.wholeLife, of = e.offshore;
     const X = Math.max(0, cfg.X || 0), C = Math.max(0, cfg.C || 0);
+    const P = !!cfg.P && pgblAtivo(e), pg = e.pgbl;
+    const aportesPGBL = [];                  // um registro por aporte (ano, valor corrente): o IR regressivo conta o prazo de cada um
     let imov = e.imoveis, emp = e.empresa, ext = e.exterior, veic = e.veiculos || 0;
     let aplic = e.aplicacoes, aplicBase = e.aplicacoes;
     // PGBL: o IR incide sobre todo o saldo (as contribuições foram deduzidas do IR); VGBL: só sobre o rendimento
@@ -534,13 +543,20 @@
     let custoRealAcum = custo0;
     for (let t = 1; t <= H; t++) {
       imov *= 1 + ipca; emp *= 1 + ipca; ext *= 1 + r; prevV *= 1 + r; prevN *= 1 + r;
+      aportesPGBL.forEach(a => { a.valor *= 1 + r; });
       veic *= 1 - Math.max(-1, Math.min(1, pr.depreciacaoVeiculos));
       const rend = Math.max(0, aplic) * r;
       aplic += Math.max(0, aplic) * r;
       externoFV *= 1 + r;
       const fi = Math.pow(1 + ipca, t - 1);
       const sobra = Math.max(0, e.sobraMensal || 0) * 12 * fi;
-      const itens = { seguro: 0, contabilidade: 0, itcmdDoacao: 0, laudo: 0, aluguel: 0, offshore: 0 };
+      const itens = { seguro: 0, contabilidade: 0, itcmdDoacao: 0, laudo: 0, aluguel: 0, offshore: 0, pgbl: 0, irPgbl: 0 };
+      if (P && t <= pg.anos) {
+        const aporte = pg.limitePct * pg.rendaTributavelAnual * fi;
+        itens.pgbl = aporte;
+        itens.irPgbl = -pg.aliquotaIR * aporte;     // IR que deixa de ser pago (restituição ou menos imposto a pagar)
+        aportesPGBL.push({ ano: t, valor: aporte });
+      }
       if (C > 0 && t <= wl.anosPagamento) itens.seguro = wl.parcelaPor100k * (C / 100000) * fi * 12;
       if (cfg.holding) {
         itens.contabilidade = hp.contabilMensal * 12;
@@ -559,8 +575,10 @@
       }
       if (cfg.offshore) itens.offshore = of.manutencaoAnual;
       const custo = Object.values(itens).reduce((a, b) => a + b, 0);
-      custosAno.push(custo);
-      custoRealAcum += custo / Math.pow(1 + ipca, t);
+      // o aporte no PGBL (menos o IR economizado) é pago como os custos, mas não é custo: o saldo continua da família
+      const transferencia = itens.pgbl + itens.irPgbl;
+      custosAno.push(custo - transferencia);
+      custoRealAcum += (custo - transferencia) / Math.pow(1 + ipca, t);
       let daSobra = 0, daRendimento = 0, daPrincipal = 0, externo = 0;
       if (custo <= 0) por(sobra - custo);
       else {
@@ -573,7 +591,7 @@
         daPrincipal = pagoAplic - daRendimento;
         externoFV += externo;
       }
-      pagamentos.push({ ano: t, custo, itens, sobra, rendimento: rend, daSobra, daRendimento, daPrincipal, externo, aplicacoes: aplic });
+      pagamentos.push({ ano: t, custo, transferencia, itens, sobra, rendimento: rend, daSobra, daRendimento, daPrincipal, externo, aplicacoes: aplic });
 
       // falecimento ao fim do ano t
       const fora = cfg.holding ? integ() : (cfg.doaImoveis ? imov : 0);      // bens já fora do inventário (doados/holding)
@@ -596,7 +614,9 @@
       const custoExterior = cfg.offshore ? 0 : ext * (of.custoSucessaoExteriorPct + of.impostoExteriorPct);
       const irPrevV = aliquotaIRPrevidencia(e.previdenciaAnos + t) * Math.max(0, prevV - prevVBase);
       const irPrevN = aliquotaIRPrevidencia(t) * Math.max(0, prevN - prevNBase);
-      const previdenciaLiquida = prevV + prevN - irPrevV - irPrevN;
+      const prevP = aportesPGBL.reduce((a, x) => a + x.valor, 0);
+      const irPrevP = aportesPGBL.reduce((a, x) => a + aliquotaIRPrevidencia(t - x.ano) * x.valor, 0);   // PGBL: IR sobre todo o saldo
+      const previdenciaLiquida = prevV + prevN + prevP - irPrevV - irPrevN - irPrevP;
       const seguro = (e.seguroExistente || 0) + capitalSeguro(C, t, ipca, wl.ganhoReal);
       const irLatente = pr.irAplicacoes * Math.max(0, aplic - Math.max(0, aplicBase));
       const sustento = mensalTravado(e) * e.sustento.meses * Math.pow(1 + ipca, t);
@@ -613,9 +633,9 @@
       const custoEsperado = s * monte;
       const custoEsperadoConjuge = invConjuge ? s * monte * e.meacaoPct : 0;
       const familia = monte - custoEsperado - custoEsperadoConjuge - custoExterior - irLatente - extincaoUsufruto + doadoValor + previdenciaLiquida + seguro - externoFV;
-      const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + seguro);
+      const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + prevP + seguro);
       anos.push({
-        ano: t, monte, veiculos: veic, inventario: inv, inventarioConjuge: invConjuge, custoEsperado, custoEsperadoConjuge, extincaoUsufruto, sustento, custoExterior, previdenciaLiquida, seguro, liquidez, meta,
+        ano: t, monte, veiculos: veic, inventario: inv, inventarioConjuge: invConjuge, custoEsperado, custoEsperadoConjuge, extincaoUsufruto, sustento, custoExterior, previdenciaLiquida, pgbl: prevP, irPgbl: irPrevP, seguro, liquidez, meta,
         cobertura: meta > 0 ? liquidez / meta : Infinity, aplicacoes: aplic, familia, externoAcumulado: externoFV,
         familiaReal: familia / Math.pow(1 + ipca, t), travado: monte / brutoFamilia, custosReais: custoRealAcum
       });
@@ -628,7 +648,7 @@
     const real = (v, t) => v / Math.pow(1 + ipca, t);
     const z = { custo: 0, daSobra: 0, daRendimento: 0, daPrincipal: 0, externo: 0, externoMensalMax: 0, anosExterno: [], principalConsumido: false };
     pg.forEach(p => {
-      if (p.custo > 0) z.custo += real(p.custo, p.ano);
+      if (p.custo - (p.transferencia || 0) > 0) z.custo += real(p.custo - (p.transferencia || 0), p.ano);
       z.daSobra += real(p.daSobra, p.ano); z.daRendimento += real(p.daRendimento, p.ano); z.daPrincipal += real(p.daPrincipal, p.ano);
       z.externo += real(p.externo, p.ano);
       if (p.externo > 0.5) {
@@ -659,12 +679,18 @@
   const RANK_ESTR = { nenhuma: 0, doacao: 3, holdingTotal: 4, holdingGradual: 4.5 };
   const RANK_LIQ = { nenhuma: 0, previdencia: 1, seguro: 2, combinado: 2.5 };
   const CFG_ESTR = { nenhuma: {}, doacao: { doaImoveis: true }, holdingGradual: { holding: 'gradual' }, holdingTotal: { holding: 'total' } };
-  const idCaminho = (estr, liq) => estr === 'nenhuma' ? (liq === 'nenhuma' ? 'inventario' : liq) : estr + (liq === 'nenhuma' ? '' : '+' + liq);
-  const complexidade = (estr, liq, offshore) => (estr === 'nenhuma' ? RANK_LIQ[liq] : RANK_ESTR[estr] + RANK_LIQ[liq] / 10) + (offshore ? 5 : 0);
+  const idCaminho = (estr, liq, pgbl) => {
+    const p = [];
+    if (estr !== 'nenhuma') p.push(estr);
+    if (pgbl) p.push('pgbl');
+    if (liq !== 'nenhuma') p.push(liq);
+    return p.length ? p.join('+') : 'inventario';
+  };
+  const complexidade = (estr, liq, offshore, pgbl) => (estr === 'nenhuma' ? RANK_LIQ[liq] : RANK_ESTR[estr] + RANK_LIQ[liq] / 10) + (pgbl ? 0.8 : 0) + (offshore ? 5 : 0);
 
   /** Dimensiona as quatro variantes de liquidez para uma estrutura. */
-  function variantesLiquidez(e, estr, H, ate) {
-    const base = CFG_ESTR[estr];
+  function variantesLiquidez(e, estr, H, ate, extra) {
+    const base = Object.assign({}, CFG_ESTR[estr], extra || {});
     const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + mensalTravado(e) * e.sustento.meses) * 2);
     const custo0 = simular(e, Object.assign({}, base, { X: 0, C: 0 }), 1).custoEstruturacao;
     const disp = Math.max(0, e.aplicacoes - custo0);
@@ -707,11 +733,14 @@
       const v = variantesLiquidez(e, estr, H, ate);
       if (estr === 'nenhuma') Xp0 = v.Xp;
       v.variantes.forEach(x => defs.push({ id: idCaminho(estr, x.liq), estrutura: estr, liquidez: x.liq, cfg: x.cfg }));
+      // PGBL anual: as mesmas variantes com o aporte de 12% da renda tributável (previdência e seguro redimensionados)
+      if (pgblAtivo(e)) variantesLiquidez(e, estr, H, ate, { P: true }).variantes
+        .forEach(x => defs.push({ id: idCaminho(estr, x.liq, true), estrutura: estr, liquidez: x.liq, pgbl: true, cfg: x.cfg }));
     }
     // variantes iguais (ex.: sem aplicações para levar à previdência) aparecem uma vez só, na forma mais simples
     const vistos = new Set();
     for (let i = 0; i < defs.length; i++) {
-      const c = defs[i].cfg, k = [defs[i].estrutura, Math.round(c.X || 0), Math.round(c.C || 0)].join('|');
+      const c = defs[i].cfg, k = [defs[i].estrutura, c.P ? 'P' : '', Math.round(c.X || 0), Math.round(c.C || 0)].join('|');
       if (vistos.has(k)) { defs.splice(i, 1); i--; } else vistos.add(k);
     }
 
@@ -719,9 +748,9 @@
       const sim = simular(e, d.cfg, H);
       const em = hipoteses.reduce((o, h) => { o[h.id] = sim.anos[h.ano - 1]; return o; }, {});
       const cabe = cabeNoCaixa(e, sim.resumoPagamento);
-      return { id: d.id, estrutura: d.estrutura, liquidez: d.liquidez, offshore: !!d.cfg.offshore, cfg: d.cfg, sim, em,
+      return { id: d.id, estrutura: d.estrutura, liquidez: d.liquidez, pgbl: !!d.cfg.P, offshore: !!d.cfg.offshore, cfg: d.cfg, sim, em,
         coberturaAno1: sim.anos[0].cobertura, coberturaMin: coberturaMinima(sim), protegeJa: sim.anos[0].cobertura >= 1 - 1e-9,
-        complexidade: complexidade(d.estrutura, d.liquidez, d.cfg.offshore), pagamento: sim.resumoPagamento, cabe,
+        complexidade: complexidade(d.estrutura, d.liquidez, d.cfg.offshore, !!d.cfg.P), pagamento: sim.resumoPagamento, cabe,
         faltaRecurso: cabe === 'nao' };
     };
     let caminhos = defs.map(montar);
@@ -780,7 +809,8 @@
         aluguelMensal: e.aluguelMensal * Math.pow(1 + e.premissas.ipca, i), deducoesMensais: e.deducoesAluguelMensal * Math.pow(1 + e.premissas.ipca, i),
         outrasRendasMensais: e.outrasRendasMensais, nImoveisAlugados: e.nImoveisAlugados, nResidenciais: e.nResidenciais,
         ano: e.premissas.anoInicial + i + 1, contabilMensal: e.holding.contabilMensal }))) : null,
-      seguro: detalheSeguro(e, caminhos, rec)
+      seguro: detalheSeguro(e, caminhos, rec),
+      pgbl: resumoPGBL(e)
     };
   }
 
@@ -871,6 +901,14 @@
   }
 
   const pr0 = e => e.premissas;
+  /** PGBL anual em R$ de hoje: aporte, IR que deixa de pagar por ano e no total, e quem pode usar. */
+  function resumoPGBL(e) {
+    const p = e.pgbl, aporte = p.limitePct * p.rendaTributavelAnual;
+    return { ativo: pgblAtivo(e), elegivel: !!p.elegivel, rendaTributavelAnual: p.rendaTributavelAnual, aporteAno: aporte,
+      aporteMes: aporte / 12, economiaAno: aporte * p.aliquotaIR, economiaTotal: aporte * p.aliquotaIR * p.anos,
+      aliquotaIR: p.aliquotaIR, anos: p.anos, limitePct: p.limitePct };
+  }
+
   function validar(e) {
     const erros = [];
     if (!ITCMD.ESTADOS[e.uf]) erros.push('Escolha um dos estados disponíveis: MT, MS, RO ou PA.');
@@ -892,6 +930,11 @@
     if (!(e.conjuge.pctComuns >= 0 && e.conjuge.pctComuns <= 1)) erros.push('Os bens comuns precisam estar entre 0% e 100% do patrimônio.');
     if (!(e.sobraMensal >= 0)) erros.push('A sobra mensal não pode ser negativa.');
     if (['vgbl', 'pgbl'].indexOf(e.previdenciaTipo) < 0) erros.push('Tipo de previdência desconhecido.');
+    const pg = e.pgbl;
+    if (!(pg.rendaTributavelAnual >= 0)) erros.push('PGBL: a renda tributável não pode ser negativa.');
+    if (!(pg.limitePct >= 0 && pg.limitePct <= 0.12 + 1e-9)) erros.push('PGBL: a dedução vai até 12% da renda tributável.');
+    if (!(pg.aliquotaIR >= 0 && pg.aliquotaIR <= 0.5)) erros.push('PGBL: alíquota de IR fora do intervalo.');
+    if (!(pg.anos >= 0 && pg.anos <= 40)) erros.push('PGBL: anos de aporte entre 0 e 40.');
     if (!(e.sustento.despesaMensal >= 0) || !(e.sustento.meses >= 0 && e.sustento.meses <= 120)) erros.push('Despesas da família: valor não negativo e até 120 meses.');
     if (!(e.sustento.custoBensMensal >= 0)) erros.push('Custos mensais dos bens: valor não negativo.');
     const pr = e.premissas;
@@ -905,7 +948,7 @@
 
   return {
     TABUA_IBGE_2024, CURVA_ATUARIAL, PREMISSAS_PADRAO, CUSTOS_PADRAO, HOLDING_PADRAO, OFFSHORE_PADRAO, WL_PADRAO,
-    TIPOS_BEM, TIPOS_IMOVEL, patrimonioDeBens, expectativaSobrevida, itcmdValor, itcmdRegra, itcmdDividido, itcmdPorEstado, custoInventario, partilha, MESES_SUSTENTO, LIMITE_PATRIMONIO_GRANDE, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
+    TIPOS_BEM, TIPOS_IMOVEL, patrimonioDeBens, expectativaSobrevida, itcmdValor, itcmdRegra, itcmdDividido, itcmdPorEstado, custoInventario, partilha, MESES_SUSTENTO, LIMITE_PATRIMONIO_GRANDE, PGBL_PADRAO, pgblAtivo, resumoPGBL, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
     projetarWholeLife, fatorIdadeWholeLife, wholeLifeDaIdade, capitalSeguro, anoEquilibrioSeguro, irpfMensal, irpfm, faseIBS, tributacaoAluguel,
     normalizar, simular, analisar, recomendar, validar, ESTRUTURAS, LIQUIDEZ, idCaminho
   };
