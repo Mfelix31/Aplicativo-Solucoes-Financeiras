@@ -112,7 +112,7 @@ function lerEntradas(){
     sustento: { despesaMensal: money('despesaFamilia'), custoBensMensal: money('custoBens'), meses: num('mesesSustento') },
     sobraMensal: money('sobraMensal'), sucessaoCasal: $('sucessaoCasal').checked,
     regime: seg.regime,
-    bens: lerBens(), aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'), dividas: money('dividas'),
+    bens: lerBens(), aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'), dividas: money('dividas'), custoAquisicaoImoveis: money('custoAquisicao'),
     previdenciaTipo: $('prevTipo').value,
     previdencia: money('previdencia'), previdenciaAportado: money('previdencia') > 0 ? Math.min(money('prevAportado') || money('previdencia'), money('previdencia')) : 0,
     previdenciaAnos: num('prevAnos') || 0, seguroExistente: money('seguroExist'),
@@ -689,6 +689,8 @@ function renderAlertas(){
   if(v && v.cfg.P) out.push('<b>PGBL:</b> a dedução só vale para quem faz a declaração completa e contribui para o INSS ou regime próprio, e vai até 12% da renda bruta tributável do ano (Lei 9.532/1997, art. 11); dividendos não entram na base. A simulação considera ' + pct1(r.pgbl.aliquotaIR) + ' de IR economizado sobre cada aporte; confirme com o contador.');
   else if(r.pgbl.elegivel && !r.pgbl.ativo) out.push('<b>PGBL:</b> informe a renda bruta tributável do ano para testar o PGBL nas combinações.');
   if(r.base.dividas > 0) out.push('<b>Dívidas do espólio:</b> ' + fmtBRL0(r.base.dividas) + ' saem da base do ITCMD e do inventário' + (r.base.dividaExcedente > 0 ? '; passam dos bens em ' + fmtBRL0(r.base.dividaExcedente) + ' (os herdeiros não respondem além da herança, CC art. 1.792)' : '') + '. Só valem dívidas comprovadas na data do falecimento. O credor pode pedir o bloqueio ou a reserva de bens no inventário até ser pago, o que trava ainda mais a liquidez: previdência e seguro ficam fora disso.');
+  const gc = r.ganhoCapital;
+  if(gc && gc.ganho > 0) out.push('<b>Ganho de capital nos imóveis:</b> declarados por ' + fmtBRL0(gc.custo) + ', valem ' + fmtBRL0(gc.valor) + ' hoje. Se os herdeiros precisarem vender para pagar o inventário, ou se o inventário atualizar o valor para o de mercado (Lei 9.532/1997, art. 23), o IR sobre o ganho de ' + fmtBRL0(gc.ganho) + ' pode chegar a cerca de <b>' + fmtBRL0(gc.ir) + '</b> (' + pct1(gc.aliquotaMedia) + ' na média; faixas de 15% a 22,5%, Lei 13.259/2016). Manter o valor histórico adia o IR para a venda pelos herdeiros. Reduções para imóveis antigos e as regras do imóvel rural (terra nua pela DITR) podem diminuir o valor: confirme com o contador. Ter dinheiro para o inventário (previdência ou seguro) evita a venda às pressas.');
   if(r.base.patrimonioGrande) out.push('<b>Patrimônio acima de ' + fmtBRL0(r.base.limitePatrimonioGrande) + ':</b> honorários e cartório costumam ser negociados ou ter teto; o custo esperado de ' + pct1(r.base.pctEsperado) + ' pode ficar acima do real. Revise a margem de mercado (ou o percentual) na etapa 2 com orçamentos reais.');
   if(e.partilha.conjugeHerdeiro) out.push('<b>O cônjuge é herdeiro junto com os filhos</b> (CC, art. 1.829, I)' + (e.conjuge.regime === 'parcial' ? ', só sobre os bens particulares' : '') + ': recebe ' + pct1(e.partilha.fracConjuge) + ' da herança' + (e.conjuge.ascendenteComum && e.herdeiros >= 3 ? ', com o mínimo de 1/4 por ser pai ou mãe de todos (art. 1.832)' : '') + '. Previdência e seguro podem indicá-lo como beneficiário à parte.');
   if(e.conjuge.regime === 'obrigatoria') out.push('<b>Separação obrigatória:</b> pela Súmula 377 do STF, os bens adquiridos com esforço comum podem ser partilhados como meação. A simulação considera meação zero; confirme com o advogado.');
@@ -808,6 +810,7 @@ function gerarPdf(){
   const dados = tr('Idade · sexo · estado · filhos herdeiros', e.idade + ' anos · ' + (e.wholeLife.sexo === 'f' ? 'feminino' : 'masculino') + ' · ' + T.ESTADOS[e.uf].nome + ' · ' + e.herdeiros) +
     tr('Regime de bens', REG[e.conjuge.regime] + (e.meacaoPct > 0 ? ' · meação ' + pct0(e.meacaoPct) : '') + (e.partilha.conjugeHerdeiro ? ' · cônjuge herdeiro (' + pct1(e.partilha.fracConjuge) + ')' : '')) +
     (e.dividas > 0 ? tr('Dívidas abatidas do inventário', fmtBRL0(e.dividas)) : '') +
+    (r.ganhoCapital && r.ganhoCapital.ganho > 0 ? tr('IR possível sobre o ganho dos imóveis', fmtBRL0(r.ganhoCapital.ir) + ' (ganho de ' + fmtBRL0(r.ganhoCapital.ganho) + ', se vender ou atualizar o valor)') : '') +
     (e.sobraMensal > 0 ? tr('Sobra mensal investida', fmtBRL0(e.sobraMensal) + '/mês') : '') +
     (r.pgbl.ativo ? tr('PGBL anual testado', fmtBRL0(r.pgbl.aporteAno) + '/ano (12% de ' + fmtBRL0(r.pgbl.rendaTributavelAnual) + ') por ' + r.pgbl.anos + ' anos; IR de ' + pct1(r.pgbl.aliquotaIR)) : '') +
     (e.meacaoPct > 0 ? tr('Inventário do cônjuge', e.sucessaoCasal ? 'incluído (a meação também passa aos filhos)' : 'não incluído') : '') +

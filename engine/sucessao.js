@@ -157,6 +157,29 @@
     return { itcmd, itcmdPorUF, honorarios, cartorio, registro, certidoes, multa, total, pct: total / monte, heranca };
   }
 
+  /* ---------- IR sobre ganho de capital de pessoa física ---------- */
+  /** Faixas sobre o ganho (Lei 8.981/1995, art. 21, com a redação da Lei 13.259/2016), cada faixa sobre a parte do ganho. */
+  const FAIXAS_GANHO_CAPITAL = [{ ate: 5e6, aliq: 0.15 }, { ate: 10e6, aliq: 0.175 }, { ate: 30e6, aliq: 0.20 }, { ate: Infinity, aliq: 0.225 }];
+  function irGanhoCapital(ganho) {
+    let ir = 0, ant = 0;
+    for (const f of FAIXAS_GANHO_CAPITAL) {
+      if (!(ganho > ant)) break;
+      ir += (Math.min(ganho, f.ate) - ant) * f.aliq;
+      ant = f.ate;
+    }
+    return ir;
+  }
+  /** Ganho dos imóveis que vão a inventário: valor de mercado − custo de aquisição declarado (R$ de hoje).
+   *  Na herança, o espólio pode atualizar o valor (o IR incide sobre a diferença, Lei 9.532/1997, art. 23) ou manter o
+   *  histórico (o IR aparece quando os herdeiros venderem). Sem fatores de redução (Lei 11.196/2005, art. 40; Lei 7.713/1988,
+   *  art. 18) nem regras do imóvel rural (terra nua pela DITR): estimativa para o alerta. */
+  function ganhoCapitalImoveis(e) {
+    const custo = Math.max(0, e.custoAquisicaoImoveis || 0);
+    if (!(custo > 0) || !(e.imoveis > 0)) return null;
+    const ganho = Math.max(0, e.imoveis - custo);
+    return { custo, valor: e.imoveis, ganho, ir: irGanhoCapital(ganho), aliquotaMedia: ganho > 0 ? irGanhoCapital(ganho) / ganho : 0 };
+  }
+
   /* ---------- previdência: IR regressivo no pagamento ao beneficiário ---------- */
   function aliquotaIRPrevidencia(anos) {
     if (anos <= 2) return 0.35;
@@ -482,7 +505,7 @@
     return Object.assign({
       idade: 55, uf: 'MT', herdeiros: 2, meacaoPct: 0, tipoInventario: 'cartorio', regime: 'vigente',
       imoveis: 0, nImoveis: 0, aplicacoes: 0, previdencia: 0, previdenciaAportado: null, previdenciaAnos: 10, previdenciaTipo: 'vgbl',
-      seguroExistente: 0, empresa: 0, exterior: 0, dividas: 0, rendaMensal: 0,
+      seguroExistente: 0, empresa: 0, exterior: 0, dividas: 0, custoAquisicaoImoveis: 0, rendaMensal: 0,
       aluguelMensal: 0, deducoesAluguelMensal: 0, nImoveisAlugados: 0, nResidenciais: 0, outrasRendasMensais: 0,
       doacaoCustoPct: 0.01, sobraMensal: 0, sucessaoCasal: true
     }, e, {
@@ -831,7 +854,8 @@
         outrasRendasMensais: e.outrasRendasMensais, nImoveisAlugados: e.nImoveisAlugados, nResidenciais: e.nResidenciais,
         ano: e.premissas.anoInicial + i + 1, contabilMensal: e.holding.contabilMensal }))) : null,
       seguro: detalheSeguro(e, caminhos, rec),
-      pgbl: resumoPGBL(e)
+      pgbl: resumoPGBL(e),
+      ganhoCapital: ganhoCapitalImoveis(e)
     };
   }
 
@@ -951,6 +975,7 @@
     if (!(e.conjuge.pctComuns >= 0 && e.conjuge.pctComuns <= 1)) erros.push('Os bens comuns precisam estar entre 0% e 100% do patrimônio.');
     if (!(e.sobraMensal >= 0)) erros.push('A sobra mensal não pode ser negativa.');
     if (!(e.dividas >= 0)) erros.push('As dívidas não podem ser negativas.');
+    if (!(e.custoAquisicaoImoveis >= 0)) erros.push('O custo de aquisição dos imóveis não pode ser negativo.');
     if (['vgbl', 'pgbl'].indexOf(e.previdenciaTipo) < 0) erros.push('Tipo de previdência desconhecido.');
     const pg = e.pgbl;
     if (!(pg.rendaTributavelAnual >= 0)) erros.push('PGBL: a renda tributável não pode ser negativa.');
@@ -972,7 +997,7 @@
 
   return {
     TABUA_IBGE_2024, CURVA_ATUARIAL, PREMISSAS_PADRAO, CUSTOS_PADRAO, HOLDING_PADRAO, OFFSHORE_PADRAO, WL_PADRAO,
-    TIPOS_BEM, TIPOS_IMOVEL, patrimonioDeBens, expectativaSobrevida, itcmdValor, itcmdRegra, itcmdDividido, itcmdPorEstado, custoInventario, partilha, MESES_SUSTENTO, LIMITE_PATRIMONIO_GRANDE, PGBL_PADRAO, pgblAtivo, resumoPGBL, custoEsperadoDe, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
+    TIPOS_BEM, TIPOS_IMOVEL, patrimonioDeBens, expectativaSobrevida, itcmdValor, itcmdRegra, itcmdDividido, itcmdPorEstado, custoInventario, partilha, MESES_SUSTENTO, LIMITE_PATRIMONIO_GRANDE, PGBL_PADRAO, pgblAtivo, resumoPGBL, custoEsperadoDe, irGanhoCapital, ganhoCapitalImoveis, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
     projetarWholeLife, fatorIdadeWholeLife, wholeLifeDaIdade, capitalSeguro, anoEquilibrioSeguro, irpfMensal, irpfm, faseIBS, tributacaoAluguel,
     normalizar, simular, analisar, recomendar, validar, ESTRUTURAS, LIQUIDEZ, idCaminho
   };

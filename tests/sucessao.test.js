@@ -527,6 +527,18 @@ test('dívidas: o valor à família cai pela dívida paga; dívida maior que os 
   assert.equal(S.analisar(espolio({ dividas: -1 })).ok, false);
 });
 
+/* ---------- ganho de capital (stress test MT, teste 30: fazenda de R$ 1 mi que vale R$ 20 mi) ---------- */
+test('ganho de capital: faixas da Lei 13.259/2016 sobre o ganho de R$ 19 mi = R$ 3.425.000 (conta à mão)', () => {
+  // 5 mi × 15% + 5 mi × 17,5% + 9 mi × 20% = 750 mil + 875 mil + 1,8 mi
+  perto(S.irGanhoCapital(19e6), 3425000, 1e-6);
+  perto(S.irGanhoCapital(1e6), 150000, 1e-6);
+  perto(S.irGanhoCapital(40e6), 750000 + 875000 + 4e6 + 10e6 * 0.225, 1e-6);
+  assert.equal(S.irGanhoCapital(0), 0);
+  const r = S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 20e6 }], aplicacoes: 1e6, custoAquisicaoImoveis: 1e6 }, { semEstresse: true });
+  perto(r.ganhoCapital.ir, 3425000, 1e-6);
+  assert.equal(S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, aplicacoes: 1e6 }).ganhoCapital, null);
+});
+
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
 test('27 estados: tabelas válidas nos três regimes', () => {
   assert.equal(T.SIGLAS.length, 27);
