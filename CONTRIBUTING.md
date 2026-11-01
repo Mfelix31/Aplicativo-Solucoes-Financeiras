@@ -15,7 +15,7 @@ O `main` é o site no ar: tudo que entra nele é publicado pelo GitHub Pages.
    - Se precisar explicar o porquê, deixe uma linha em branco e escreva no corpo.
 3. **Rode `npm test`** antes de enviar. O GitHub roda de novo a cada envio; um X vermelho no commit significa teste quebrado.
 4. **Leve ao `main` só depois da aprovação do responsável pelo projeto**, por pull request ou merge direto, com o `main` atualizado e os testes passando.
-5. **Apague a branch depois do merge.** O repositório está configurado para apagar automaticamente as branches de pull request mescladas. Branches antigas abertas confundem e acumulam versões diferentes do mesmo código.
+5. **Apague a branch depois do merge** (no GitHub: **Branches** → ícone de lixeira). Branches antigas abertas confundem e acumulam versões diferentes do mesmo código. Para pull requests, a opção *Settings → General → Automatically delete head branches* apaga a branch sozinha depois do merge.
 
 Os commits "Ibovespa: fechamento de AAAA-MM-DD" são feitos pela automação diária e vão direto ao `main`.
 
