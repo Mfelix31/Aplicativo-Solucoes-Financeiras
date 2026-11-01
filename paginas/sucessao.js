@@ -507,7 +507,7 @@ function renderBase(){
   // 3. quanto tempo os bens ficam travados
   const diasInv = { cartorio: 90, judicial: 1095, litigio: 1460 }[e.tipoInventario], diasLiq = 30;
   const c3 = card(3, 'Quanto tempo a família fica sem poder usar os bens?', PRAZO_INV[e.tipoInventario],
-    'Enquanto o inventário não termina, os bens ficam <b>travados</b>: não podem ser vendidos nem divididos, e as contas do falecido ficam bloqueadas. Previdência e seguro não entram no inventário e chegam aos beneficiários em dias.',
+    'Enquanto o inventário não termina, os bens ficam <b>travados</b>: não podem ser vendidos nem divididos, e as contas do falecido ficam bloqueadas. Previdência e seguro não entram no inventário: a seguradora tem até 30 dias, contados da entrega dos documentos, para pagar os beneficiários (muitas pagam antes).',
     '<div class="qtempo"><div><span>Inventário ' + ({cartorio:'em cartório', judicial:'judicial', litigio:'com conflito'})[e.tipoInventario] + '</span><div class="qbar"><span class="p-trava" style="--w:100%"></span></div><b>' + PRAZO_INV[e.tipoInventario] + '</b></div>' +
       '<div><span>Previdência e seguro</span><div class="qbar"><span class="p-meta" style="--w:' + Math.max(3, diasLiq / diasInv * 100).toFixed(1) + '%"></span></div><b>até 30 dias</b></div></div>',
     'prazo usual do tipo de inventário escolhido na etapa 1 (cartório: herdeiros de acordo e maiores; judicial: menores, incapazes ou desacordo).');
@@ -616,7 +616,7 @@ function renderAlertas(){
   if(idadeTab > LIMITE_MESES_TABELA) out.push('<b>Tabela de ITCMD revisada há ' + idadeTab + ' meses:</b> a última conferência de ' + est.nome + ' foi em ' + est.revisadoEm.split('-').reverse().join('/') + '. Confira se a lei ou a unidade fiscal mudaram antes de apresentar.');
   if(v && (v.cfg.X > 0 || e.previdencia > 0)){
     const prev = e.previdencia + (v.cfg.X || 0);
-    out.push('<b>Previdência e legítima:</b> metade da herança (' + fmtBRL0(r.base.legitima) + ') é dos herdeiros necessários (Código Civil, art. 1.846). Previdência com beneficiários diferentes deles, ou aportes grandes perto do falecimento, pode ser questionada.' +
+    out.push('<b>Previdência e legítima:</b> metade da herança (' + fmtBRL0(r.base.legitima) + ') é dos herdeiros necessários (Código Civil, art. 1.846). Previdência com beneficiários diferentes deles pode ser questionada. <b>Sem ITCMD em todos os estados</b> (STF, Tema 1.214; LC 227/2026, art. 150), mas o Fisco pode cobrar quando vê planejamento abusivo: aportes grandes perto do falecimento, com idade avançada ou doença já conhecida, ou desproporcionais ao patrimônio. Aportes regulares e com antecedência dão mais segurança.' +
       (prev > r.base.disponivel ? ' <b>Aqui a previdência (' + fmtBRL0(prev) + ') passaria da parte disponível (' + fmtBRL0(r.base.disponivel) + '):</b> indique os herdeiros necessários como beneficiários.' : ''));
   }
   if(r.base.patrimonioGrande) out.push('<b>Patrimônio acima de ' + fmtBRL0(r.base.limitePatrimonioGrande) + ':</b> o custo esperado de ' + pct0(e.premissas.metaLiquidez) + ' é a média dos clientes de MT e MS. Neste porte, honorários e cartório costumam ser negociados ou ter teto; revise o percentual na etapa 2 com base em orçamentos reais.');
