@@ -13,7 +13,9 @@ const {brl: fmtBRL, brl0: fmtBRL0, pct: fmtPct, curto: fmtCurto, anos: fmtAnos, 
 function escreverMoeda(el, v){ el.value = Formato.moeda(v); }
 const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? NaN : v; };
 
-/* ---------- objetivos ---------- */
+/* ---------- objetivos e entradas extraordinárias ----------
+   As duas listas usam a mesma linha de edição (nome, valor de hoje, data, frequência).
+   Objetivos tiram dinheiro do patrimônio; entradas somam. */
 const TIPOS = {
   reserva: {rotulo:'Reserva de emergência', recorrente:false, mesesPadrao:12},
   carro:   {rotulo:'Carro', recorrente:true},
@@ -23,40 +25,56 @@ const TIPOS = {
   educacao:{rotulo:'Educação dos filhos', recorrente:false},
   outro:   {rotulo:'Outro objetivo', recorrente:false}
 };
-let objetivos = [];
+const TIPOS_ENTRADA = {
+  terra:   {rotulo:'Venda de terra', recorrente:false, mesesPadrao:60},
+  vendaImovel: {rotulo:'Venda de imóvel', recorrente:false, mesesPadrao:60},
+  safra:   {rotulo:'Sobra da safra', recorrente:true, mesesPadrao:12, recorrenciaPadrao:1},
+  heranca: {rotulo:'Herança', recorrente:false, mesesPadrao:60},
+  bonus:   {rotulo:'Bônus ou PLR', recorrente:true, mesesPadrao:12, recorrenciaPadrao:1},
+  outraEntrada: {rotulo:'Outra entrada', recorrente:false, mesesPadrao:24}
+};
+const LISTAS = {
+  obj: {tipos: TIPOS, itens: [], chips: 'chips', box: 'objList', vazio: 'objEmpty', rotulo: 'Objetivo', remover: 'Remover objetivo'},
+  ent: {tipos: TIPOS_ENTRADA, itens: [], chips: 'entChips', box: 'entList', vazio: 'entEmpty', rotulo: 'Entrada', remover: 'Remover entrada'}
+};
+const objetivos = LISTAS.obj.itens;
+const entradasExtra = LISTAS.ent.itens;
 let seqObj = 1;
 
 function mesFuturo(meses){
   const d = new Date(HOJE.getFullYear(), HOJE.getMonth() + meses, 1);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
 }
-function addObjetivo(tipo){
-  objetivos.push({id: seqObj++, tipo, nome: TIPOS[tipo].rotulo, valorHoje: 0, data: mesFuturo(TIPOS[tipo].mesesPadrao || 24), recorrenciaAnos: 0});
-  renderObjetivos();
-  const last = document.querySelector('.obj-row:last-child .money');
+function addItem(lista, tipo){
+  const L = LISTAS[lista], T = L.tipos[tipo];
+  L.itens.push({id: seqObj++, tipo, nome: T.rotulo, valorHoje: 0, data: mesFuturo(T.mesesPadrao || 24), recorrenciaAnos: T.recorrenciaPadrao || 0});
+  renderLista(lista);
+  const last = $(L.box).querySelector('.obj-row:last-child .money');
   if(last) last.focus();
   recalcular();
 }
-function renderChips(){
-  $('chips').innerHTML = Object.keys(TIPOS).map(t => '<button type="button" class="chip" data-tipo="'+t+'">+ '+esc(TIPOS[t].rotulo)+'</button>').join('');
-  $('chips').querySelectorAll('.chip').forEach(b => b.addEventListener('click', ()=>addObjetivo(b.dataset.tipo)));
+function renderChips(lista){
+  const L = LISTAS[lista];
+  $(L.chips).innerHTML = Object.keys(L.tipos).map(t => '<button type="button" class="chip" data-tipo="'+t+'">+ '+esc(L.tipos[t].rotulo)+'</button>').join('');
+  $(L.chips).querySelectorAll('.chip').forEach(b => b.addEventListener('click', ()=>addItem(lista, b.dataset.tipo)));
 }
-function renderObjetivos(){
-  const box = $('objList');
+function renderLista(lista){
+  const L = LISTAS[lista];
+  const box = $(L.box);
   box.innerHTML = '';
-  $('objEmpty').style.display = objetivos.length ? 'none' : 'block';
-  objetivos.forEach(o=>{
-    const rec = TIPOS[o.tipo].recorrente;
+  $(L.vazio).classList.toggle('hidden', L.itens.length > 0);
+  L.itens.forEach(o=>{
+    const rec = L.tipos[o.tipo].recorrente;
     const row = document.createElement('div');
     row.className = 'obj-row';
     row.innerHTML =
-      '<div class="field"><label>Objetivo</label><div class="row-input"><input type="text" data-k="nome" maxlength="40" value="'+esc(o.nome)+'"></div></div>' +
+      '<div class="field"><label>' + L.rotulo + '</label><div class="row-input"><input type="text" data-k="nome" maxlength="40" value="'+esc(o.nome)+'"></div></div>' +
       '<div class="field"><label>Valor <span class="unit hoje">HOJE</span></label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" class="money" data-k="valorHoje"></div></div>' +
       '<div class="field"><label>Quando</label><div class="row-input" data-wrap="data"><input type="month" data-k="data" value="'+o.data+'"></div><div class="hint" data-hint="data"></div></div>' +
       '<div class="field"><label>Frequência</label><div class="row-input"><select data-k="recorrenciaAnos" '+(rec?'':'disabled')+'>' +
         [0,1,2,3,4,5,10].map(n=>'<option value="'+n+'"'+(o.recorrenciaAnos===n?' selected':'')+'>'+(n===0?'Uma vez':(n===1?'Todo ano':'A cada '+n+' anos'))+'</option>').join('') +
       '</select></div></div>' +
-      '<div class="rm-wrap"><button type="button" class="btn-rm" aria-label="Remover objetivo">Remover</button></div>';
+      '<div class="rm-wrap"><button type="button" class="btn-rm" aria-label="' + L.remover + '">Remover</button></div>';
     const money = row.querySelector('.money');
     escreverMoeda(money, o.valorHoje);
     mascara(money);
@@ -71,13 +89,36 @@ function renderObjetivos(){
       if(el.tagName === 'SELECT') el.addEventListener('change', ()=>{ o.recorrenciaAnos = parseInt(el.value,10)||0; agendar(); });
     });
     row.querySelector('.btn-rm').addEventListener('click', ()=>{
-      objetivos = objetivos.filter(x=>x.id!==o.id);
-      renderObjetivos(); recalcular();
+      L.itens.splice(L.itens.indexOf(o), 1);
+      renderLista(lista); recalcular();
     });
     o._row = row;
     box.appendChild(row);
   });
 }
+/** valida as datas de uma lista e devolve os itens prontos para o motor */
+function lerLista(lista, anos){
+  const L = LISTAS[lista], saida = [];
+  L.itens.forEach(o=>{
+    const m = E.mesesAteData(o.data, HOJE);
+    let msg = '';
+    if(m === null) msg = 'Informe mês e ano.';
+    else if(m < 1) msg = 'Data no passado — use um mês futuro.';
+    else if(isFinite(anos) && m > anos*12) msg = 'Depois do início da renda — não entra no cálculo.';
+    if(o._row){
+      o._row.querySelector('[data-hint="data"]').textContent = msg || ('daqui a ' + fmtPrazo(m));
+      o._row.querySelector('[data-hint="data"]').classList.toggle('err', !!msg);
+      o._row.querySelector('[data-wrap="data"]').classList.toggle('invalid', !!msg && m !== null && m < 1);
+    }
+    if(m !== null && m >= 1 && o.valorHoje > 0){
+      const rotulo = L.tipos[o.tipo].rotulo;
+      saida.push({id:o.id, nome:(o.nome||rotulo).trim() || rotulo, tipo:o.tipo,
+        valorHoje:o.valorHoje, mes:m, recorrenciaAnos: L.tipos[o.tipo].recorrente ? o.recorrenciaAnos : 0});
+    }
+  });
+  return saida;
+}
+const textoFrequencia = (L, o) => L.tipos[o.tipo].recorrente && o.recorrenciaAnos ? (o.recorrenciaAnos === 1 ? 'Todo ano' : 'A cada ' + o.recorrenciaAnos + ' anos') : 'Uma vez';
 
 /* ---------- leitura e validação ---------- */
 function lerEntradas(){
@@ -100,30 +141,16 @@ function lerEntradas(){
   if(!(rentUso >= 0 && rentUso <= 0.5)) erros.push('A rentabilidade da fase de renda deve estar entre 0% e 50% a.a.');
   if([0,1,2].some(i=>!(num('cons'+i) >= 0 && num('cons'+i) <= 100))) erros.push('As taxas de consumo devem estar entre 0% e 100% a.a.');
 
-  const objs = [];
-  objetivos.forEach(o=>{
-    const m = E.mesesAteData(o.data, HOJE);
-    let msg = '';
-    if(m === null) msg = 'Informe mês e ano.';
-    else if(m < 1) msg = 'Data no passado — use um mês futuro.';
-    else if(isFinite(anos) && m > anos*12) msg = 'Depois do início da renda — não entra no cálculo.';
-    if(o._row){
-      o._row.querySelector('[data-hint="data"]').textContent = msg || ('daqui a ' + fmtPrazo(m));
-      o._row.querySelector('[data-hint="data"]').classList.toggle('err', !!msg);
-      o._row.querySelector('[data-wrap="data"]').classList.toggle('invalid', !!msg && m !== null && m < 1);
-    }
-    if(m !== null && m >= 1 && o.valorHoje > 0){
-      objs.push({id:o.id, nome:(o.nome||TIPOS[o.tipo].rotulo).trim() || TIPOS[o.tipo].rotulo, tipo:o.tipo,
-        valorHoje:o.valorHoje, mes:m, recorrenciaAnos: TIPOS[o.tipo].recorrente ? o.recorrenciaAnos : 0});
-    }
-  });
+  const objs = lerLista('obj', anos);
+  const ents = lerLista('ent', anos);
+  const reajusteAporte = $('reajusteAporte').checked;
 
   return {
     erros, idade, anos, inflacao, spread, taxas,
     patrimonio: lerMoeda($('patrimonio')), aporte: lerMoeda($('aporte')),
     renda: lerMoeda($('renda')), outrasRendas: lerMoeda($('outrasRendas')), idadeFim: num('idadeFim'), rentUso: num('rentUso')/100,
     consumo: [0,1,2].map(i=>num('cons'+i)/100),
-    objetivos: objs
+    objetivos: objs, entradas: ents, reajusteAporte
   };
 }
 
@@ -159,7 +186,7 @@ function recalcular(){
   const cenarios = inp.taxas.map((tx, i)=>Object.assign({}, CENARIOS[i], {taxa:tx},
     E.planejarCenario({
       patrimonioInicial: inp.patrimonio, aporteMensal: inp.aporte, rentabNominalAnual: tx,
-      inflacaoAnual: inp.inflacao, objetivos: inp.objetivos, anosParaRenda: inp.anos,
+      inflacaoAnual: inp.inflacao, objetivos: inp.objetivos, entradas: inp.entradas, reajusteAporte: inp.reajusteAporte, anosParaRenda: inp.anos,
       metaHoje: meta, mesesMaximo: mesesMax
     })));
 
@@ -187,6 +214,7 @@ function agendar(){ clearTimeout(timer); timer = setTimeout(recalcular, 120); }
 /* ---------- etapa 1: dicas ---------- */
 function renderEtapa1Hints(){
   const {inp} = ultimo;
+  $('aporteHint').textContent = inp.reajusteAporte ? 'Valor do 1º ano. Sobe pela inflação uma vez por ano.' : 'Valor fixo todo mês, sem reajuste.';
   $('anosRendaHint').textContent = 'Aos ' + (inp.idade + inp.anos) + ' anos, em ' + (ANO + inp.anos) + '.';
   inp.taxas.forEach((t,i)=>{
     $('tx'+i+'Real').textContent = '≈ ' + fmtIpca(E.taxaRealDeNominal(t, inp.inflacao)) + ' (real)';
@@ -283,12 +311,15 @@ function textoLiberdade(c, inp){
 function renderEtapa3(){
   const {inp, meta, cenarios} = ultimo;
   const idadeRenda = inp.idade + inp.anos;
-  $('scenNote').textContent = 'Patrimônio projetado em ' + (ANO + inp.anos) + ' comparado com o patrimônio necessário para que a carteira, rendendo IPCA + ' +
+  const totalEntradas = cenarios[0].entradas.reduce((s, e) => s + e.valorNominal, 0);
+  $('scenNote').textContent = (totalEntradas > 0 ? 'Inclui ' + fmtBRL0(totalEntradas) + ' em entradas extraordinárias (corrigidas pela inflação até cada data). ' : '') +
+    'Patrimônio projetado em ' + (ANO + inp.anos) + ' comparado com o patrimônio necessário para que a carteira, rendendo IPCA + ' +
     fmtPct(inp.spread) + ', pague a renda desejada.';
   $('scenCards').innerHTML = cenarios.map((c, ci)=>{
     const ap = c.aporteNecessario;
     const apTxt = ap === null ? 'inviável' : (ap === 0 ? 'nenhum' : fmtBRL0(ap) + '/mês');
-    const apSub = ap === null ? '' : (ap > inp.aporte ? '+' + fmtBRL0(ap - inp.aporte) + ' sobre o atual' : (ap < inp.aporte ? 'abaixo do atual' : ''));
+    const apSub = ap === null ? '' : ((ap > inp.aporte ? '+' + fmtBRL0(ap - inp.aporte) + ' sobre o atual' : (ap < inp.aporte ? 'abaixo do atual' : '')) +
+      (inp.reajusteAporte && ap > 0 ? (ap !== inp.aporte ? '; ' : '') + 'no 1º ano, reajustado pela inflação' : ''));
     return '<div class="ledger" style="--c:var('+c.cor+')">' +
       '<h3>' + c.nome + '</h3>' +
       '<div class="desc">' + fmtPct(c.taxa,2) + ' a.a. nominal · ' + fmtIpca(E.taxaRealDeNominal(c.taxa, inp.inflacao)) + '</div>' +
@@ -305,6 +336,47 @@ function renderEtapa3(){
   }).join('');
 
   desenharPlano();
+  renderComparacaoAportes();
+}
+
+/* ---------- aportar mais ou render mais? ----------
+   Os campos começam com os dados da etapa 1 (A: aporte atual no cenário Otimista;
+   B: o dobro do aporte no Conservador; prazo até a renda) e param de acompanhar
+   assim que o planejador mexe neles. */
+const cmpEditado = {};
+function preencherComparacao(inp){
+  const padrao = {cmpApA: inp.aporte, cmpApB: inp.aporte * 2, cmpTxA: inp.taxas[2]*100, cmpTxB: inp.taxas[0]*100, cmpAnos: inp.anos};
+  Object.keys(padrao).forEach(id=>{
+    if(cmpEditado[id]) return;
+    if(id.startsWith('cmpAp')) escreverMoeda($(id), padrao[id]); else $(id).value = Math.round(padrao[id]*100)/100;
+  });
+}
+function renderComparacaoAportes(){
+  if(!ultimo) return;
+  const {inp} = ultimo;
+  preencherComparacao(inp);
+  const apA = lerMoeda($('cmpApA')), apB = lerMoeda($('cmpApB'));
+  const txA = num('cmpTxA')/100, txB = num('cmpTxB')/100, anos = num('cmpAnos');
+  const box = $('cmpRes');
+  if(!(apA >= 0 && apB >= 0 && (apA > 0 || apB > 0)) || !(txA >= 0 && txA <= 0.5 && txB >= 0 && txB <= 0.5) || !(Number.isInteger(anos) && anos >= 1 && anos <= 80)){
+    box.innerHTML = '<p class="hint err">Informe aportes (pelo menos um maior que zero), rentabilidades entre 0% e 50% a.a. e um prazo inteiro entre 1 e 80 anos.</p>';
+    return;
+  }
+  const c = E.compararAportes({aporteMensal: apA, rentabNominalAnual: txA}, {aporteMensal: apB, rentabNominalAnual: txB},
+    {meses: anos*12, inflacaoAnual: inp.inflacao, reajusteAporte: inp.reajusteAporte});
+  const bloco = (nome, ap, tx, f, vence) => '<div class="cmp-out' + (vence ? ' vence' : '') + '">' +
+    '<div class="cmp-tit">' + nome + (vence ? ' <span class="cmp-selo">Chega mais longe</span>' : '') + '</div>' +
+    '<div class="cmp-desc">' + fmtBRL0(ap) + '/mês a ' + fmtPct(tx) + ' a.a.</div>' +
+    '<div class="lrow"><span class="k">Em ' + fmtAnos(anos) + '</span><span class="v">' + fmtBRL0(f.nominal) + '</span></div>' +
+    '<div class="lrow"><span class="k">Em poder de compra de hoje</span><span class="v">' + fmtBRL0(f.real) + '</span></div></div>';
+  const nomeMaior = c.maior === 'a' ? 'O plano A' : 'O plano B', nomeMenor = c.maior === 'a' ? 'o plano B' : 'o plano A';
+  const doMenor = c.maior === 'a' ? 'do plano B' : 'do plano A';
+  const txMenor = c.maior === 'a' ? txB : txA;
+  let conclusao = nomeMaior + (c.vezes ? ' termina com ' + c.vezes.toLocaleString('pt-BR', {maximumFractionDigits: 2}) + '× o valor ' + doMenor + '.' : ' é o único com aporte.');
+  if(c.taxaEmpate !== null && c.taxaEmpate > txMenor + 1e-6) conclusao += ' Para empatar, ' + nomeMenor + ' precisaria render ' + fmtPct(c.taxaEmpate) + ' a.a.';
+  box.innerHTML = '<div class="cmp-grid">' + bloco('Plano A', apA, txA, c.a, c.maior === 'a') + bloco('Plano B', apB, txB, c.b, c.maior === 'b') + '</div>' +
+    '<p class="cmp-conc">' + esc(conclusao) + '</p>' +
+    '<p class="hint">Só os aportes, partindo do zero, com a inflação de ' + fmtPct(inp.inflacao, 1) + ' a.a.' + (inp.reajusteAporte ? ' e o aporte reajustado pela inflação uma vez por ano' : ' e o aporte fixo') + '. Valores antes de IR. Simulação, não recomendação.</p>';
 }
 
 function desenharPlano(){
@@ -443,8 +515,14 @@ function gerarPdf(){
   const tabObj = objsInformados.length ? (
     '<h2>Objetivos de vida</h2><table><tr><th>Objetivo</th><th class="n">Valor (hoje)</th><th>Quando</th><th>Frequência</th></tr>' +
     objsInformados.map(o => '<tr><td>' + esc(o.nome || TIPOS[o.tipo].rotulo) + '</td><td class="n">' + fmtBRL0(o.valorHoje) + '</td><td>' +
-      esc((o.data || '').split('-').reverse().join('/')) + '</td><td>' +
-      (TIPOS[o.tipo].recorrente && o.recorrenciaAnos ? (o.recorrenciaAnos === 1 ? 'Todo ano' : 'A cada ' + o.recorrenciaAnos + ' anos') : 'Uma vez') + '</td></tr>').join('') +
+      esc((o.data || '').split('-').reverse().join('/')) + '</td><td>' + textoFrequencia(LISTAS.obj, o) + '</td></tr>').join('') +
+    '</table>'
+  ) : '';
+  const entsInformadas = entradasExtra.filter(o => o.valorHoje > 0);
+  const tabEnt = entsInformadas.length ? (
+    '<h2>Entradas extraordinárias</h2><table><tr><th>Entrada</th><th class="n">Valor (hoje)</th><th>Quando</th><th>Frequência</th></tr>' +
+    entsInformadas.map(o => '<tr><td>' + esc(o.nome || TIPOS_ENTRADA[o.tipo].rotulo) + '</td><td class="n">' + fmtBRL0(o.valorHoje) + '</td><td>' +
+      esc((o.data || '').split('-').reverse().join('/')) + '</td><td>' + textoFrequencia(LISTAS.ent, o) + '</td></tr>').join('') +
     '</table>'
   ) : '';
 
@@ -488,6 +566,7 @@ function gerarPdf(){
       linha('Idade atual', inp.idade + ' anos') +
       linha('Patrimônio investido hoje', fmtBRL(inp.patrimonio)) +
       linha('Aporte mensal', fmtBRL(inp.aporte)) +
+      (inp.reajusteAporte ? linha('Reajuste do aporte', 'Pela inflação, uma vez por ano') : '') +
       linha('Renda mensal desejada', fmtBRL(inp.renda)) +
       (inp.outrasRendas > 0 ? linha('Outras rendas mensais', fmtBRL(inp.outrasRendas)) + linha('Renda gerada pela carteira', fmtBRL(inp.rendaCarteira)) : '') +
       linha('Início da renda', 'daqui a ' + fmtAnos(inp.anos) + ' — aos ' + idadeRenda + ' anos, em ' + anoRenda) +
@@ -498,6 +577,7 @@ function gerarPdf(){
     '</table></div>' +
 
     tabObj +
+    tabEnt +
 
     '<div class="bloco"><h2>Planejamento por cenário</h2>' + tabCen + '</div>' +
 
@@ -520,9 +600,10 @@ let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeou
 document.querySelectorAll('.money').forEach(mascara);
 ['idade','patrimonio','aporte','renda','outrasRendas','idadeFim','anosRenda','inflacao','spread','tx0','tx1','tx2'].forEach(id=>$(id).addEventListener('input', agendar));
 $('rentUso').addEventListener('input', agendar);
+$('reajusteAporte').addEventListener('change', recalcular);
+['cmpApA','cmpApB','cmpTxA','cmpTxB','cmpAnos'].forEach(id=>$(id).addEventListener('input', ()=>{ cmpEditado[id] = true; renderComparacaoAportes(); }));
 ligarTooltip('chUso', 'ttUso'); ligarTooltip('chPlan', 'ttPlan');
 montarCardsCurvas();
-renderChips();
-renderObjetivos();
+['obj','ent'].forEach(l=>{ renderChips(l); renderLista(l); });
 recalcular();
 })();

@@ -5,7 +5,7 @@ Ajuda.iniciar({
     titulo: 'Como usar o Planejamento Financeiro',
     intro: 'Mostra quanto patrimônio você precisa para viver da renda que deseja, se o que você guarda hoje chega lá e o que ajustar se não chegar.',
     passos: [
-      { titulo: 'Dados e objetivos', texto: 'Informe idade, quanto já tem investido, quanto guarda por mês, a renda que quer receber (em reais de hoje) e daqui a quantos anos. Inclua as compras planejadas no caminho, como carro, imóvel ou viagem.' },
+      { titulo: 'Dados e objetivos', texto: 'Informe idade, quanto já tem investido, quanto guarda por mês, a renda que quer receber (em reais de hoje) e daqui a quantos anos. Inclua as compras planejadas no caminho, como carro, imóvel ou viagem, e o dinheiro que vai entrar, como venda de terra ou sobra da safra.' },
       { titulo: 'Capital necessário', texto: 'O app calcula o patrimônio que gera a renda desejada sem consumir o principal, sempre corrigida pela inflação. O gráfico mostra o que acontece se você consumir parte do patrimônio a cada ano.' },
       { titulo: 'Planejamento', texto: 'Três cenários de rentabilidade mostram o patrimônio projetado, quando você atinge a liberdade financeira e o aporte mensal necessário para chegar na data. Baixe o PDF para levar à conversa.' }
     ],
@@ -27,6 +27,8 @@ Ajuda.iniciar({
     'Renda que você quer receber': 'A renda mensal que você quer ter no futuro, informada em reais de hoje. O app corrige pela inflação até a data, para manter o mesmo poder de compra.',
     'Premissas': 'As médias usadas em todo o período: inflação e rentabilidade. São estimativas, não promessas. Teste valores mais baixos para ver um cenário prudente.\n\nTodos os valores são **antes do IR**.',
     'Rentabilidade nominal anual na fase de acumulação — 3 cenários': 'Quanto a carteira rende ao ano, sem descontar a inflação, enquanto você acumula. Os três cenários não são probabilidades: são hipóteses para ver o efeito de render mais ou menos.\n\nAbaixo de cada um aparece a taxa real, já descontada a inflação: (1 + nominal) ÷ (1 + inflação) − 1.',
+    'Entradas extraordinárias': 'Dinheiro que entra de uma vez numa data: venda de terra ou de imóvel, herança, bônus. A sobra da safra pode se repetir todo ano.\n\nInforme o valor em reais de hoje: o app corrige pela inflação até a data e soma ao patrimônio. Entradas depois do início da renda não entram no cálculo.',
+    'Aportar mais ou render mais?': 'Compara dois planos de aporte no mesmo prazo, partindo do zero. Em geral, guardar mais pesa mais que render mais: o app mostra quantas vezes um plano supera o outro e quanto o menor precisaria render para empatar.\n\nOs campos começam com os seus dados (A: seu aporte no cenário Otimista; B: o dobro no Conservador) e você pode mudar à vontade.',
     'Objetivos de vida': 'Compras antes de começar a receber a renda. Informe o valor em reais de hoje e a data: o app corrige pela inflação e só tira o valor do patrimônio se ele cobrir a compra naquela data.\n\nSe não cobrir, o cartão mostra "Rever planejamento" e sugere avaliar consórcio ou financiamento.',
     '#step-2 .kpi:nth-of-type(1) .k': 'A renda que a carteira precisa gerar. Se você informou outras rendas (INSS, aluguel), ela gera só a diferença.',
     '#step-2 .kpi:nth-of-type(2) .k': 'O ganho real mínimo que a carteira precisa ter na fase de renda: IPCA + a taxa informada. Abaixo aparece a taxa nominal equivalente com a inflação prevista.',
@@ -38,7 +40,8 @@ Ajuda.iniciar({
   campos: {
     idade: 'Sua idade hoje. Serve para mostrar em que idade cada coisa acontece. Só a idade: nenhuma data de nascimento.',
     patrimonio: 'O total que você já tem investido e pode usar no plano. Não inclua a casa onde mora nem bens que não geram renda.',
-    aporte: 'Quanto você investe por mês. É um valor fixo, sem reajuste, somado no fim de cada mês.',
+    aporte: 'Quanto você investe por mês, somado no fim de cada mês. Por padrão é um valor fixo, sem reajuste.',
+    reajusteAporte: 'Marque se o aporte vai subir com a inflação: ele é reajustado uma vez por ano, como acontece quando a renda acompanha os preços. Mantém o mesmo esforço em poder de compra.\n\nDesmarcado (padrão), o aporte fica fixo e perde poder de compra com o tempo.',
     renda: 'A renda mensal que você quer receber, em reais de hoje (o poder de compra atual). O app corrige pela inflação até a data.',
     outrasRendas: 'Opcional. INSS, aluguel, previdência ou outra renda que você já terá. É descontada da renda desejada: a carteira precisa gerar só o que falta.',
     anosRenda: 'Daqui a quantos anos você quer começar a receber a renda. É o prazo para acumular.',
@@ -48,6 +51,11 @@ Ajuda.iniciar({
     tx0: 'Cenário prudente: a carteira rende menos. Padrão: 8% ao ano.',
     tx1: 'Cenário de referência. Padrão: 10% ao ano.',
     tx2: 'Cenário favorável: a carteira rende mais. Padrão: 12% ao ano.',
+    cmpApA: 'Aporte mensal do plano A.',
+    cmpTxA: 'Rentabilidade nominal anual do plano A, antes de IR.',
+    cmpApB: 'Aporte mensal do plano B.',
+    cmpTxB: 'Rentabilidade nominal anual do plano B, antes de IR.',
+    cmpAnos: 'Por quantos anos os dois planos aportam. Começa com o prazo até a renda.',
     rentUso: 'Quanto a carteira rende ao ano depois que você começa a receber a renda. Usada só nas curvas de consumo desta etapa.'
   }
 });

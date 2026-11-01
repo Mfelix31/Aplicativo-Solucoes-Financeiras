@@ -10,7 +10,14 @@
  *   (O módulo de comparação de ativos usa dias úteis/252 — ver investimentos.)
  * - Aportes e retiradas no FIM de cada mês (igual ao FV/PMT do Excel com tipo 0).
  * - Rentabilidade da acumulação: taxa NOMINAL anual, bruta (antes de IR).
- * - Aporte mensal: valor NOMINAL fixo, sem reajuste.
+ * - Aporte mensal: valor NOMINAL fixo, sem reajuste (padrão). Opcional
+ *   (reajusteAporte): reajustado pela inflação uma vez por ano, como a linha
+ *   "Correção Monetária" da aba Cenários da planilha:
+ *       aporte do mês t = aporte × (1 + inflação)^⌊(t − 1) / 12⌋
+ * - Entradas extraordinárias (venda de terra, sobra da safra, herança…):
+ *   valor informado em R$ de hoje, corrigido pela inflação até a data e somado
+ *   ao patrimônio no mês; podem se repetir (a cada N anos) até o início da renda.
+ *   No mesmo mês, as entradas chegam antes dos objetivos.
  * - Inflação: média anual fixa durante todo o período (premissa ajustável).
  * - Meta (patrimônio necessário) em R$ de hoje:
  *       renda mensal desejada ÷ taxa real mensal equivalente
@@ -87,11 +94,19 @@
     return lista;
   }
 
+  /* ---------- aporte do mês ---------- */
+  /** aporte do mês t (1 = primeiro): fixo, ou reajustado pela inflação uma vez por ano */
+  function aporteDoMes(aporteMensal, t, inflacaoAnual, reajusteAporte) {
+    if (!reajusteAporte) return aporteMensal;
+    return aporteMensal * Math.pow(1 + inflacaoAnual, Math.floor((t - 1) / 12));
+  }
+
   /* ---------- simulação mês a mês ---------- */
   /**
    * p = { patrimonioInicial, aporteMensal, rentabNominalAnual, inflacaoAnual,
-   *       meses, objetivos, mesesObjetivos (limite das ocorrências; padrão = meses) }
-   * Retorna { serie: [{mes, nominal, real}], eventos: [...], final: {nominal, real} }
+   *       meses, objetivos, entradas, reajusteAporte,
+   *       mesesObjetivos (limite das ocorrências de objetivos e entradas; padrão = meses) }
+   * Retorna { serie: [{mes, nominal, real}], eventos: [...], entradas: [...], final: {nominal, real} }
    * serie[0] é o mês 0 (hoje).
    */
   function simular(p) {
@@ -99,12 +114,21 @@
     const meses = Math.max(0, Math.round(p.meses));
     const limiteObj = p.mesesObjetivos == null ? meses : Math.min(meses, p.mesesObjetivos);
     const ocorr = ocorrenciasObjetivos(p.objetivos, limiteObj);
-    let idx = 0;
+    const ocorrEnt = ocorrenciasObjetivos(p.entradas, limiteObj);
+    let idx = 0, idxEnt = 0;
     let P = p.patrimonioInicial;
     const serie = [{ mes: 0, nominal: P, real: P }];
     const eventos = [];
+    const entradas = [];
     for (let t = 1; t <= meses; t++) {
-      P = P * (1 + rm) + p.aporteMensal;
+      P = P * (1 + rm) + aporteDoMes(p.aporteMensal, t, p.inflacaoAnual, p.reajusteAporte);
+      while (idxEnt < ocorrEnt.length && ocorrEnt[idxEnt].mes === t) {
+        const en = ocorrEnt[idxEnt++];
+        const valorNominal = en.valorHoje * fatorInflacao(p.inflacaoAnual, t);
+        P += valorNominal;
+        entradas.push({ id: en.id, nome: en.nome, tipo: en.tipo, ocorrencia: en.ocorrencia, mes: t,
+          valorHoje: en.valorHoje, valorNominal: valorNominal });
+      }
       while (idx < ocorr.length && ocorr[idx].mes === t) {
         const oc = ocorr[idx++];
         const fator = fatorInflacao(p.inflacaoAnual, t);
@@ -120,7 +144,7 @@
       serie.push({ mes: t, nominal: P, real: P / fatorInflacao(p.inflacaoAnual, t) });
     }
     const last = serie[serie.length - 1];
-    return { serie: serie, eventos: eventos, final: { nominal: last.nominal, real: last.real } };
+    return { serie: serie, eventos: eventos, entradas: entradas, final: { nominal: last.nominal, real: last.real } };
   }
 
   /* ---------- planejamento de um cenário ---------- */
@@ -141,6 +165,8 @@
       rentabNominalAnual: p.rentabNominalAnual,
       inflacaoAnual: p.inflacaoAnual,
       objetivos: p.objetivos,
+      entradas: p.entradas,
+      reajusteAporte: !!p.reajusteAporte,
       mesesObjetivos: N
     };
     // simulação longa: mesmos aportes depois de N, sem novos objetivos após o início da renda
@@ -167,12 +193,13 @@
       mesLiberdade: mesLiberdade,
       aporteNecessario: aporteNecessario(Object.assign({}, params, { meses: N }), p.metaHoje, base),
       serie: longa.serie,
-      eventos: longa.eventos.filter(function (e) { return e.mes <= N; })
+      eventos: longa.eventos.filter(function (e) { return e.mes <= N; }),
+      entradas: longa.entradas.filter(function (e) { return e.mes <= N; })
     };
   }
 
   /**
-   * Menor aporte mensal NOMINAL fixo que leva o patrimônio no mês `meses`
+   * Menor aporte mensal (o do 1º ano, se reajusteAporte) que leva o patrimônio no mês `meses`
    * a ≥ meta (base 'nominal' = valor futuro, padrão; 'real' = R$ de hoje),
    * respeitando as regras dos objetivos.
    * Retorna 0 se a meta já é atingida sem aporte; null se for impossível
@@ -258,6 +285,41 @@
     return patrimonio * i * f / (f - 1);
   }
 
+  /* ---------- aportar mais ou render mais? ---------- */
+  /**
+   * Compara dois planos de aporte que partem do zero, no mesmo prazo e com a
+   * mesma inflação: a = { aporteMensal, rentabNominalAnual }, b = idem;
+   * comum = { meses, inflacaoAnual, reajusteAporte }.
+   * Retorna o final de cada um (nominal e em R$ de hoje), quantas vezes o maior
+   * supera o menor e a rentabilidade anual que o plano menor precisaria para
+   * empatar com o maior (null se passar de 200% a.a.).
+   */
+  function compararAportes(a, b, comum) {
+    const rodar = function (x, taxa) {
+      return simular({ patrimonioInicial: 0, aporteMensal: x.aporteMensal, rentabNominalAnual: taxa,
+        inflacaoAnual: comum.inflacaoAnual, reajusteAporte: comum.reajusteAporte, meses: comum.meses }).final;
+    };
+    const fa = rodar(a, a.rentabNominalAnual), fb = rodar(b, b.rentabNominalAnual);
+    const maior = fa.nominal >= fb.nominal ? 'a' : 'b';
+    const menor = maior === 'a' ? b : a;
+    const alvo = maior === 'a' ? fa.nominal : fb.nominal;
+    let taxaEmpate = null;
+    if (menor.aporteMensal > 0 && rodar(menor, 2).nominal >= alvo) {
+      let lo = -0.5, hi = 2;
+      for (let k = 0; k < 80; k++) {
+        const mid = (lo + hi) / 2;
+        if (rodar(menor, mid).nominal >= alvo) hi = mid; else lo = mid;
+      }
+      taxaEmpate = hi;
+    }
+    const menorFinal = maior === 'a' ? fb.nominal : fa.nominal;
+    return {
+      a: fa, b: fb, maior: maior,
+      vezes: menorFinal > 0 ? alvo / menorFinal : null,
+      taxaEmpate: taxaEmpate
+    };
+  }
+
   /* ---------- utilidades de data ---------- */
   /** meses entre (anoRef, mesRef) e "AAAA-MM"; 1 = mês seguinte */
   function mesesAteData(aaaaMm, hoje) {
@@ -279,6 +341,8 @@
     aporteNecessario: aporteNecessario,
     curvasConsumo: curvasConsumo,
     rendaPerpetua: rendaPerpetua,
+    aporteDoMes: aporteDoMes,
+    compararAportes: compararAportes,
     rendaComConsumo: rendaComConsumo,
     mesesAteData: mesesAteData
   };
