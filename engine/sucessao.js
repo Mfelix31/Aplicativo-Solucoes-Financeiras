@@ -115,7 +115,7 @@
   /* ---------- custo do inventário por componentes ---------- */
   const CUSTOS_PADRAO = {
     escrituraPct: 0.005, escrituraMin: 1500, escrituraMax: 20000,
-    custasPct: 0.015, registroPct: 0.004, certidoes: 1000, honorarioMin: 5000, multaPctImposto: 0
+    custasPct: 0.015, registroPct: 0.004, registroMinimo: 0, certidoes: 1000, honorarioMin: 5000, multaPctImposto: 0
   };
   function honorariosPadrao(uf) { return ITCMD.HONORARIOS[uf] || ITCMD.HONORARIOS.padrao; }
 
@@ -150,7 +150,8 @@
     const cartorio = tipo === 'cartorio'
       ? Math.min(c.escrituraMax, Math.max(c.escrituraMin, monte * c.escrituraPct))
       : monte * c.custasPct;
-    const registro = Math.max(0, a.imoveis || 0) * c.registroPct;
+    // registro: % do valor dos imóveis, com um mínimo por imóvel (cada matrícula é um ato no cartório de imóveis)
+    const registro = Math.max(Math.max(0, a.imoveis || 0) * c.registroPct, (a.imoveis > 0 ? Math.max(0, a.nImoveis || 0) : 0) * c.registroMinimo);
     const certidoes = c.certidoes;
     const multa = itcmd * c.multaPctImposto;
     const total = itcmd + honorarios + cartorio + registro + certidoes + multa;
@@ -647,7 +648,7 @@
       const divida = (e.dividas || 0) * Math.pow(1 + ipca, t);
       const liq = abaterDividas(partesITCMD(e, imovInv, moveisInv), Math.max(0, imovInv + moveisInv), divida);
       const monte = liq.monte, partes = liq.partes;
-      const inv = custoInventario({ monte, imoveis: imovInv, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes,
+      const inv = custoInventario({ monte, imoveis: imovInv, nImoveis: imovInv > 0 ? e.nImoveis : 0, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes,
         uf: e.uf, partes, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
       // usufruto: onde a doação pagou só a nua-propriedade e a consolidação não é isenta, o restante paga no falecimento
       let extincaoUsufruto = 0;
@@ -673,7 +674,7 @@
       // sucessão do casal: a meação do cônjuge também passa aos filhos, num 2º inventário (simplificação: mesma data,
       // filhos como únicos herdeiros). Bens já doados ou na holding ficam fora dos dois inventários.
       const invConjuge = e.sucessaoCasal && e.meacaoPct > 0 && monte > 0
-        ? custoInventario({ monte: monte * e.meacaoPct, imoveis: imovInv * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros,
+        ? custoInventario({ monte: monte * e.meacaoPct, imoveis: imovInv * e.meacaoPct, nImoveis: imovInv > 0 ? e.nImoveis : 0, meacaoPct: 0, herdeiros: e.herdeiros,
           uf: e.uf, partes: partes.map(p => ({ uf: p.uf, valor: p.valor * e.meacaoPct })), regime: e.regime, tipo: e.tipoInventario, custos: e.custos })
         : null;
       const custoEsperadoConjuge = invConjuge ? custoEsperadoDe(pr, invConjuge, monte * e.meacaoPct) : 0;
@@ -824,15 +825,15 @@
     const bruto0 = e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + e.rebanho;
     const liq0 = abaterDividas(partesITCMD(e, e.imoveis, bruto0 - e.imoveis), bruto0, e.dividas);
     const monte0 = liq0.monte, partes0 = liq0.partes;
-    const custoHoje = custoInventario({ monte: monte0, imoveis: e.imoveis, partes: partes0,
+    const custoHoje = custoInventario({ monte: monte0, imoveis: e.imoveis, nImoveis: e.nImoveis, partes: partes0,
       meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
     const regimes = ['vigente', 'reforma', 'estresse'].reduce((o, rg) => {
-      o[rg] = custoInventario({ monte: monte0, imoveis: e.imoveis, partes: partes0, meacaoPct: e.meacaoPct,
+      o[rg] = custoInventario({ monte: monte0, imoveis: e.imoveis, nImoveis: e.nImoveis, partes: partes0, meacaoPct: e.meacaoPct,
         herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: rg, tipo: e.tipoInventario, custos: e.custos });
       return o;
     }, {});
 
-    const conferenciaConjuge = e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ monte: monte0 * e.meacaoPct, imoveis: e.imoveis * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros,
+    const conferenciaConjuge = e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ monte: monte0 * e.meacaoPct, imoveis: e.imoveis * e.meacaoPct, nImoveis: e.nImoveis, meacaoPct: 0, herdeiros: e.herdeiros,
       partes: partes0.map(p => ({ uf: p.uf, valor: p.valor * e.meacaoPct })), uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos }) : null;
     const metaInventarioHoje = custoEsperadoDe(e.premissas, custoHoje, monte0);
     const pctEsperado = monte0 > 0 ? metaInventarioHoje / monte0 : (e.premissas.custoModo === 'fixo' ? e.premissas.metaLiquidez : 0);

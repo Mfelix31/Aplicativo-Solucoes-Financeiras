@@ -552,6 +552,13 @@ test('rebanho: bem móvel, ITCMD no domicílio, fora da holding e da doação, a
   assert.deepEqual(Object.keys(r.base.custoHoje.itcmdPorUF), ['MT']);
 });
 
+test('registro: maior entre o % do valor e o mínimo × nº de imóveis (stress test, teste 26: 5 imóveis, R$ 5 mi)', () => {
+  const caso26 = custos => S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'urbano', uf: 'MT', qtd: 5, valor: 5e6 }], aplicacoes: 0, custos }, { semEstresse: true }).base.custoHoje.registro;
+  perto(caso26(), 5e6 * 0.004, 1e-6);                              // padrão: 0,4% = R$ 20 mil
+  perto(caso26({ registroMinimo: 6000 }), 5 * 6000, 1e-6);          // 5 matrículas × R$ 6 mil = R$ 30 mil
+  perto(caso26({ registroMinimo: 1000 }), 5e6 * 0.004, 1e-6);      // o percentual continua maior
+});
+
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
 test('27 estados: tabelas válidas nos três regimes', () => {
   assert.equal(T.SIGLAS.length, 27);

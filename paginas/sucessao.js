@@ -122,7 +122,7 @@ function lerEntradas(){
     premissas: { rentabilidade: pctCampo('rentab'), ipca: pctCampo('ipca'), custoModo: $('custoModo').value, margemMercado: pctCampo('margemMercado'), metaLiquidez: pctCampo('meta'), irAplicacoes: pctCampo('irAplic'),
       margemEmpate: pctCampo('margem'), comprometimentoRenda: pctCampo('comprometimento'), depreciacaoVeiculos: pctCampo('depVeic'), taxaAdmPrevidencia: pctCampo('taxaAdm'), rentabilidadeBruta: $('rentBruta').checked, anoInicial: HOJE.getFullYear() },
     custos: { honorarios: { cartorio: pctCampo('honCart'), judicial: pctCampo('honJud'), litigio: pctCampo('honLit') },
-      escrituraPct: pctCampo('escPct'), custasPct: pctCampo('custasPct'), registroPct: pctCampo('regPct'), certidoes: money('certidoes'), multaPctImposto: pctCampo('multa') },
+      escrituraPct: pctCampo('escPct'), custasPct: pctCampo('custasPct'), registroPct: pctCampo('regPct'), registroMinimo: money('regMin'), certidoes: money('certidoes'), multaPctImposto: pctCampo('multa') },
     holding: { juridicoPct: pctCampo('hJur'), juridicoMin: money('hJurMin'), cartorioPct: pctCampo('hCart'), itbiPct: pctCampo('hItbi'), laudo: money('hLaudo'),
       contabilMensal: money('hContab'), anosDoacaoGradual: num('hAnos') || 10, incluirEmpresa: $('hEmpresa').checked },
     aluguelOpcoes: { lc224: $('hLc224').checked, opcao487: $('h487').checked, aliqRefIVA: pctCampo('hIva') },
