@@ -325,6 +325,18 @@
         </div>
         <div class="hint" id="hintRegime"></div>
       </div>
+      <label class="inline-check"><input type="checkbox" id="itManual"> Usar uma tabela própria de ITCMD na herança (no lugar da tabela do estado)</label>
+      <div class="grid" id="itTabela" hidden>
+        <div class="field"><label for="itAte1">Faixa 1: até</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="itAte1" class="money" value="0,00"></div></div>
+        <div class="field"><label for="itAliq1">Faixa 1: alíquota</label><div class="row-input"><input type="number" id="itAliq1" min="0" max="20" step="0.5"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="itAte2">Faixa 2: até</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="itAte2" class="money" value="0,00"></div></div>
+        <div class="field"><label for="itAliq2">Faixa 2: alíquota</label><div class="row-input"><input type="number" id="itAliq2" min="0" max="20" step="0.5"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="itAte3">Faixa 3: até</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="itAte3" class="money" value="0,00"></div></div>
+        <div class="field"><label for="itAliq3">Faixa 3: alíquota</label><div class="row-input"><input type="number" id="itAliq3" min="0" max="20" step="0.5"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="itAte4">Faixa 4: até</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="itAte4" class="money" value="0,00"></div></div>
+        <div class="field"><label for="itAliq4">Faixa 4: alíquota</label><div class="row-input"><input type="number" id="itAliq4" min="0" max="20" step="0.5"><span class="suffix">%</span></div></div>
+        <div class="field"><label for="itAliq5">Acima da última faixa: alíquota</label><div class="row-input"><input type="number" id="itAliq5" min="0" max="20" step="0.5"><span class="suffix">%</span></div><div class="hint" id="hintItManual">Por quinhão de cada herdeiro, faixa a faixa. Deixe em branco as faixas que não usar.</div></div>
+      </div>
     </section>
 
     <section class="panel">

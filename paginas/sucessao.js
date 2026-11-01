@@ -132,9 +132,20 @@ function lerEntradas(){
       sexo: $('sexo').value, sexoReferencia: $('wlSexoRef').value, tabua: $('wlTabua').value },
     offshore: { limiar: money('oLimiar'), abertura: money('oAbertura'), manutencaoAnual: money('oManut'),
       custoSucessaoExteriorPct: pctCampo('oCustoExt'), impostoExteriorPct: pctCampo('oImpExt') },
+    itcmdManual: $('itManual').checked ? { faixas: lerTabelaITCMD() } : null,
     pgbl: { elegivel: $('pgblElegivel').checked, rendaTributavelAnual: money('pgblRenda'), aliquotaIR: pctCampo('pgblAliq'), anos: num('pgblAnos') },
     sinais: { incapaz: $('sinIncapaz').checked, conflito: $('sinConflito').checked, empresa: $('sinEmpresa').checked }
   };
+}
+
+/** faixas da tabela própria de ITCMD: só as que têm alíquota; a última vai até o infinito */
+function lerTabelaITCMD(){
+  const fx = [];
+  for(let i = 1; i <= 5; i++){
+    const a = num('itAliq' + i);
+    if(isFinite(a)) fx.push({ ate: i < 5 ? money('itAte' + i) : null, aliq: a / 100 });
+  }
+  return fx;
 }
 
 /** erros de campo que o motor não vê (campos numéricos vazios ou fora do intervalo) */
@@ -142,6 +153,7 @@ function errosDeCampo(inp){
   const e = [];
   const campos = [['depVeic','Depreciação dos veículos'],['comprometimento','Limite para pagar à parte'],['mesesSustento','Meses a cobrir'],['pctComuns','Bens comuns'],['wlIdadeRef','Idade na cotação base'],['rentab','Rentabilidade'],['ipca','Inflação'],[$('custoModo').value === 'fixo' ? 'meta' : 'margemMercado', $('custoModo').value === 'fixo' ? 'Percentual fixo do inventário' : 'Margem de mercado'],['honCart','Honorários'],['hJur','Jurídico da holding'],['pgblAliq','Alíquota do IR (PGBL)'],['pgblAnos','Anos de aporte no PGBL']];
   campos.forEach(([id, nome]) => { if(!isFinite(num(id))) e.push(nome + ': preencha o campo.'); });
+  if(inp.itcmdManual && !inp.itcmdManual.faixas.length) e.push('Tabela própria de ITCMD: informe ao menos uma alíquota.');
   if(inp.nResidenciais > inp.nImoveisAlugados) e.push('Os imóveis residenciais não podem passar dos alugados.');
   if(inp.wholeLife.basicaPor100k > inp.wholeLife.parcelaPor100k) e.push('A cobertura básica do whole life não pode passar da parcela.');
   return e;
@@ -160,6 +172,7 @@ function atualizarDicas(){
   $('hintUf').textContent = 'ITCMD: ' + est.lei + '. ' + est.somaDoacoes;
   const fixo = $('custoModo').value === 'fixo';
   $('campoMargem').hidden = fixo; $('campoMeta').hidden = !fixo;
+  $('itTabela').hidden = !$('itManual').checked;
   // resumo da lista de bens
   const bl = lerBens(), somaTipo = k => bl.filter(b => b.tipo === k).reduce((t, b) => t + b.valor, 0);
   const ufsImoveis = [...new Set(bl.filter(b => b.tipo !== 'veiculo' && b.tipo !== 'rebanho' && b.valor > 0).map(b => b.uf))];
@@ -606,7 +619,7 @@ function renderBase(){
     (b.patrimonioGrande ? 'Patrimônio acima de ' + fmtBRL0(b.limitePatrimonioGrande) + ': honorários e cartório costumam ser negociados ou ter teto, e o custo real em percentual tende a ser menor; revise o percentual. ' : '') +
     (Object.keys(b.custoHoje.itcmdPorUF).length > 1 ? 'ITCMD por estado: ' + Object.keys(b.custoHoje.itcmdPorUF).map(u => u + ' ' + fmtBRL0(b.custoHoje.itcmdPorUF[u])).join(' · ') + ' (lei vigente). ' : '') +
     (e.partilha.conjugeHerdeiro ? 'O ITCMD considera o cônjuge como herdeiro, com ' + pct1(e.partilha.fracConjuge) + ' da herança. ' : '') +
-    (T.ESTADOS[e.uf].reformaIgualVigente ? '' : 'Adequação à reforma: ' + T.hipoteseReforma(e.uf));
+    (e.regraHeranca ? 'ITCMD da herança pela tabela própria informada na etapa 2 (igual nas três colunas). ' : (T.ESTADOS[e.uf].reformaIgualVigente ? '' : 'Adequação à reforma: ' + T.hipoteseReforma(e.uf)));
 }
 
 function renderCards(){
@@ -696,6 +709,7 @@ function renderAlertas(){
   }
   if(v && v.cfg.P) out.push('<b>PGBL:</b> a dedução só vale para quem faz a declaração completa e contribui para o INSS ou regime próprio, e vai até 12% da renda bruta tributável do ano (Lei 9.532/1997, art. 11); dividendos não entram na base. A simulação considera ' + pct1(r.pgbl.aliquotaIR) + ' de IR economizado sobre cada aporte; confirme com o contador.');
   else if(r.pgbl.elegivel && !r.pgbl.ativo) out.push('<b>PGBL:</b> informe a renda bruta tributável do ano para testar o PGBL nas combinações.');
+  if(e.regraHeranca) out.push('<b>Tabela própria de ITCMD:</b> a herança usa as faixas informadas na etapa 2 (' + e.regraHeranca.faixas.map(f => pct1(f.aliq) + (isFinite(f.ate) ? ' até ' + fmtBRL0(f.ate) : ' acima')).join(' · ') + ', por quinhão), no lugar da lei dos estados. Doações continuam pela tabela do estado. Confira a tabela com o advogado.');
   if(r.base.dividas > 0) out.push('<b>Dívidas do espólio:</b> ' + fmtBRL0(r.base.dividas) + ' saem da base do ITCMD e do inventário' + (r.base.dividaExcedente > 0 ? '; passam dos bens em ' + fmtBRL0(r.base.dividaExcedente) + ' (os herdeiros não respondem além da herança, CC art. 1.792)' : '') + '. Só valem dívidas comprovadas na data do falecimento. O credor pode pedir o bloqueio ou a reserva de bens no inventário até ser pago, o que trava ainda mais a liquidez: previdência e seguro ficam fora disso.');
   const gc = r.ganhoCapital;
   if(gc && gc.ganho > 0) out.push('<b>Ganho de capital nos imóveis:</b> declarados por ' + fmtBRL0(gc.custo) + ', valem ' + fmtBRL0(gc.valor) + ' hoje. Se os herdeiros precisarem vender para pagar o inventário, ou se o inventário atualizar o valor para o de mercado (Lei 9.532/1997, art. 23), o IR sobre o ganho de ' + fmtBRL0(gc.ganho) + ' pode chegar a cerca de <b>' + fmtBRL0(gc.ir) + '</b> (' + pct1(gc.aliquotaMedia) + ' na média; faixas de 15% a 22,5%, Lei 13.259/2016). Manter o valor histórico adia o IR para a venda pelos herdeiros. Reduções para imóveis antigos e as regras do imóvel rural (terra nua pela DITR) podem diminuir o valor: confirme com o contador. Ter dinheiro para o inventário (previdência ou seguro) evita a venda às pressas.');
