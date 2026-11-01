@@ -55,9 +55,10 @@
         <div class="field">
           <label for="aporte">Aporte mensal</label>
           <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="aporte" class="money" value="1.000,00"></div>
-          <div class="hint">Valor fixo todo mês, sem reajuste.</div>
+          <div class="hint" id="aporteHint">Valor fixo todo mês, sem reajuste.</div>
         </div>
       </div>
+      <label class="inline-check" for="reajusteAporte"><input type="checkbox" id="reajusteAporte"> Reajustar o aporte pela inflação uma vez por ano</label>
     </section>
 
     <section class="panel">
@@ -129,6 +130,14 @@
       <div class="empty" id="objEmpty">Nenhum objetivo adicionado. Toque em uma opção acima para incluir.</div>
     </section>
 
+    <section class="panel">
+      <h2>Entradas extraordinárias</h2>
+      <p class="sub">Dinheiro que vai entrar antes de começar a receber a renda: venda de terra ou imóvel, sobra da safra, herança, bônus. Valores de hoje; o app corrige pela inflação até a data e soma ao patrimônio.</p>
+      <div class="chips" id="entChips"></div>
+      <div class="obj-list" id="entList"></div>
+      <div class="empty" id="entEmpty">Nenhuma entrada adicionada. Toque em uma opção acima para incluir.</div>
+    </section>
+
     <div class="nav-row"><button class="primary" type="button" data-goto="2">Ver capital necessário →</button></div>
   </div>
 
@@ -196,6 +205,44 @@
       <div class="tooltip" id="ttPlan"></div>
     </div>
 
+    <section class="panel" id="cmpAportes">
+      <h2>Aportar mais ou render mais?</h2>
+      <p class="sub">Compare dois planos de aporte no mesmo prazo, partindo do zero. Mostra o peso do quanto você guarda contra o quanto a carteira rende.</p>
+      <div class="cmp-grid">
+        <div class="cmp-plano">
+          <div class="cmp-tit">Plano A</div>
+          <div class="field">
+            <label for="cmpApA">Aporte mensal</label>
+            <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="cmpApA" class="money" value="0,00"></div>
+          </div>
+          <div class="field">
+            <label for="cmpTxA">Rentabilidade nominal</label>
+            <div class="row-input"><input type="number" id="cmpTxA" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
+          </div>
+        </div>
+        <div class="cmp-plano">
+          <div class="cmp-tit">Plano B</div>
+          <div class="field">
+            <label for="cmpApB">Aporte mensal</label>
+            <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="cmpApB" class="money" value="0,00"></div>
+          </div>
+          <div class="field">
+            <label for="cmpTxB">Rentabilidade nominal</label>
+            <div class="row-input"><input type="number" id="cmpTxB" min="0" max="50" step="0.25"><span class="suffix">% a.a.</span></div>
+          </div>
+        </div>
+        <div class="cmp-plano">
+          <div class="cmp-tit">Prazo</div>
+          <div class="field">
+            <label for="cmpAnos">Anos aportando</label>
+            <div class="row-input"><input type="number" id="cmpAnos" min="1" max="80" step="1"><span class="suffix">anos</span></div>
+          </div>
+          <div class="hint">Mesma inflação e mesmo reajuste do aporte da etapa 1.</div>
+        </div>
+      </div>
+      <div class="cmp-res" id="cmpRes"></div>
+    </section>
+
 
     <div class="explain">
       <p><strong>Como ler.</strong> O patrimônio projetado é o valor futuro acumulado com o patrimônio atual, os aportes e a rentabilidade de cada cenário. O patrimônio necessário é o tamanho de carteira que, rendendo IPCA + a taxa real informada, paga a renda desejada sem consumir o principal.</p>
@@ -208,7 +255,7 @@
 
   <footer>
     <p>1 - Simulador educativo. Não coletamos, não armazenamos e não transmitimos dados pessoais; o processamento é feito no seu navegador.</p>
-    <p>2 - Premissas: projeção em base de 360 dias (12 meses de 30 dias), capitalização mensal com taxa equivalente; aportes e retiradas no fim de cada mês; aporte mensal nominal fixo; inflação média e rentabilidades constantes durante todo o período; valores brutos, antes de IR, taxas e custos. Patrimônio necessário = renda mensal ÷ taxa real mensal equivalente (perpetuidade real). Curvas de consumo: a cada ano o patrimônio rende a taxa informada e é consumido o percentual indicado do patrimônio do início do ano.</p>
+    <p>2 - Premissas: projeção em base de 360 dias (12 meses de 30 dias), capitalização mensal com taxa equivalente; aportes e retiradas no fim de cada mês; aporte mensal nominal fixo ou, se marcado, reajustado pela inflação uma vez por ano; entradas extraordinárias informadas em valores de hoje, corrigidas pela inflação até a data; inflação média e rentabilidades constantes durante todo o período; valores brutos, antes de IR, taxas e custos. Patrimônio necessário = renda mensal ÷ taxa real mensal equivalente (perpetuidade real). Curvas de consumo: a cada ano o patrimônio rende a taxa informada e é consumido o percentual indicado do patrimônio do início do ano.</p>
     <p>3 - As informações têm caráter meramente informativo e não constituem oferta, recomendação de investimento ou promessa de rentabilidade. Rentabilidade passada não garante rentabilidade futura. Consulte um profissional certificado antes de decidir.</p>
   </footer>
 </div>
