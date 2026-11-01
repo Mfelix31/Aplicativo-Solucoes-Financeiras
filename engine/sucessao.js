@@ -105,6 +105,16 @@
     if (!(total > 0)) return 0;
     return itcmdRegra(total, Array.from({ length: n }, () => 1 / n), regraDe(uf, regime, tipo));
   }
+  /** Tabela própria de ITCMD informada pelo planejador (herança): faixas { ate, aliq } por quinhão, faixa a faixa.
+   *  Vale no lugar da tabela de todos os estados; a última faixa vai até o infinito. null quando não informada. */
+  function regraManual(t) {
+    if (!t || !Array.isArray(t.faixas)) return null;
+    const fx = t.faixas.filter(f => f && isFinite(f.aliq)).map(f => ({ ate: f.ate > 0 ? f.ate : Infinity, aliq: f.aliq }))
+      .sort((a, b) => a.ate - b.ate);
+    if (!fx.length) return null;
+    fx[fx.length - 1] = { ate: Infinity, aliq: fx[fx.length - 1].aliq };
+    return { metodo: 'sucessivas', base: 'quinhao', faixas: fx, manual: true };
+  }
   /** ITCMD de valores em vários estados: lista [{ uf, valor }], cada estado com a sua tabela. */
   function itcmdPorEstado(partes, pessoas, regime, tipo) {
     const porUF = {};
@@ -141,7 +151,7 @@
     const somaPartes = partes.reduce((t, p) => t + p.valor, 0) || 1;
     const itcmdPorUF = {};
     partes.forEach(p => {
-      const v = itcmdRegra(heranca * p.valor / somaPartes, fracoes, ITCMD.tabela(p.uf, a.regime || 'vigente').heranca, heranca);
+      const v = itcmdRegra(heranca * p.valor / somaPartes, fracoes, a.regraHeranca || ITCMD.tabela(p.uf, a.regime || 'vigente').heranca, heranca);
       itcmdPorUF[p.uf] = (itcmdPorUF[p.uf] || 0) + v;
     });
     const itcmd = Object.values(itcmdPorUF).reduce((t, v) => t + v, 0);
@@ -490,6 +500,10 @@
     return Object.keys(e.imoveisPorUF).map(uf => ({ uf, valor: valor * e.imoveisPorUF[uf] / tot }));
   }
   /** Onde o ITCMD é devido: imóveis no estado de cada um; o resto (móveis, cotas, exterior) no domicílio. */
+  /** ITCMD de herança de um valor no estado, com a tabela própria quando informada. */
+  const itcmdHeranca = (e, valor, uf) => e.regraHeranca
+    ? itcmdRegra(valor, Array.from({ length: Math.max(1, Math.round(e.herdeiros)) }, () => 1 / Math.max(1, Math.round(e.herdeiros))), e.regraHeranca)
+    : itcmdDividido(valor, e.herdeiros, uf, e.regime, 'heranca');
   const partesITCMD = (e, imoveis, moveis) => imoveisNosEstados(e, imoveis).concat(moveis > 0 ? [{ uf: e.uf, valor: moveis }] : []);
   /** Dívidas do espólio: abatidas do monte antes do ITCMD e dos custos (a base é o patrimônio líquido transmitido),
    *  na proporção de cada parte (estado). Devolve o monte líquido, as partes ajustadas e o que a dívida passa dos bens. */
@@ -527,6 +541,7 @@
       wholeLife: wholeLifeDaIdade(e.idade === undefined ? 55 : e.idade, e.wholeLife),
       offshore: Object.assign({}, OFFSHORE_PADRAO, e.offshore || {}),
       pgbl: Object.assign({}, PGBL_PADRAO, e.pgbl || {}),
+      regraHeranca: regraManual(e.itcmdManual),
       aluguelOpcoes: Object.assign({}, e.aluguelOpcoes || {})   // lc224, opcao487, aliqRefIVA (opcionais)
     });
   }
@@ -657,15 +672,15 @@
       const divida = (e.dividas || 0) * Math.pow(1 + ipca, t);
       const liq = abaterDividas(partesITCMD(e, imovInv, moveisInv), Math.max(0, imovInv + moveisInv), divida);
       const monte = liq.monte, partes = liq.partes;
-      const inv = custoInventario({ monte, imoveis: imovInv, nImoveis: imovInv > 0 ? e.nImoveis : 0, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes,
+      const inv = custoInventario({ regraHeranca: e.regraHeranca, monte, imoveis: imovInv, nImoveis: imovInv > 0 ? e.nImoveis : 0, meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes,
         uf: e.uf, partes, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
       // usufruto: onde a doação pagou só a nua-propriedade e a consolidação não é isenta, o restante paga no falecimento
       let extincaoUsufruto = 0;
       if (cfg.doaImoveis && !cfg.holding) imoveisNosEstados(e, imov).forEach(p => {
-        if (nuaPct(p.uf) < 1 && !extincaoIsenta(p.uf)) extincaoUsufruto += itcmdDividido(p.valor * (1 - nuaPct(p.uf)), e.herdeiros, p.uf, e.regime, 'heranca');
+        if (nuaPct(p.uf) < 1 && !extincaoIsenta(p.uf)) extincaoUsufruto += itcmdHeranca(e, p.valor * (1 - nuaPct(p.uf)), p.uf);
       });
       if (cfg.holding && doado > 0 && nuaPct(e.uf) < 1 && !extincaoIsenta(e.uf))
-        extincaoUsufruto += itcmdDividido(integ() * doado * (1 - nuaPct(e.uf)), e.herdeiros, e.uf, e.regime, 'heranca');
+        extincaoUsufruto += itcmdHeranca(e, integ() * doado * (1 - nuaPct(e.uf)), e.uf);
       const custoExterior = cfg.offshore ? 0 : ext * (of.custoSucessaoExteriorPct + of.impostoExteriorPct);
       const irPrevV = aliquotaIRPrevidencia(e.previdenciaAnos + t) * Math.max(0, prevV - prevVBase);
       const irPrevN = aliquotaIRPrevidencia(t) * Math.max(0, prevN - prevNBase);
@@ -683,7 +698,7 @@
       // sucessão do casal: a meação do cônjuge também passa aos filhos, num 2º inventário (simplificação: mesma data,
       // filhos como únicos herdeiros). Bens já doados ou na holding ficam fora dos dois inventários.
       const invConjuge = e.sucessaoCasal && e.meacaoPct > 0 && monte > 0
-        ? custoInventario({ monte: monte * e.meacaoPct, imoveis: imovInv * e.meacaoPct, nImoveis: imovInv > 0 ? e.nImoveis : 0, meacaoPct: 0, herdeiros: e.herdeiros,
+        ? custoInventario({ regraHeranca: e.regraHeranca, monte: monte * e.meacaoPct, imoveis: imovInv * e.meacaoPct, nImoveis: imovInv > 0 ? e.nImoveis : 0, meacaoPct: 0, herdeiros: e.herdeiros,
           uf: e.uf, partes: partes.map(p => ({ uf: p.uf, valor: p.valor * e.meacaoPct })), regime: e.regime, tipo: e.tipoInventario, custos: e.custos })
         : null;
       const custoEsperadoConjuge = invConjuge ? custoEsperadoDe(pr, invConjuge, monte * e.meacaoPct) : 0;
@@ -834,15 +849,15 @@
     const bruto0 = e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + e.rebanho;
     const liq0 = abaterDividas(partesITCMD(e, e.imoveis, bruto0 - e.imoveis), bruto0, e.dividas);
     const monte0 = liq0.monte, partes0 = liq0.partes;
-    const custoHoje = custoInventario({ monte: monte0, imoveis: e.imoveis, nImoveis: e.nImoveis, partes: partes0,
+    const custoHoje = custoInventario({ regraHeranca: e.regraHeranca, monte: monte0, imoveis: e.imoveis, nImoveis: e.nImoveis, partes: partes0,
       meacaoPct: e.meacaoPct, herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos });
     const regimes = ['vigente', 'reforma', 'estresse'].reduce((o, rg) => {
-      o[rg] = custoInventario({ monte: monte0, imoveis: e.imoveis, nImoveis: e.nImoveis, partes: partes0, meacaoPct: e.meacaoPct,
+      o[rg] = custoInventario({ regraHeranca: e.regraHeranca, monte: monte0, imoveis: e.imoveis, nImoveis: e.nImoveis, partes: partes0, meacaoPct: e.meacaoPct,
         herdeiros: e.herdeiros, quinhoes: e.partilha.quinhoes, uf: e.uf, regime: rg, tipo: e.tipoInventario, custos: e.custos });
       return o;
     }, {});
 
-    const conferenciaConjuge = e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ monte: monte0 * e.meacaoPct, imoveis: e.imoveis * e.meacaoPct, nImoveis: e.nImoveis, meacaoPct: 0, herdeiros: e.herdeiros,
+    const conferenciaConjuge = e.sucessaoCasal && e.meacaoPct > 0 ? custoInventario({ regraHeranca: e.regraHeranca, monte: monte0 * e.meacaoPct, imoveis: e.imoveis * e.meacaoPct, nImoveis: e.nImoveis, meacaoPct: 0, herdeiros: e.herdeiros,
       partes: partes0.map(p => ({ uf: p.uf, valor: p.valor * e.meacaoPct })), uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos }) : null;
     const metaInventarioHoje = custoEsperadoDe(e.premissas, custoHoje, monte0);
     const pctEsperado = monte0 > 0 ? metaInventarioHoje / monte0 : (e.premissas.custoModo === 'fixo' ? e.premissas.metaLiquidez : 0);
@@ -1005,6 +1020,8 @@
     if (!(e.dividas >= 0)) erros.push('As dívidas não podem ser negativas.');
     if (!(e.custoAquisicaoImoveis >= 0)) erros.push('O custo de aquisição dos imóveis não pode ser negativo.');
     if (['vgbl', 'pgbl'].indexOf(e.previdenciaTipo) < 0) erros.push('Tipo de previdência desconhecido.');
+    if (e.regraHeranca && !e.regraHeranca.faixas.every((f, i, a) => f.aliq >= 0 && f.aliq <= 0.2 && (i === 0 || f.ate > a[i - 1].ate)))
+      erros.push('Tabela própria de ITCMD: alíquotas de 0% a 20% e limites crescentes.');
     const pg = e.pgbl;
     if (!(pg.rendaTributavelAnual >= 0)) erros.push('PGBL: a renda tributável não pode ser negativa.');
     if (!(pg.limitePct >= 0 && pg.limitePct <= 0.12 + 1e-9)) erros.push('PGBL: a dedução vai até 12% da renda tributável.');
@@ -1025,7 +1042,7 @@
 
   return {
     TABUA_IBGE_2024, CURVA_ATUARIAL, PREMISSAS_PADRAO, CUSTOS_PADRAO, HOLDING_PADRAO, OFFSHORE_PADRAO, WL_PADRAO,
-    TIPOS_BEM, TIPOS_IMOVEL, patrimonioDeBens, expectativaSobrevida, itcmdValor, itcmdRegra, itcmdDividido, itcmdPorEstado, custoInventario, partilha, MESES_SUSTENTO, LIMITE_PATRIMONIO_GRANDE, PGBL_PADRAO, pgblAtivo, resumoPGBL, custoEsperadoDe, irGanhoCapital, ganhoCapitalImoveis, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
+    TIPOS_BEM, TIPOS_IMOVEL, patrimonioDeBens, expectativaSobrevida, itcmdValor, itcmdRegra, itcmdDividido, itcmdPorEstado, custoInventario, partilha, MESES_SUSTENTO, LIMITE_PATRIMONIO_GRANDE, PGBL_PADRAO, pgblAtivo, resumoPGBL, custoEsperadoDe, regraManual, irGanhoCapital, ganhoCapitalImoveis, REGIMES_BENS, honorariosPadrao, aliquotaIRPrevidencia,
     projetarWholeLife, fatorIdadeWholeLife, wholeLifeDaIdade, capitalSeguro, anoEquilibrioSeguro, irpfMensal, irpfm, faseIBS, tributacaoAluguel,
     normalizar, simular, analisar, recomendar, validar, ESTRUTURAS, LIQUIDEZ, idCaminho
   };

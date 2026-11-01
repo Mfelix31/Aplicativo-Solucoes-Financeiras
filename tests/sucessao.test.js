@@ -584,6 +584,22 @@ test('holding: ano de equilíbrio contra a melhor opção sem holding (stress te
   }
 });
 
+/* ---------- tabela própria de ITCMD (stress test MT, teste 29) ---------- */
+test('tabela própria de ITCMD: faixas por quinhão, faixa a faixa, no lugar da tabela do estado', () => {
+  const base = { idade: 60, uf: 'MT', herdeiros: 2, aplicacoes: 2e6 };
+  // 4% fixo: R$ 2 mi em 2 quinhões de R$ 1 mi → R$ 80 mil
+  const fixo = S.analisar(Object.assign({}, base, { itcmdManual: { faixas: [{ ate: null, aliq: 0.04 }] } }), { semEstresse: true });
+  perto(fixo.base.custoHoje.itcmd, 80000, 1e-6);
+  // 2% até R$ 500 mil e 6% acima, por quinhão de R$ 1 mi: 10 mil + 30 mil = R$ 40 mil × 2
+  const prog = S.analisar(Object.assign({}, base, { itcmdManual: { faixas: [{ ate: 500000, aliq: 0.02 }, { ate: null, aliq: 0.06 }] } }), { semEstresse: true });
+  perto(prog.base.custoHoje.itcmd, 80000, 1e-6);
+  const prog2 = S.analisar(Object.assign({}, base, { herdeiros: 1, itcmdManual: { faixas: [{ ate: 500000, aliq: 0.02 }, { ate: null, aliq: 0.06 }] } }), { semEstresse: true });
+  perto(prog2.base.custoHoje.itcmd, 10000 + 1.5e6 * 0.06, 1e-6);
+  // sem tabela própria, segue a lei do estado
+  assert.notEqual(S.analisar(base, { semEstresse: true }).base.custoHoje.itcmd, 80000);
+  assert.equal(S.analisar(Object.assign({}, base, { itcmdManual: { faixas: [{ ate: null, aliq: 0.3 }] } })).ok, false);
+});
+
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
 test('27 estados: tabelas válidas nos três regimes', () => {
   assert.equal(T.SIGLAS.length, 27);

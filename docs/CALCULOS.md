@@ -64,6 +64,7 @@ Motor: `engine/sucessao.js` · testes: `tests/sucessao.test.js`.
 - **Rebanho (semoventes):** bem móvel; paga ITCMD no domicílio, acompanha o IPCA e fica fora da holding e da doação simuladas.
 - **Partilha:** meação pelo regime de bens; cônjuge herdeiro pelo art. 1.829 do Código Civil (na comunhão parcial, só sobre os bens particulares), com mínimo de 1/4 se for ascendente de todos (art. 1.832); ITCMD por quinhão; legítima e parte disponível.
 - **ITCMD por estado:** imóveis no estado onde ficam; móveis, cotas, veículos e bens no exterior no domicílio (CF, art. 155, § 1º). Regimes: lei vigente (padrão), adequação à LC 227/2026 e estresse de 16%. Doações feitas hoje sempre pagam pela lei vigente.
+- **Tabela própria de ITCMD (opcional):** até 5 faixas informadas pelo planejador, por quinhão e faixa a faixa, no lugar da tabela de todos os estados do caso na herança (doações continuam pela tabela do estado).
 - **Previdência:** fora do inventário e sem ITCMD; IR regressivo sobre o rendimento (VGBL) ou sobre o saldo (PGBL). Cobertura medida pelo valor líquido de IR.
 - **Whole life:** modelo da planilha Sicoob (capital IPCA + 2,5% a.a., parcela por 10 anos corrigida pelo IPCA), com a parcela ajustada por idade e sexo pela tábua BR-EMSmt da SUSEP (v.2026 padrão; v.2021 opcional).
 - **Cotação do cooperado (opcional):** com capital e parcela cotados, a parcela por R$ 100 mil = parcela ÷ capital × 100 mil substitui a estimativa por idade e sexo; a cobertura básica mantém a proporção da cotação base.
