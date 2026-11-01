@@ -114,7 +114,7 @@ test('IR regressivo da previdência no pagamento', () => {
 });
 
 test('previdência que paga sozinha o inventário: X = 18%/1,18 do patrimônio (sem ganho a tributar)', () => {
-  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, aplicacoes: 5e6, premissas: { rentabilidade: 0, ipca: 0 } });
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, aplicacoes: 5e6, premissas: { rentabilidade: 0, ipca: 0, custoModo: 'fixo' } });
   assert.ok(r.ok);
   perto(r.previdencia.X / 5e6, 0.18 / 1.18, 1e-6);
   assert.equal(r.seguroDesnecessario, true);
@@ -465,16 +465,123 @@ test('PGBL: IR sobre todo o saldo; VGBL: só sobre o rendimento', () => {
   assert.equal(S.analisar(Object.assign({}, c, { previdenciaTipo: 'outro' })).ok, false);
 });
 
-test('custo do inventário na comparação = custo esperado (18%), inclusive no 2º inventário do cônjuge', () => {
-  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0 });
+test('modo fixo: custo do inventário na comparação = 18%, inclusive no 2º inventário do cônjuge', () => {
+  const fixo = { custoModo: 'fixo' };
+  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, premissas: fixo });
   const a = S.simular(e, {}, 1).anos[0];
   perto(a.custoEsperado, 0.18 * a.monte, 1e-6);
   perto(a.familia, a.monte * 0.82, 1e-6);
-  const ec = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, conjuge: { regime: 'universal' } });
+  const ec = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, conjuge: { regime: 'universal' }, premissas: fixo });
   const b = S.simular(ec, {}, 1).anos[0];
   perto(b.familia, b.monte * 0.82 - 0.18 * b.monte * 0.5, 1e-6);
   const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 60e6, aplicacoes: 1e6 });
   assert.equal(r.base.patrimonioGrande, true);
+});
+
+/* ---------- custo esperado pela lei + margem de mercado (modo padrão) ---------- */
+// Calibração com o usuário (01/11/2026): os 18% observados valem para patrimônios a partir de R$ 10 mi.
+// Caso de referência: R$ 10 mi em MT (R$ 6 mi em fazendas, R$ 4 mi em aplicações), 2 herdeiros, sem cônjuge, lei vigente.
+// Conta pela lei: 11,34% em cartório e 14,64% judicial (ITCMD 4,89%, faixas de MT conferidas no stress test);
+// média 12,99% + margem de 5% ≈ 18%.
+const ref10 = tipo => ({ idade: 60, uf: 'MT', herdeiros: 2, tipoInventario: tipo, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 2, valor: 6e6 }], aplicacoes: 4e6, rendaMensal: 50000 });
+test('custo esperado: conta pela lei + 5% de margem; o caso de referência de R$ 10 mi dá 18% na média', () => {
+  const c = S.analisar(ref10('cartorio'), { semEstresse: true }).base, j = S.analisar(ref10('judicial'), { semEstresse: true }).base;
+  perto(c.metaInventarioHoje, c.custoHoje.total + 0.05 * 1e7, 1e-6);
+  perto((c.pctEsperado + j.pctEsperado) / 2, 0.18, 0.003);
+  assert.ok(j.pctEsperado > c.pctEsperado, 'judicial custa mais que cartório');
+});
+test('custo esperado acompanha o patrimônio (ITCMD progressivo) e o tipo de inventário', () => {
+  const pct = (v, tipo) => S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, tipoInventario: tipo, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: v * 0.6 }], aplicacoes: v * 0.4 }, { semEstresse: true }).base.pctEsperado;
+  const p15 = pct(1.5e6, 'cartorio'), p10 = pct(10e6, 'cartorio'), p50 = pct(50e6, 'cartorio');
+  assert.ok(p15 < p10 && p10 < p50, 'cresce com o patrimônio');
+  assert.ok(p15 < 0.14, 'família de R$ 1,5 mi fica bem abaixo de 18% (stress test, teste 22)');
+  assert.ok(pct(30e6, 'litigio') > 0.20, 'litígio de R$ 30 mi passa de 20% (stress test, teste 24)');
+});
+test('custo esperado: o 2º inventário do cônjuge usa a mesma regra sobre a meação', () => {
+  const r = S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 6e6 }], aplicacoes: 4e6, conjuge: { regime: 'universal' } }, { semEstresse: true });
+  const cj = r.base.conjugeHoje;
+  perto(cj.total, cj.conferencia.total + 0.05 * 1e7 * 0.5, 1e-6);
+  assert.equal(S.analisar(Object.assign(ref10('cartorio'), { premissas: { margemMercado: -0.01 } })).ok, false);
+});
+
+/* ---------- dívidas do espólio (stress test MT, teste 28: R$ 20 mi brutos, R$ 8 mi de custeio rural) ---------- */
+const espolio = over => Object.assign({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 16e6 }], aplicacoes: 4e6 }, over);
+test('dívidas: saem da base do inventário; no modo fixo, 18% de R$ 12 mi = R$ 2,16 mi (teste 28)', () => {
+  const r = S.analisar(espolio({ dividas: 8e6, premissas: { custoModo: 'fixo' } }), { semEstresse: true });
+  perto(r.base.monteHoje, 12e6, 1e-6);
+  perto(r.base.metaInventarioHoje, 2.16e6, 1e-6);
+  // pela lei: o mesmo que um espólio de R$ 12 mi com a mesma proporção entre fazenda e aplicações
+  const comDiv = S.analisar(espolio({ dividas: 8e6 }), { semEstresse: true }).base.custoHoje;
+  const liquido = S.analisar(espolio({ bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 16e6 * 0.6 }], aplicacoes: 4e6 * 0.6 }), { semEstresse: true }).base.custoHoje;
+  perto(comDiv.itcmd, liquido.itcmd, 1e-6);
+});
+test('dívidas: o valor à família cai pela dívida paga; dívida maior que os bens não deixa monte negativo', () => {
+  const sem = S.analisar(espolio(), { semEstresse: true }), com = S.analisar(espolio({ dividas: 8e6 }), { semEstresse: true });
+  const a0 = sem.caminhos.find(c => c.id === 'inventario').sim.anos[0], a1 = com.caminhos.find(c => c.id === 'inventario').sim.anos[0];
+  perto(a1.divida, 8e6 * 1.04, 1e-6);
+  assert.ok(a0.familia - a1.familia > a1.divida * 0.8, 'a família recebe menos, quase o valor da dívida (o custo do inventário também cai)');
+  const grande = S.analisar(espolio({ dividas: 30e6 }), { semEstresse: true });
+  assert.ok(grande.ok);
+  assert.equal(grande.base.monteHoje, 0);
+  perto(grande.base.dividaExcedente, 10e6, 1e-6);
+  assert.equal(S.analisar(espolio({ dividas: -1 })).ok, false);
+});
+
+/* ---------- ganho de capital (stress test MT, teste 30: fazenda de R$ 1 mi que vale R$ 20 mi) ---------- */
+test('ganho de capital: faixas da Lei 13.259/2016 sobre o ganho de R$ 19 mi = R$ 3.425.000 (conta à mão)', () => {
+  // 5 mi × 15% + 5 mi × 17,5% + 9 mi × 20% = 750 mil + 875 mil + 1,8 mi
+  perto(S.irGanhoCapital(19e6), 3425000, 1e-6);
+  perto(S.irGanhoCapital(1e6), 150000, 1e-6);
+  perto(S.irGanhoCapital(40e6), 750000 + 875000 + 4e6 + 10e6 * 0.225, 1e-6);
+  assert.equal(S.irGanhoCapital(0), 0);
+  const r = S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 20e6 }], aplicacoes: 1e6, custoAquisicaoImoveis: 1e6 }, { semEstresse: true });
+  perto(r.ganhoCapital.ir, 3425000, 1e-6);
+  assert.equal(S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, aplicacoes: 1e6 }).ganhoCapital, null);
+});
+
+/* ---------- rebanho (stress test MT, teste 21: gado entrava como terra) ---------- */
+test('rebanho: bem móvel, ITCMD no domicílio, fora da holding e da doação, acompanha o IPCA', () => {
+  const e = S.normalizar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'GO', qtd: 1, valor: 10e6 }, { tipo: 'rebanho', uf: 'GO', qtd: 1, valor: 4e6 }], aplicacoes: 1e6 });
+  assert.equal(e.rebanho, 4e6);
+  assert.equal(e.imoveis, 10e6);
+  assert.deepEqual(Object.keys(e.imoveisPorUF), ['GO']);
+  // na holding total, o rebanho continua no inventário: a diferença para o mesmo caso sem rebanho é o rebanho corrigido pelo IPCA
+  const semReb = S.normalizar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'GO', qtd: 1, valor: 10e6 }], aplicacoes: 1e6 });
+  perto(S.simular(e, { holding: 'total' }, 1).anos[0].monte - S.simular(semReb, { holding: 'total' }, 1).anos[0].monte, 4e6 * 1.04, 1e-6);
+  const r = S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'rebanho', uf: 'GO', qtd: 1, valor: 4e6 }], aplicacoes: 1e6 }, { semEstresse: true });
+  assert.deepEqual(Object.keys(r.base.custoHoje.itcmdPorUF), ['MT']);
+});
+
+test('registro: maior entre o % do valor e o mínimo × nº de imóveis (stress test, teste 26: 5 imóveis, R$ 5 mi)', () => {
+  const caso26 = custos => S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'urbano', uf: 'MT', qtd: 5, valor: 5e6 }], aplicacoes: 0, custos }, { semEstresse: true }).base.custoHoje.registro;
+  perto(caso26(), 5e6 * 0.004, 1e-6);                              // padrão: 0,4% = R$ 20 mil
+  perto(caso26({ registroMinimo: 6000 }), 5 * 6000, 1e-6);          // 5 matrículas × R$ 6 mil = R$ 30 mil
+  perto(caso26({ registroMinimo: 1000 }), 5e6 * 0.004, 1e-6);      // o percentual continua maior
+});
+
+test('whole life: a cotação do próprio cooperado vale no lugar da estimativa (stress test, teste 25: R$ 2 mi por R$ 5 mil/mês)', () => {
+  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, aplicacoes: 1e6, wholeLife: { cotacao: { capital: 2e6, parcela: 5000 } } });
+  perto(e.wholeLife.parcelaPor100k, 250, 1e-9);
+  assert.equal(e.wholeLife.cotacaoCliente, true);
+  perto(e.wholeLife.basicaPor100k, 397.23 * 250 / 637.15, 1e-9);
+  const sim = S.simular(e, { C: 2e6 }, 1);
+  perto(sim.pagamentos[1].itens.seguro, 5000 * 12, 1e-6);
+  // sem cotação, segue a estimativa pela idade (55 anos, fator 1,0946)
+  assert.ok(Math.abs(S.normalizar({ idade: 55, uf: 'MT', aplicacoes: 1e6 }).wholeLife.parcelaPor100k - 637.15 * 1.0945944) < 0.01);
+});
+
+test('holding: ano de equilíbrio contra a melhor opção sem holding (stress test, teste 27)', () => {
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 4, valor: 20e6 }], aplicacoes: 2e6,
+    rendaMensal: 200000, sobraMensal: 80000, aluguelMensal: 150000, nImoveisAlugados: 4 }, { semEstresse: true });
+  const eq = r.holding.equilibrio;
+  assert.ok(eq, 'há comparação');
+  const h = r.caminhos.find(c => c.id === eq.holding), a = r.caminhos.find(c => c.id === eq.alternativa);
+  assert.ok(!a.cfg.holding);
+  if (eq.ano) {
+    for (let t = eq.ano; t <= r.Texp; t++) assert.ok(h.sim.anos[t - 1].familiaReal >= a.sim.anos[t - 1].familiaReal, 'holding à frente desde o ano ' + eq.ano);
+    if (eq.ano > 1) assert.ok(h.sim.anos[eq.ano - 2].familiaReal < a.sim.anos[eq.ano - 2].familiaReal, 'atrás no ano anterior');
+    assert.equal(eq.idade, 55 + eq.ano);
+  }
 });
 
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */

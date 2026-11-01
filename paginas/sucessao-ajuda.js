@@ -1,9 +1,9 @@
 /* Planejamento Sucessório — textos de ajuda (botões "?", dicas das etapas e guia "Como usar").
  * Só textos: o componente fica em assets/ajuda.js. Não altera nenhum cálculo. */
-/* Composição do custo do inventário: mostra ao cliente de onde vem o custo e por que usamos a média de mercado. */
+/* Composição do custo do inventário: mostra ao cliente de onde vem o custo e como a ferramenta chega ao custo esperado. */
 const COMPOSICAO_INVENTARIO = '**De onde vem o custo do inventário** (referências de mercado; variam por estado e por caso):\n\n' +
   '| Componente | Faixa usual | Base |\n| ITCMD | 1% a 8% | Lei de cada estado; teto de 8% do Senado |\n| Honorários do advogado | 5% a 10% | Tabelas das seccionais da OAB |\n| Custas, cartório e registro | 1% a 2% | Escritura ou custas, registro, certidões |\n| Avaliações, contador, multas e atrasos | Varia | Depende do caso e do tempo |\n| **Soma dos componentes** | **Muitas vezes acima de 15%** | |' +
-  '\n\n**Por que 18%:** somar componente por componente costuma subestimar o custo, porque deixa de fora avaliações, multas, atrasos e imprevistos. Por isso a comparação usa a **média observada no mercado de MT e MS: 18%** do que vai a inventário. A conta item por item aparece no quadro 2 como conferência.';
+  '\n\n**Como a ferramenta calcula:** soma a **conta pela lei** (ITCMD do estado, que com a reforma passa a ser progressivo: quanto maior o patrimônio, maior a alíquota; honorários e custas pelo tipo de inventário) e uma **margem de mercado de 5%** para o que a conta não vê (avaliações, contador, atrasos e imprevistos). A margem foi calibrada para que um patrimônio de **R$ 10 milhões em MT chegue aos 18%** observados no mercado. Assim, patrimônios menores custam menos de 18% e maiores, ou inventários com conflito, custam mais.';
 
 Ajuda.iniciar({
   guia: {
@@ -11,7 +11,7 @@ Ajuda.iniciar({
     intro: 'Para o planejador usar junto com o cooperado. Compara os caminhos para o patrimônio chegar à família (inventário planejado, previdência, whole life, doação com usufruto, holding e offshore) e mostra a solução que protege e entrega mais, com quanto custa e como pagar.\n\nQuando a holding não compensa, a ferramenta diz claramente, com o custo evitado.',
     passos: [
       { titulo: 'Família e patrimônio', texto: 'Informe idade, estado, herdeiros, regime de bens e o tipo de inventário provável. Liste os imóveis, terrenos, fazendas e veículos (com o estado onde ficam), as aplicações, a previdência e a renda.' },
-      { titulo: 'Premissas e custos', texto: 'Confira o cenário de rentabilidade, a inflação e o custo esperado do inventário (padrão 18%). Os custos de inventário, holding, whole life e offshore já vêm com referências de mercado; ajuste ao orçamento do advogado, contador ou corretor.' },
+      { titulo: 'Premissas e custos', texto: 'Confira o cenário de rentabilidade, a inflação e o custo esperado do inventário (pela lei do estado + margem de mercado). Os custos de inventário, holding, whole life e offshore já vêm com referências de mercado; ajuste ao orçamento do advogado, contador ou corretor.' },
       { titulo: 'Análise', texto: 'No topo, a solução: o que fazer, quanto chega à família, por que, como pagar e o passo a passo. Abaixo, o custo de não planejar, todas as combinações testadas, a liquidez ano a ano e os alertas. Baixe o PDF.' }
     ],
     dicas: [
@@ -30,7 +30,7 @@ Ajuda.iniciar({
   topicos: {
     'A família': 'Quem herda e como. O regime de bens define a meação (a parte que já é do cônjuge) e se o cônjuge também é herdeiro; o tipo de inventário define prazo e custo.',
     'O patrimônio': 'Os bens a valor de mercado de hoje, que é a base do ITCMD (LC 227/2026). Previdência e seguro de vida ficam fora do inventário.',
-    'Imóveis, terrenos, fazendas e veículos': 'Um item por linha, com tipo, estado onde fica, quantidade e valor total. Imóveis, terrenos e fazendas valorizam pelo IPCA; veículos perdem valor e ficam fora da holding e da doação.',
+    'Imóveis, terrenos, fazendas, veículos e rebanho': 'Um item por linha, com tipo, estado onde fica, quantidade e valor total. Imóveis, terrenos e fazendas valorizam pelo IPCA; veículos perdem valor e ficam fora da holding e da doação. O rebanho (gado e outros animais) é bem móvel: paga ITCMD no estado de domicílio e acompanha a inflação.',
     'O que já existe fora do inventário': 'Previdência (VGBL/PGBL) e seguro de vida vão direto aos beneficiários, sem inventário e sem ITCMD. O que já existe reduz o que falta estruturar.',
     'Renda': 'Opcional, mas importante: a renda mostra se a parcela de um seguro cabe no orçamento, e os aluguéis permitem comparar o imposto na pessoa física e na holding.',
     'PGBL (dedução no imposto de renda)': 'Previdência em que o aporte é deduzido do IR, até 12% da renda bruta tributável. Fica fora do inventário e sem ITCMD (STF, Tema 1.214), como o VGBL. Quando a caixa está marcada, a ferramenta testa as combinações com e sem PGBL e mostra a melhor.',
@@ -64,6 +64,11 @@ Ajuda.iniciar({
     sucessaoCasal: 'Inclui o segundo inventário: quando o cônjuge falecer, a meação dele também vai aos filhos e paga um novo inventário. Doação e holding evitam os dois para os bens transferidos.',
     tipoInv: '**Em cartório:** herdeiros maiores e de acordo; mais rápido e barato.\n\n**Judicial:** quando há menor, incapaz ou desacordo.\n\n**Com conflito:** disputa entre herdeiros; mais longo e caro. Muda os meses de despesas a cobrir.',
     despesaFamilia: 'Quanto a família gasta por mês para viver. Entra no dinheiro que ela precisa ter enquanto os bens estão travados no inventário.',
+    dividas: 'Dívidas comprovadas do cooperado na data do falecimento (financiamentos, custeio rural, empréstimos). Saem da base do ITCMD e do custo do inventário, e também do que chega à família, porque são pagas com os bens.\n\nCom comunhão de bens, informe a parte do cooperado nas dívidas comuns. Valor de hoje, corrigido pela inflação na simulação.',
+    custoAquisicao: 'O valor dos imóveis na declaração de IR do cooperado (custo de aquisição mais benfeitorias declaradas). A diferença para o valor de mercado é o ganho de capital.\n\nNo inventário, os herdeiros podem **manter o valor histórico** (sem IR agora, mas com IR maior quando venderem) ou **atualizar para o valor de mercado** (o IR de 15% a 22,5% sobre a diferença é pago no inventário). A ferramenta só mostra a estimativa como alerta; ela não muda a escolha do caminho.',
+    regMin: 'O registro da partilha é feito em cada matrícula, no cartório de imóveis. Com muitos imóveis de valor menor, o custo por imóvel pode passar do percentual. A conta usa o maior entre o percentual sobre o valor total e o mínimo × a quantidade de imóveis informada na lista de bens.\n\nVem zerado porque a tabela de emolumentos muda por estado: informe o valor da tabela do cartório.',
+    wlCotCapital: 'Se já tem a cotação do whole life para este cooperado, informe o capital e a parcela mensal cotados. A ferramenta usa a parcela proporcional ao capital necessário em cada caminho, no lugar da estimativa pela cotação base e pela tábua BR-EMS.',
+    wlCotParcela: 'A parcela mensal da cotação deste cooperado, para o capital informado ao lado. Corrigida pelo IPCA durante os anos de pagamento.',
     pgblElegivel: 'O PGBL só reduz o IR de quem faz a **declaração completa** e contribui para o INSS ou para um regime próprio de servidor. Sem isso, a dedução não vale e o VGBL é o produto adequado.',
     pgblRenda: 'A base da dedução de até 12%: salários, pró-labore, aluguéis (já descontadas as despesas dedutíveis) e o resultado tributável da atividade rural. **Dividendos e rendimentos isentos não entram.**\n\nVem preenchida com a renda tributável e os aluguéis informados acima, até você editar.',
     pgblAliq: 'O IR que o aporte deixa de pagar: a maior faixa em que a renda tributável cai. Para rendas altas, 27,5%.\n\nO IR não é perdoado, é adiado: na chegada aos herdeiros, o PGBL paga IR sobre todo o saldo, pela tabela regressiva (35% até 2 anos de cada aporte, caindo até 10% após 10 anos).',
@@ -90,7 +95,9 @@ Ajuda.iniciar({
     nResid: 'Quantos dos alugados são residenciais. Têm redutor social no IBS e na CBS.',
     rentab: 'A rentabilidade nominal ao ano das aplicações, previdência e bens no exterior. Já vem do cenário escolhido.',
     ipca: 'A inflação média prevista. Corrige imóveis e empresas e traz os resultados para reais de hoje.',
-    meta: 'O custo médio de todo o inventário (ITCMD, advogado, cartório, contador e trâmites), observado em MT e MS: 18% do que vai a inventário. É o custo usado na comparação e o valor que previdência e seguro precisam pagar.\n\n' + COMPOSICAO_INVENTARIO + '\n\nPara outros estados, confirme se a média vale.',
+    custoModo: 'Como a ferramenta chega ao custo do inventário usado na comparação.\n\n**Pela lei + margem (padrão):** conta pelo ITCMD do estado, honorários e custas do tipo de inventário, mais a margem de mercado. Ajusta sozinha ao patrimônio, ao estado e ao tipo de inventário.\n\n**Percentual fixo:** o mesmo percentual para qualquer caso.\n\n' + COMPOSICAO_INVENTARIO,
+    margemMercado: 'O que a conta pela lei não vê: avaliações, contador, atrasos, multas e imprevistos. Com 5%, um patrimônio de R$ 10 milhões em MT (média entre cartório e judicial) chega aos 18% observados no mercado. Ajuste se a sua experiência com o caso indicar outro valor.',
+    meta: 'Percentual fixo sobre o que vai a inventário, para quem prefere não usar o cálculo pela lei. A média observada em MT e MS para patrimônios a partir de R$ 10 milhões é 18%.',
     taxaAdm: 'A taxa de administração da previdência ao ano. Só é descontada se você marcar que a rentabilidade informada é bruta.',
     rentBruta: 'Marque se a rentabilidade acima é antes da taxa de administração. O app desconta a taxa da previdência.',
     irAplic: 'O IR que os herdeiros pagam ao resgatar as aplicações, em % do ganho. Use 0% se for LCA.',

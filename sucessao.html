@@ -126,7 +126,7 @@
     <section class="panel">
       <h2>O patrimônio</h2>
       <p class="sub">Valores de mercado de hoje. A base do ITCMD é o valor de mercado (LC 227/2026).</p>
-      <h3 class="mini-title">Imóveis, terrenos, fazendas e veículos</h3>
+      <h3 class="mini-title">Imóveis, terrenos, fazendas, veículos e rebanho</h3>
       <div class="table-scroll"><table class="t bens-t">
         <thead><tr><th>Tipo</th><th>Estado onde fica</th><th>Quantidade</th><th>Valor total</th><th></th></tr></thead>
         <tbody id="bens"></tbody>
@@ -148,6 +148,16 @@
         <div class="field">
           <label for="exterior">Bens no exterior <span class="opcional">(opcional)</span></label>
           <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="exterior" class="money" value="0,00"></div>
+        </div>
+        <div class="field">
+          <label for="dividas">Dívidas <span class="opcional">(opcional)</span></label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="dividas" class="money" value="0,00"></div>
+          <div class="hint">Financiamentos, custeio rural e outras dívidas comprovadas do cooperado. Saem da base do ITCMD e do inventário.</div>
+        </div>
+        <div class="field">
+          <label for="custoAquisicao">Custo dos imóveis na declaração de IR <span class="opcional">(opcional)</span></label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="custoAquisicao" class="money" value="0,00"></div>
+          <div class="hint">Soma do valor declarado de imóveis, terrenos e fazendas. Serve para estimar o IR sobre o ganho de capital se os herdeiros precisarem vender.</div>
         </div>
       </div>
       <h3 class="mini-title">O que já existe fora do inventário</h3>
@@ -266,9 +276,19 @@
           <div class="row-input"><input type="number" id="ipca" value="4" step="0.1"><span class="suffix">% a.a.</span></div>
         </div>
         <div class="field">
-          <label for="meta">Custo esperado do inventário</label>
+          <label for="custoModo">Custo esperado do inventário</label>
+          <div class="row-input"><select id="custoModo"><option value="lei">Pela lei + margem</option><option value="fixo">Percentual fixo</option></select></div>
+          <div class="hint" id="hintMeta">Calculado pelo patrimônio, pelo estado e pelo tipo de inventário. É o custo usado na comparação dos caminhos e o valor que previdência e seguro precisam pagar, mais as despesas da família.</div>
+        </div>
+        <div class="field" id="campoMargem">
+          <label for="margemMercado">Margem de mercado</label>
+          <div class="row-input"><input type="number" id="margemMercado" value="5" min="0" max="49" step="0.5"><span class="suffix">% do patrimônio</span></div>
+          <div class="hint">Somada à conta pela lei: avaliações, contador, atrasos e imprevistos. Com 5%, um patrimônio de R$ 10 milhões em MT chega aos 18% observados no mercado.</div>
+        </div>
+        <div class="field" id="campoMeta" hidden>
+          <label for="meta">Percentual fixo</label>
           <div class="row-input"><input type="number" id="meta" value="18" min="1" max="99" step="0.5"><span class="suffix">% do patrimônio</span></div>
-          <div class="hint" id="hintMeta">Média observada em MT e MS: 18% do que vai a inventário (ITCMD, advogado, cartório, contador e trâmites). É o custo usado na comparação dos caminhos e o valor que previdência e seguro precisam pagar, mais as despesas da família.</div>
+          <div class="hint">O mesmo percentual para qualquer patrimônio, estado e tipo de inventário.</div>
         </div>
         <div class="field">
           <label for="taxaAdm">Taxa de administração da previdência</label>
@@ -317,6 +337,7 @@
         <div class="field"><label for="escPct">Escritura em cartório</label><div class="row-input"><input type="number" id="escPct" value="0.5" step="0.1"><span class="suffix">% (R$ 1,5 a 20 mil)</span></div></div>
         <div class="field"><label for="custasPct">Custas judiciais</label><div class="row-input"><input type="number" id="custasPct" value="1.5" step="0.1"><span class="suffix">%</span></div></div>
         <div class="field"><label for="regPct">Registro dos imóveis</label><div class="row-input"><input type="number" id="regPct" value="0.4" step="0.1"><span class="suffix">% dos imóveis</span></div></div>
+        <div class="field"><label for="regMin">Registro: mínimo por imóvel <span class="opcional">(opcional)</span></label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="regMin" class="money" value="0,00"></div><div class="hint">Cada matrícula é um registro no cartório de imóveis. Use a tabela de emolumentos do estado.</div></div>
         <div class="field"><label for="certidoes">Certidões</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="certidoes" class="money" value="1.000,00"></div></div>
         <div class="field"><label for="multa">Multa por atraso <span class="opcional">(opcional)</span></label><div class="row-input"><input type="number" id="multa" value="0" min="0" step="1"><span class="suffix">% do imposto</span></div><div class="hint" id="hintMulta"></div></div>
       </div>
@@ -356,6 +377,11 @@
         <div class="field"><label for="wlParcela">Parcela mensal</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlParcela" class="money" value="637,15"></div><div class="hint">Para cada R$ 100 mil de capital, na idade da cotação base. Corrigida pelo IPCA por 10 anos.</div></div>
         <div class="field"><label for="wlBasica">… dos quais cobertura básica</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlBasica" class="money" value="397,23"></div><div class="hint">Forma a reserva (valor resgatável).</div></div>
         <div class="field"><label for="wlGanho">Ganho real atuarial</label><div class="row-input"><input type="number" id="wlGanho" value="2.5" step="0.1"><span class="suffix">% a.a. + IPCA</span></div></div>
+      </div>
+      <h3 class="mini-title">Cotação deste cooperado <span class="opcional">(opcional)</span></h3>
+      <div class="grid">
+        <div class="field"><label for="wlCotCapital">Capital cotado</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlCotCapital" class="money" value="0,00"></div></div>
+        <div class="field"><label for="wlCotParcela">Parcela cotada</label><div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="wlCotParcela" class="money" value="0,00"><span class="suffix">/mês</span></div><div class="hint" id="hintWlCot">Com os dois preenchidos, a cotação real vale no lugar da estimativa por idade e sexo.</div></div>
       </div>
     </section>
 
@@ -440,7 +466,7 @@
         <h3>Como o cálculo funciona</h3>
         <ul>
           <li><b>Regra de recomendação:</b> vence a combinação que paga o custo esperado do inventário (e as despesas da família) já no primeiro ano, cabe no orçamento (sobra, aplicações e, se preciso, um valor à parte dentro do limite da renda) e entrega mais à família na expectativa de vida, em R$ de hoje. Diferença menor que a margem de empate favorece quem não pede dinheiro à parte e, depois, o mais simples.</li>
-          <li><b>Valor que chega à família:</b> tudo o que a família recebe (bens, previdência líquida de IR, capital do seguro) menos o custo esperado do inventário (18% do que vai a inventário, também no inventário futuro do cônjuge), os custos do caminho, o dinheiro pago à parte e o IR latente das aplicações. Os custos saem das aplicações e deixam de render; tudo é deflacionado pelo IPCA.</li>
+          <li><b>Valor que chega à família:</b> tudo o que a família recebe (bens, previdência líquida de IR, capital do seguro) menos o custo esperado do inventário (conta pela lei + margem de mercado, ou o percentual fixo escolhido, sobre o que vai a inventário, também no inventário futuro do cônjuge), os custos do caminho, o dinheiro pago à parte e o IR latente das aplicações. Os custos saem das aplicações e deixam de render; tudo é deflacionado pelo IPCA.</li>
           <li><b>Três momentos:</b> falecimento no próximo ano, em 10 anos e na expectativa de vida pela Tábua Completa de Mortalidade do IBGE (2024).</li>
           <li><b>Conferência do inventário:</b> ITCMD pela tabela do estado sobre o quinhão de cada herdeiro, honorários, escritura ou custas, registro, certidões e multa opcional. <b>Previdência e seguro</b> não entram no inventário nem pagam ITCMD (LC 227/2026, art. 150, III); a previdência paga IR regressivo sobre o rendimento; a indenização do seguro é isenta.</li>
           <li><b>Dimensionamento:</b> previdência e seguro são o menor valor que paga o custo esperado do inventário e as despesas da família em todos os anos até a expectativa de vida. Quando as aplicações não bastam para a previdência, o seguro cobre o restante.</li>

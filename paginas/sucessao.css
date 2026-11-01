@@ -191,7 +191,7 @@ ul.alertas b{color:var(--ink);}
 .arquivo-bar .hint.ok{color:var(--teal);}
 .arquivo-bar .hint.erro{color:var(--red);}
 /* campos mostrados conforme o regime de bens (o atributo hidden vence o display dos componentes) */
-#step-1 [hidden]{display:none !important;}
+#step-1 [hidden], #step-2 .field[hidden]{display:none !important;}
 /* quatro quadros do custo de não planejar: pergunta, valor, explicação, visual e conta */
 .q-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:18px;}
 @media(max-width:760px){.q-grid{grid-template-columns:1fr;}}
