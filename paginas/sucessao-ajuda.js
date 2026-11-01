@@ -1,5 +1,10 @@
 /* Planejamento Sucessório — textos de ajuda (botões "?", dicas das etapas e guia "Como usar").
  * Só textos: o componente fica em assets/ajuda.js. Não altera nenhum cálculo. */
+/* Composição do custo do inventário: mostra ao cliente de onde vem o custo e por que usamos a média de mercado. */
+const COMPOSICAO_INVENTARIO = '**De onde vem o custo do inventário** (referências de mercado; variam por estado e por caso):\n\n' +
+  '| Componente | Faixa usual | Base |\n| ITCMD | 1% a 8% | Lei de cada estado; teto de 8% do Senado |\n| Honorários do advogado | 5% a 10% | Tabelas das seccionais da OAB |\n| Custas, cartório e registro | 1% a 2% | Escritura ou custas, registro, certidões |\n| Avaliações, contador, multas e atrasos | Varia | Depende do caso e do tempo |\n| **Soma dos componentes** | **Muitas vezes acima de 15%** | |' +
+  '\n\n**Por que 18%:** somar componente por componente costuma subestimar o custo, porque deixa de fora avaliações, multas, atrasos e imprevistos. Por isso a comparação usa a **média observada no mercado de MT e MS: 18%** do que vai a inventário. A conta item por item aparece no quadro 2 como conferência.';
+
 Ajuda.iniciar({
   guia: {
     titulo: 'Como usar o Planejamento Sucessório',
@@ -35,9 +40,9 @@ Ajuda.iniciar({
     'Custos do inventário': 'Referências de mercado para a conferência item por item: honorários (tabela da OAB), escritura ou custas, registro, certidões e multa. Ajuste ao orçamento do advogado.',
     'Holding': 'Custos de abrir e manter a holding: jurídico, cartório, ITBI, laudo por doação e contabilidade. Padrões de mercado; ajuste ao orçamento do advogado e do contador.',
     'Doação direta com usufruto': 'Os pais doam os bens aos filhos em vida e ficam com o usufruto (o uso e a renda) até o falecimento. Paga ITCMD e escritura agora, mas evita o inventário desses bens.',
-    'Whole life': 'Seguro de vida vitalício: paga um capital aos beneficiários no falecimento, sem inventário e sem IR, para cobrir o custo do inventário. A parcela vem da cotação Sicoob e é ajustada pela idade e pelo sexo do cooperado.',
+    'Whole life': 'Seguro de vida vitalício: paga um capital aos beneficiários no falecimento, sem inventário e sem IR, para cobrir o custo do inventário. A parcela vem da cotação base e é ajustada pela idade e pelo sexo do cooperado.',
     'Offshore': 'Empresa no exterior para bens fora do Brasil. Só entra na análise quando os bens no exterior passam do limite informado. Custos são estimativas: confirme com o prestador.',
-    'O custo de não planejar': 'Se o falecimento fosse hoje, sem planejamento: quanto iria a inventário, quanto custaria, quanto tempo levaria e se a família teria dinheiro para pagar. O quadro de detalhe mostra o custo item por item.',
+    'O custo de não planejar': 'Se o falecimento fosse hoje, sem planejamento: quanto iria a inventário, quanto custaria, quanto tempo levaria e se a família teria dinheiro para pagar. O quadro de detalhe mostra o custo item por item.\n\n' + COMPOSICAO_INVENTARIO,
     'A família tem dinheiro para o inventário em todos os anos?': 'Ano a ano, compara o que a família teria em dinheiro (previdência, seguro, aplicações) com o custo do inventário e as despesas da família naquele ano.',
     'Whole life: a parcela cabe? O prêmio é bom?': 'A parcela como % da renda, o total desembolsado, quanto o seguro paga e a idade a partir da qual ele vale mais do que aplicar as mesmas parcelas.',
     'Aluguéis: pessoa física × holding': 'O imposto anual sobre os aluguéis nos próximos 10 anos em cada caminho, já com a transição do IBS e da CBS. Mostra se e quando a holding compensa nesse ponto.',
@@ -58,6 +63,7 @@ Ajuda.iniciar({
     sucessaoCasal: 'Inclui o segundo inventário: quando o cônjuge falecer, a meação dele também vai aos filhos e paga um novo inventário. Doação e holding evitam os dois para os bens transferidos.',
     tipoInv: '**Em cartório:** herdeiros maiores e de acordo; mais rápido e barato.\n\n**Judicial:** quando há menor, incapaz ou desacordo.\n\n**Com conflito:** disputa entre herdeiros; mais longo e caro. Muda os meses de despesas a cobrir.',
     despesaFamilia: 'Quanto a família gasta por mês para viver. Entra no dinheiro que ela precisa ter enquanto os bens estão travados no inventário.',
+    custoBens: 'O que os bens custam por mês mesmo travados no inventário: IPTU, ITR das fazendas, condomínio, manutenção, seguros e funcionários das propriedades. O espólio continua pagando, e as contas do falecido ficam bloqueadas.\n\nSoma às despesas da família, pelos mesmos meses, no dinheiro que a família precisa ter.',
     mesesSustento: 'Por quantos meses as despesas precisam estar cobertas. Padrão pelo tipo de inventário: 3 em cartório, 24 judicial e 36 com conflito.',
     sinIncapaz: 'Marque se algum herdeiro é menor de idade ou incapaz. Gera alertas e passos no plano (tutor no testamento, regras do inventário em cartório).',
     sinConflito: 'Marque se há risco de briga entre herdeiros. Gera alertas sobre testamento e governança; não muda os números.',
@@ -79,7 +85,7 @@ Ajuda.iniciar({
     nResid: 'Quantos dos alugados são residenciais. Têm redutor social no IBS e na CBS.',
     rentab: 'A rentabilidade nominal ao ano das aplicações, previdência e bens no exterior. Já vem do cenário escolhido.',
     ipca: 'A inflação média prevista. Corrige imóveis e empresas e traz os resultados para reais de hoje.',
-    meta: 'O custo médio de todo o inventário (ITCMD, advogado, cartório, contador e trâmites), observado em MT e MS: 18% do que vai a inventário. É o custo usado na comparação e o valor que previdência e seguro precisam pagar.\n\nPara outros estados, confirme se a média vale.',
+    meta: 'O custo médio de todo o inventário (ITCMD, advogado, cartório, contador e trâmites), observado em MT e MS: 18% do que vai a inventário. É o custo usado na comparação e o valor que previdência e seguro precisam pagar.\n\n' + COMPOSICAO_INVENTARIO + '\n\nPara outros estados, confirme se a média vale.',
     taxaAdm: 'A taxa de administração da previdência ao ano. Só é descontada se você marcar que a rentabilidade informada é bruta.',
     rentBruta: 'Marque se a rentabilidade acima é antes da taxa de administração. O app desconta a taxa da previdência.',
     irAplic: 'O IR que os herdeiros pagam ao resgatar as aplicações, em % do ganho. Use 0% se for LCA.',
@@ -108,7 +114,7 @@ Ajuda.iniciar({
     dCusto: 'Escritura e registro da doação com usufruto, em % do valor dos imóveis doados.',
     wlSexoRef: 'O sexo do segurado na cotação usada como base para a parcela.',
     wlTabua: 'Tábua de mortalidade da SUSEP usada para ajustar a parcela pela idade. Use a v.2021 se a cotação for anterior a julho de 2026.',
-    wlIdadeRef: 'A idade do segurado na cotação base (na proposta Sicoob de referência, 48 anos).',
+    wlIdadeRef: 'A idade do segurado na cotação base (padrão: 48 anos).',
     wlAjustar: 'Ajusta a parcela da cotação base para a idade e o sexo do cooperado pela tábua BR-EMS. Desmarque se a cotação já for do próprio cooperado.',
     wlParcela: 'A parcela mensal para cada R$ 100 mil de capital segurado, na cotação base. É corrigida pelo IPCA e paga por 10 anos.',
     wlBasica: 'A parte da parcela da cobertura básica, que forma a reserva (o valor que pode ser resgatado em vida).',

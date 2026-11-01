@@ -9,6 +9,7 @@
  *   topicos: { 'Texto do título' ou '#seletor': texto }                     → "?" no título, bloco ou indicador
  *
  * Textos: string simples; "\n\n" separa parágrafos e **trecho** vira negrito.
+ * Um bloco em que toda linha começa com "|" vira tabela ("| a | b |"); a primeira linha é o cabeçalho.
  * Os textos são fixos, escritos no código — nunca vêm do usuário.
  * Só apresentação: não altera nenhum cálculo nem lê valores dos campos.
  */
@@ -34,8 +35,17 @@
     });
   }
   /** texto → HTML: parágrafos e negrito, com o restante escapado */
+  function linha(t) { return escapar(t.trim()).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
   function formatar(texto) {
     return String(texto).split(/\n\s*\n/).map(function (p) {
+      var linhas = p.trim().split('\n');
+      // bloco em que toda linha começa com "|" vira tabela; a primeira linha é o cabeçalho
+      if (linhas.every(function (l) { return /^\s*\|/.test(l); })) {
+        var cel = function (l) { return l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|'); };
+        var cab = cel(linhas[0]).map(function (c) { return '<th>' + linha(c) + '</th>'; }).join('');
+        var corpo = linhas.slice(1).map(function (l) { return '<tr>' + cel(l).map(function (c) { return '<td>' + linha(c) + '</td>'; }).join('') + '</tr>'; }).join('');
+        return '<table class="ajuda-tab"><thead><tr>' + cab + '</tr></thead><tbody>' + corpo + '</tbody></table>';
+      }
       return '<p>' + escapar(p.trim()).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>') + '</p>';
     }).join('');
   }
@@ -67,7 +77,7 @@
   function posicionar(btn) {
     var r = btn.getBoundingClientRect();
     var vw = document.documentElement.clientWidth;
-    var largura = Math.min(320, vw - 24);
+    var largura = Math.min(pop.querySelector('.ajuda-tab') ? 460 : 320, vw - 24);   // mais largo quando há tabela
     pop.style.width = largura + 'px';
     var esq = Math.min(Math.max(12, r.left + r.width / 2 - largura / 2), vw - largura - 12);
     var alto = pop.offsetHeight;

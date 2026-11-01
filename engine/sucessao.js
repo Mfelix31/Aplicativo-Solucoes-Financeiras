@@ -382,6 +382,9 @@
     return { regime: reg, meacaoPct: meacao, conjugeHerdeiro: true, fracConjuge: conj, n,
       quinhoes: Array.from({ length: n }, () => desc).concat([conj]) };
   }
+  /** o que precisa ser pago por mês enquanto os bens estão travados: despesas da família + custos dos bens
+   (IPTU, ITR, condomínio, manutenção, seguros dos imóveis), em R$ de hoje */
+  const mensalTravado = e => (e.sustento.despesaMensal || 0) + (e.sustento.custoBensMensal || 0);
   /** Meses de despesas da família cobertos pela liquidez enquanto o inventário corre (padrão por tipo). */
   const MESES_SUSTENTO = { cartorio: 3, judicial: 24, litigio: 36 };
   /** acima disso, a média de 18% pode exagerar o custo (honorários e cartório negociados ou com teto) */
@@ -451,7 +454,7 @@
     const cj = Object.assign({ regime: 'sem', pctComuns: 1, ascendenteComum: true }, e.conjuge || {});
     const part = partilha({ herdeiros: e.herdeiros === undefined ? 2 : e.herdeiros, meacaoPct: e.meacaoPct, regime: cj.regime,
       pctComuns: cj.pctComuns, ascendenteComum: cj.ascendenteComum });
-    const sus = Object.assign({ despesaMensal: 0, meses: null }, e.sustento || {});
+    const sus = Object.assign({ despesaMensal: 0, custoBensMensal: 0, meses: null }, e.sustento || {});
     const pat = patrimonioDeBens(e);
     if (typeof sus.meses !== 'number' || !(sus.meses >= 0)) sus.meses = MESES_SUSTENTO[tipo] || 0;   // null >= 0 é true em JS
     return Object.assign({
@@ -596,7 +599,7 @@
       const previdenciaLiquida = prevV + prevN - irPrevV - irPrevN;
       const seguro = (e.seguroExistente || 0) + capitalSeguro(C, t, ipca, wl.ganhoReal);
       const irLatente = pr.irAplicacoes * Math.max(0, aplic - Math.max(0, aplicBase));
-      const sustento = e.sustento.despesaMensal * e.sustento.meses * Math.pow(1 + ipca, t);
+      const sustento = mensalTravado(e) * e.sustento.meses * Math.pow(1 + ipca, t);
       const meta = s * monte + sustento;
       const liquidez = previdenciaLiquida + seguro;
       // sucessão do casal: a meação do cônjuge também passa aos filhos, num 2º inventário (simplificação: mesma data,
@@ -662,7 +665,7 @@
   /** Dimensiona as quatro variantes de liquidez para uma estrutura. */
   function variantesLiquidez(e, estr, H, ate) {
     const base = CFG_ESTR[estr];
-    const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + e.sustento.despesaMensal * e.sustento.meses) * 2);
+    const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + mensalTravado(e) * e.sustento.meses) * 2);
     const custo0 = simular(e, Object.assign({}, base, { X: 0, C: 0 }), 1).custoEstruturacao;
     const disp = Math.max(0, e.aplicacoes - custo0);
     const Xp = menorQueCobre(e, base, 'X', disp, H, ate);
@@ -757,13 +760,16 @@
     return {
       ok: true, entrada: e, Texp, H, hipoteses, caminhos, recomendacao: rec, estabilidade,
       base: { custoHoje, metaInventarioHoje: e.premissas.metaLiquidez * monte0,
-        sustentoHoje: e.sustento.despesaMensal * e.sustento.meses,
+        sustentoHoje: mensalTravado(e) * e.sustento.meses,
+        sustentoFamiliaHoje: e.sustento.despesaMensal * e.sustento.meses,
+        custoBensHoje: e.sustento.custoBensMensal * e.sustento.meses,
+        mesesTravados: e.sustento.meses,
         conjugeHoje: e.sucessaoCasal && e.meacaoPct > 0 ? { total: e.premissas.metaLiquidez * monte0 * e.meacaoPct,
           conferencia: custoInventario({ monte: monte0 * e.meacaoPct, imoveis: e.imoveis * e.meacaoPct, meacaoPct: 0, herdeiros: e.herdeiros,
             partes: partes0.map(p => ({ uf: p.uf, valor: p.valor * e.meacaoPct })),
             uf: e.uf, regime: e.regime, tipo: e.tipoInventario, custos: e.custos }) } : null,
         patrimonioGrande: monte0 >= LIMITE_PATRIMONIO_GRANDE, limitePatrimonioGrande: LIMITE_PATRIMONIO_GRANDE,
-        metaHoje: e.premissas.metaLiquidez * monte0 + e.sustento.despesaMensal * e.sustento.meses,
+        metaHoje: e.premissas.metaLiquidez * monte0 + mensalTravado(e) * e.sustento.meses,
         regimes, anoHoje: hoje,
         heranca: custoHoje.heranca, legitima: custoHoje.heranca / 2, disponivel: custoHoje.heranca / 2,
         meacao: monte0 * e.meacaoPct },
@@ -887,6 +893,7 @@
     if (!(e.sobraMensal >= 0)) erros.push('A sobra mensal não pode ser negativa.');
     if (['vgbl', 'pgbl'].indexOf(e.previdenciaTipo) < 0) erros.push('Tipo de previdência desconhecido.');
     if (!(e.sustento.despesaMensal >= 0) || !(e.sustento.meses >= 0 && e.sustento.meses <= 120)) erros.push('Despesas da família: valor não negativo e até 120 meses.');
+    if (!(e.sustento.custoBensMensal >= 0)) erros.push('Custos mensais dos bens: valor não negativo.');
     const pr = e.premissas;
     if (!(pr.rentabilidade > -0.5 && pr.rentabilidade < 1)) erros.push('Rentabilidade fora do intervalo aceito.');
     if (!(pr.metaLiquidez > 0 && pr.metaLiquidez < 1)) erros.push('O custo esperado do inventário precisa estar entre 0% e 100%.');

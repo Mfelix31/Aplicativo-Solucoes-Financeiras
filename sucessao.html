@@ -106,6 +106,11 @@
           <div class="hint">Para a família viver enquanto os bens estão travados no inventário.</div>
         </div>
         <div class="field">
+          <label for="custoBens">Custos mensais dos bens</label>
+          <div class="row-input"><span class="prefix">R$</span><input type="text" inputmode="decimal" id="custoBens" class="money" value="0,00"><span class="suffix">/mês</span></div>
+          <div class="hint">IPTU, ITR, condomínio, manutenção e seguros dos imóveis e fazendas, que continuam vencendo com os bens travados.</div>
+        </div>
+        <div class="field">
           <label for="mesesSustento">Meses a cobrir</label>
           <div class="row-input"><input type="number" id="mesesSustento" value="3" min="0" max="120" step="1"><span class="suffix">meses</span></div>
           <div class="hint" id="hintSustento"></div>
@@ -358,6 +363,7 @@
     <div id="resultados">
       <div class="warn-box"><span aria-hidden="true">⚠️</span><span>Esta é uma <strong>simulação</strong> com os parâmetros informados. Leis, alíquotas, custos e rentabilidades mudam; o resultado real pode ser diferente. Não substitui a análise de advogado, contador ou corretor de seguros, nem é recomendação de investimento.</span></div>
 
+      <section class="mordida" id="mordida" aria-labelledby="mordidaTit"></section>
       <section class="sol" id="verdict" aria-label="Solução recomendada"></section>
       <div class="destaques" id="destaques"></div>
 

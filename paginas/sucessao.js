@@ -105,7 +105,7 @@ function lerEntradas(){
   return {
     idade: num('idade'), uf: $('uf').value, herdeiros: num('herdeiros'), tipoInventario: $('tipoInv').value,
     conjuge: { regime: $('regimeBens').value, pctComuns: pctCampo('pctComuns'), ascendenteComum: $('ascComum').checked },
-    sustento: { despesaMensal: money('despesaFamilia'), meses: num('mesesSustento') },
+    sustento: { despesaMensal: money('despesaFamilia'), custoBensMensal: money('custoBens'), meses: num('mesesSustento') },
     sobraMensal: money('sobraMensal'), sucessaoCasal: $('sucessaoCasal').checked,
     regime: seg.regime,
     bens: lerBens(), aplicacoes: money('aplicacoes'), empresa: money('empresa'), exterior: money('exterior'),
@@ -192,7 +192,7 @@ function atualizarDicas(){
   const tipo = $('tipoInv').value;
   if(!mesesTocado) $('mesesSustento').value = E.MESES_SUSTENTO[tipo];
   $('hintSustento').textContent = 'Padrão: 3 meses em cartório, 24 no judicial, 36 com conflito. ' +
-    (money('despesaFamilia') > 0 && isFinite(num('mesesSustento')) ? 'Soma ' + fmtBRL0(money('despesaFamilia') * num('mesesSustento')) + ' ao que a família precisa ter em dinheiro (R$ de hoje).' : '');
+    ((money('despesaFamilia') + money('custoBens')) > 0 && isFinite(num('mesesSustento')) ? 'Soma ' + fmtBRL0((money('despesaFamilia') + money('custoBens')) * num('mesesSustento')) + ' ao que a família precisa ter em dinheiro (R$ de hoje).' : '');
   // whole life pela idade
   const wlRef = num('wlIdadeRef');
   if($('wlAjustar').checked && isFinite(idade) && isFinite(wlRef) && money('wlParcela') > 0){
@@ -271,7 +271,7 @@ function componentes(c, r){
 function motivos(v, r){
   const e = r.entrada, rec = r.recomendacao, inv = r.caminhos.find(c => c.id === 'inventario'), out = [];
   const nTest = r.caminhos.length;
-  if(v.protegeJa) out.push('<b>Protege desde já:</b> a família recebe ' + fmtBRL0(v.em.proximo.liquidez) + ' em dias, o suficiente para pagar todo o inventário' + (e.sustento.despesaMensal > 0 ? ' e as despesas da família' : '') + ' sem vender bens.');
+  if(v.protegeJa) out.push('<b>Protege desde já:</b> a família recebe ' + fmtBRL0(v.em.proximo.liquidez) + ' em dias, o suficiente para pagar todo o inventário' + (r.base.sustentoHoje > 0 ? ' e as despesas enquanto os bens estão travados' : '') + ' sem vender bens.');
   else out.push('<b>Cobre ' + pct0(v.coberturaAno1) + ' do inventário no 1º ano</b>, a maior cobertura possível com o que foi informado.');
   const outros = rec.ordem.filter(id => id !== v.id).map(porId).filter(Boolean);
   if(rec.nivel === 2) out.push('<b>Vale pagar uma parte por fora:</b> pede até ' + fmtBRL0(v.pagamento.externoMensalMax) + '/mês além da sobra e das aplicações' + (e.rendaMensal > 0 ? ' (' + pct0(v.pagamento.externoMensalMax / e.rendaMensal) + ' da renda, dentro do limite de ' + pct0(e.premissas.comprometimentoRenda) + ')' : '') + '; mesmo descontando esse dinheiro, entrega mais à família' + (rec.alternativaSemAParte ? ' (' + fmtBRL0(rec.alternativaSemAParte.perda) + ' a mais que a melhor opção sem pagar à parte)' : '') + '.');
@@ -418,6 +418,34 @@ const NIVEL = {
   4: { cls: 'no', t: 'Nenhuma combinação cobre todo o inventário desde já' }
 };
 
+/* "Se nada for feito": custo, tempo e dinheiro necessário, num só painel no topo da análise */
+function dadosMordida(r){
+  const b = r.base, e = r.entrada;
+  const total = e.premissas.metaLiquidez > 0 ? b.metaInventarioHoje / e.premissas.metaLiquidez : 0;   // o que vai a inventário
+  const conj = b.conjugeHoje ? b.conjugeHoje.total : 0;
+  return { custo: b.metaInventarioHoje, conj, pct: e.premissas.metaLiquidez, total, prazo: PRAZO_INV[e.tipoInventario],
+    tipo: ({cartorio:'em cartório', judicial:'na Justiça', litigio:'na Justiça, com conflito'})[e.tipoInventario],
+    dinheiro: b.metaHoje, travado: b.sustentoHoje, meses: e.sustento.meses };
+}
+function renderMordida(){
+  const m = dadosMordida(ultimo.r);
+  const item = (rot, val, txt) => '<div class="mo-item"><span class="mo-rot">' + rot + '</span><span class="mo-v">' + val + '</span><span class="mo-t">' + txt + '</span></div>';
+  $('mordida').innerHTML = '<h3 id="mordidaTit">Se nada for feito</h3>' +
+    '<p class="mo-sub">Falecimento hoje, sem planejamento: ' + fmtBRL0(m.total) + ' vão a inventário ' + m.tipo + '.</p>' +
+    '<div class="mo-grid">' +
+    item('A família perde', fmtBRL0(m.custo + m.conj), pct0(m.pct) + ' do que vai a inventário (média de mercado)' + (m.conj > 0 ? ', mais ' + fmtBRL0(m.conj) + ' no inventário futuro do cônjuge' : '') + '.') +
+    item('Os bens ficam travados', m.prazo, 'Sem poder vender nem dividir, e com as contas do falecido bloqueadas.') +
+    item('Precisa ter em dinheiro', fmtBRL0(m.dinheiro), 'Para pagar o inventário' + (m.travado > 0 ? ' e ' + m.meses + ' meses de despesas e custos dos bens' : '') + ' sem vender bens às pressas.') +
+    '</div>';
+}
+function pdfMordida(r){
+  const m = dadosMordida(r), tr = (k, val) => '<tr><td class="k">' + k + '</td><td class="v">' + val + '</td></tr>';
+  return '<div class="bloco"><h2>Se nada for feito</h2><table>' +
+    tr('A família perde', fmtBRL0(m.custo + m.conj) + ' (' + pct0(m.pct) + ' do que vai a inventário' + (m.conj > 0 ? ', incluindo ' + fmtBRL0(m.conj) + ' no inventário do cônjuge' : '') + ')') +
+    tr('Os bens ficam travados', m.prazo + ' (inventário ' + m.tipo + ')') +
+    tr('Precisa ter em dinheiro', fmtBRL0(m.dinheiro)) + '</table></div>';
+}
+
 function renderVerdict(){
   const {r} = ultimo, rec = r.recomendacao, v = venc(r), e = r.entrada, inv = r.caminhos.find(c => c.id === 'inventario');
   const comp = componentes(v, r), pg = comoPagar(v, r), ps = passos(v, r);
@@ -474,7 +502,7 @@ function renderDestaques(){
 
 function renderBase(){
   const {r} = ultimo, b = r.base, e = r.entrada;
-  const total = e.imoveis + e.aplicacoes + e.empresa + e.exterior;
+  const total = e.imoveis + e.aplicacoes + e.empresa + e.exterior + (e.veiculos || 0);
   $('baseSub').innerHTML = 'Quatro respostas para a pergunta: <b>se o falecimento fosse hoje, sem planejamento nenhum, o que aconteceria?</b> ' + fmtBRL0(total) + ' iriam a inventário em ' + T.ESTADOS[e.uf].nome + ', ' + ({cartorio:'em cartório', judicial:'na Justiça', litigio:'na Justiça, com conflito'})[e.tipoInventario] + '.';
   const pat = total, mil = v => fmtCurto(v);
   const barra = partes => '<div class="qbar">' + partes.filter(x => x.v > 0).map(x => '<span class="' + x.c + '" style="--w:' + Math.max(1.5, x.v * 100).toFixed(2) + '%" title="' + esc(x.t) + '"></span>').join('') + '</div>';
@@ -485,14 +513,16 @@ function renderBase(){
     '<p class="q-c"><b>Como foi calculado:</b> ' + conta + '</p></div>';
   // 1. quanto a família precisa ter em dinheiro
   const c1 = card(1, 'Quanto a família precisa ter em dinheiro logo após o falecimento?', fmtBRL0(b.metaHoje),
-    'É o <b>custo esperado do inventário</b>' + (b.sustentoHoje > 0 ? ' mais as despesas da família enquanto ele corre' : '') + ': o dinheiro para pagar tudo sem vender bens' +
+    'É o <b>custo esperado do inventário</b>' + (b.sustentoHoje > 0 ? ' mais o que vence por mês enquanto ele corre (família e bens)' : '') + ': o dinheiro para pagar tudo sem vender bens' +
       '. Previdência e whole life são dimensionados para pagar esse valor sozinhos.',
-    barra([{ c: 'p-meta', v: b.metaInventarioHoje / pat, t: 'Inventário' }, { c: 'p-sus', v: b.sustentoHoje / pat, t: 'Sustento' }, { c: 'p-resto', v: Math.max(0, 1 - b.metaHoje / pat), t: 'Restante do patrimônio' }]) +
+    barra([{ c: 'p-meta', v: b.metaInventarioHoje / pat, t: 'Inventário' }, { c: 'p-sus', v: b.sustentoFamiliaHoje / pat, t: 'Família' }, { c: 'p-bens', v: b.custoBensHoje / pat, t: 'Custos dos bens' }, { c: 'p-resto', v: Math.max(0, 1 - b.metaHoje / pat), t: 'Restante do patrimônio' }]) +
     legenda([{ c: 'p-meta', t: 'custo esperado do inventário (' + pct0(e.premissas.metaLiquidez) + ')', v: fmtBRL0(b.metaInventarioHoje) },
-      { c: 'p-sus', t: e.sustento.meses + ' meses de despesas', v: fmtBRL0(b.sustentoHoje), mostra: b.sustentoHoje > 0 },
+      { c: 'p-sus', t: e.sustento.meses + ' meses de despesas da família', v: fmtBRL0(b.sustentoFamiliaHoje), mostra: b.sustentoFamiliaHoje > 0 },
+      { c: 'p-bens', t: e.sustento.meses + ' meses de custos dos bens', v: fmtBRL0(b.custoBensHoje), mostra: b.custoBensHoje > 0 },
       { c: 'p-resto', t: 'restante do patrimônio', v: fmtBRL0(Math.max(0, pat - b.metaHoje)) }]),
     pct0(e.premissas.metaLiquidez) + ' de ' + fmtBRL0(pat) + ' (média observada em MT e MS: ITCMD, advogado, cartório, contador e trâmites)' +
-      (b.sustentoHoje > 0 ? ' + ' + fmtBRL0(e.sustento.despesaMensal) + ' × ' + e.sustento.meses + ' meses' : '') + '.');
+      (b.sustentoFamiliaHoje > 0 ? ' + família ' + fmtBRL0(e.sustento.despesaMensal) + ' × ' + e.sustento.meses + ' meses' : '') +
+      (b.custoBensHoje > 0 ? ' + bens ' + fmtBRL0(e.sustento.custoBensMensal) + ' × ' + e.sustento.meses + ' meses' : '') + '.');
   // 2. quanto o inventário custaria pela conta item a item
   const folga = b.metaInventarioHoje - b.custoHoje.total;
   const c2 = card(2, 'Quanto o inventário custaria, item por item, pela lei e pelas tabelas?', fmtBRL0(b.custoHoje.total),
@@ -657,7 +687,7 @@ function renderFontes(){
 }
 
 function renderResultados(){
-  renderVerdict(); renderDestaques(); renderBase(); renderCards();
+  renderMordida(); renderVerdict(); renderDestaques(); renderBase(); renderCards();
   renderSeguro(); renderAluguel(); renderHolding(); renderAlertas(); renderFontes();
   renderSegGrafico(); desenharGrafico();
 }
@@ -682,7 +712,7 @@ function seriesGrafico(){
   const {r} = ultimo, c = r.caminhos.find(x => x.id === seg.grafico) || venc(r), idade = r.entrada.idade;
   const pts = f => [{ x: idade, y: f(null) }].filter(p => p.y !== null).concat(c.sim.anos.map(a => ({ x: idade + a.ano, y: f(a) })));
   const s = [
-    { nome: 'Custo esperado do inventário (' + pct0(r.entrada.premissas.metaLiquidez) + ')' + (r.entrada.sustento.despesaMensal > 0 ? ' + despesas da família' : ''), cor: cssVar('--l-meta'), dash: true, pontos: pts(a => a ? a.meta : null) },
+    { nome: 'Custo esperado do inventário (' + pct0(r.entrada.premissas.metaLiquidez) + ')' + (r.base.sustentoHoje > 0 ? ' + despesas com os bens travados' : ''), cor: cssVar('--l-meta'), dash: true, pontos: pts(a => a ? a.meta : null) },
     { nome: 'Previdência líquida de IR', cor: cssVar('--l-turq'), pontos: pts(a => a ? a.previdenciaLiquida : null) },
     { nome: 'Capital do seguro', cor: cssVar('--l-roxo'), pontos: pts(a => a ? a.seguro : null) },
     { nome: 'Liquidez total', cor: cssVar('--hl'), pontos: pts(a => a ? a.liquidez : null) }
@@ -740,6 +770,7 @@ function gerarPdf(){
     (e.sobraMensal > 0 ? tr('Sobra mensal investida', fmtBRL0(e.sobraMensal) + '/mês') : '') +
     (e.meacaoPct > 0 ? tr('Inventário do cônjuge', e.sucessaoCasal ? 'incluído (a meação também passa aos filhos)' : 'não incluído') : '') +
     (e.sustento.despesaMensal > 0 ? tr('Despesas da família incluídas', fmtBRL0(e.sustento.despesaMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
+    (e.sustento.custoBensMensal > 0 ? tr('Custos dos bens incluídos', fmtBRL0(e.sustento.custoBensMensal) + '/mês × ' + e.sustento.meses + ' meses') : '') +
     (e.bens || []).filter(x => x.valor > 0).map(x => tr(TIPO_BEM[x.tipo] + ' (' + x.uf + ')', (x.qtd ? x.qtd + ' · ' : '') + fmtBRL0(x.valor))).join('') +
     tr('Aplicações financeiras', fmtBRL0(e.aplicacoes)) +
     (e.empresa ? tr('Participações em empresas', fmtBRL0(e.empresa)) : '') + (e.exterior ? tr('Bens no exterior', fmtBRL0(e.exterior)) : '') +
@@ -751,7 +782,7 @@ function gerarPdf(){
       ['proximo','dez','expectativa'].map(h => '<td class="n">' + fmtBRL0(valorEm(c, h)) + '</td>').join('') +
       '<td class="n ' + (c.protegeJa ? 'ok' : 'no') + '">' + coberturaTxt(c.coberturaAno1) + (c.cabe === 'nao' ? ' · não cabe' : c.cabe === 'aParte' ? ' · à parte' : '') + '</td></tr>').join('') + '</table>';
   const b = r.base;
-  const inv = '<table>' + tr('Dinheiro necessário logo após o falecimento', fmtBRL0(b.metaHoje) + (b.sustentoHoje > 0 ? ' (custo esperado do inventário ' + fmtBRL0(b.metaInventarioHoje) + ' + família ' + fmtBRL0(b.sustentoHoje) + ')' : '')) +
+  const inv = '<table>' + tr('Dinheiro necessário logo após o falecimento', fmtBRL0(b.metaHoje) + (b.sustentoHoje > 0 ? ' (custo esperado do inventário ' + fmtBRL0(b.metaInventarioHoje) + ' + despesas com os bens travados ' + fmtBRL0(b.sustentoHoje) + ')' : '')) +
     tr('Herança · legítima · parte disponível', fmtBRL0(b.heranca) + ' · ' + fmtBRL0(b.legitima) + ' · ' + fmtBRL0(b.disponivel)) + tr('Estimativa por componentes (lei vigente)', fmtBRL0(b.regimes.vigente.total) + ' (' + pct1(b.regimes.vigente.pct) + ')') +
     tr('Com a adequação à reforma · estresse 16%', fmtBRL0(b.regimes.reforma.total) + ' · ' + fmtBRL0(b.regimes.estresse.total)) + '</table>';
   const destaques = [...$('destaques').querySelectorAll('h4, p, .big')].map(x => x.textContent.trim()).join(' ').replace(/\s+/g, ' ').trim();
@@ -762,7 +793,7 @@ function gerarPdf(){
   $('printArea').innerHTML =
     '<div class="pr-badge">SIMULAÇÃO — NÃO É CONSULTORIA JURÍDICA, TRIBUTÁRIA OU DE SEGUROS</div>' +
     '<h1>Planejamento Sucessório</h1><div class="pr-sub">Simulação gerada em ' + HOJE.toLocaleDateString('pt-BR') + ' · previdência × whole life × doação × holding' + (r.caminhos.some(c => c.offshore) ? ' × offshore' : '') + '</div>' +
-    pdfSolucao(r) + (destaques ? '<div class="bloco"><h2>Destaques</h2><p>' + esc(destaques) + '</p></div>' : '') +
+    pdfMordida(r) + pdfSolucao(r) + (destaques ? '<div class="bloco"><h2>Destaques</h2><p>' + esc(destaques) + '</p></div>' : '') +
     '<div class="bloco"><h2>Dados informados</h2><table>' + dados + '</table></div>' +
     '<div class="bloco"><h2>O custo de não planejar</h2>' + inv + '</div>' +
     '<div class="bloco"><h2>Valor que chega à família (R$ de hoje) por momento do falecimento</h2>' + comp + '<p class="pr-note">Expectativa de vida: ' + Math.round(e.idade + r.Texp) + ' anos (IBGE 2024). Só concorrem os caminhos que pagam o inventário desde o 1º ano.</p></div>' +

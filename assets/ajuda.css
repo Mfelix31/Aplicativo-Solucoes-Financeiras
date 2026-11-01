@@ -31,6 +31,11 @@ h2 .ajuda-btn, h3 .ajuda-btn{width:18px; height:18px; font-size:11.5px;}
 .ajuda-pop-tit{font-weight:700; font-size:13px; margin-bottom:6px;}
 .ajuda-pop-txt p{margin:0 0 8px; color:var(--ink-muted);}
 .ajuda-pop-txt strong{color:var(--ink);}
+.ajuda-tab{width:100%; border-collapse:collapse; font-size:12px; margin:2px 0 10px;}
+.ajuda-tab th, .ajuda-tab td{text-align:left; padding:5px 6px 5px 0; border-bottom:1px solid var(--line-soft); vertical-align:top; color:var(--ink-muted);}
+.ajuda-tab th{font-weight:700; color:var(--ink); border-bottom-color:var(--line);}
+.ajuda-tab td:nth-child(2){white-space:nowrap; color:var(--ink);}
+.ajuda-tab tr:last-child td{border-bottom:none;}
 .ajuda-pop-x{position:absolute; top:6px; right:6px; width:24px; height:24px; border:none; background:transparent; color:var(--ink-faint); font-size:18px; line-height:1; cursor:pointer; border-radius:4px;}
 .ajuda-pop-x:hover{color:var(--ink); background:var(--line-soft);}
 

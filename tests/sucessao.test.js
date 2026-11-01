@@ -309,6 +309,17 @@ test('sustento: meses de despesas somados à meta, com padrão por tipo de inven
   assert.equal(S.analisar(caso({ sustento: { despesaMensal: -1 } })).ok, false);
 });
 
+test('custos dos bens travados: somam às despesas da família pelos mesmos meses', () => {
+  const so = S.analisar(caso({ tipoInventario: 'judicial', sustento: { despesaMensal: 20000 } }));
+  const com = S.analisar(caso({ tipoInventario: 'judicial', sustento: { despesaMensal: 20000, custoBensMensal: 5000 } }));
+  perto(com.base.custoBensHoje, 5000 * 24, 1e-6);
+  perto(com.base.sustentoFamiliaHoje, 20000 * 24, 1e-6);
+  perto(com.base.sustentoHoje, 25000 * 24, 1e-6);
+  perto(com.base.metaHoje - so.base.metaHoje, 120000, 1e-6);
+  perto(com.caminhos.find(c => c.id === 'inventario').sim.anos[0].sustento, 600000 * 1.04, 1e-6);
+  assert.equal(S.analisar(caso({ sustento: { custoBensMensal: -1 } })).ok, false);
+});
+
 test('dados: todo estado tem lei, unidade, mês da unidade e mês da última revisão', () => {
   for (const [uf, e] of Object.entries(T.ESTADOS)) {
     assert.match(e.dataRef, /^\d{4}-\d{2}$/, uf);
