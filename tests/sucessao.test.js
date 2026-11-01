@@ -539,6 +539,19 @@ test('ganho de capital: faixas da Lei 13.259/2016 sobre o ganho de R$ 19 mi = R$
   assert.equal(S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, aplicacoes: 1e6 }).ganhoCapital, null);
 });
 
+/* ---------- rebanho (stress test MT, teste 21: gado entrava como terra) ---------- */
+test('rebanho: bem móvel, ITCMD no domicílio, fora da holding e da doação, acompanha o IPCA', () => {
+  const e = S.normalizar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'GO', qtd: 1, valor: 10e6 }, { tipo: 'rebanho', uf: 'GO', qtd: 1, valor: 4e6 }], aplicacoes: 1e6 });
+  assert.equal(e.rebanho, 4e6);
+  assert.equal(e.imoveis, 10e6);
+  assert.deepEqual(Object.keys(e.imoveisPorUF), ['GO']);
+  // na holding total, o rebanho continua no inventário: a diferença para o mesmo caso sem rebanho é o rebanho corrigido pelo IPCA
+  const semReb = S.normalizar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'GO', qtd: 1, valor: 10e6 }], aplicacoes: 1e6 });
+  perto(S.simular(e, { holding: 'total' }, 1).anos[0].monte - S.simular(semReb, { holding: 'total' }, 1).anos[0].monte, 4e6 * 1.04, 1e-6);
+  const r = S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'rebanho', uf: 'GO', qtd: 1, valor: 4e6 }], aplicacoes: 1e6 }, { semEstresse: true });
+  assert.deepEqual(Object.keys(r.base.custoHoje.itcmdPorUF), ['MT']);
+});
+
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */
 test('27 estados: tabelas válidas nos três regimes', () => {
   assert.equal(T.SIGLAS.length, 27);

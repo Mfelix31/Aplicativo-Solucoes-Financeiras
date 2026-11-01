@@ -442,27 +442,29 @@
   }
 
   /*
-   * Patrimônio por tipo e estado. `bens` = [{ tipo: 'urbano'|'terreno'|'fazenda'|'veiculo', uf, qtd, valor }].
+   * Patrimônio por tipo e estado. `bens` = [{ tipo: 'urbano'|'terreno'|'fazenda'|'veiculo'|'rebanho', uf, qtd, valor }].
+   * Rebanho (semoventes): bem móvel, paga ITCMD no domicílio, acompanha o IPCA e fica fora da holding e da doação simuladas.
    * Imóveis (urbano, terreno, fazenda) valorizam pelo IPCA e pagam ITCMD no estado onde ficam;
    * veículos depreciam (premissa) e, como bens móveis, pagam no estado de domicílio.
    * Sem `bens`, usa `imoveis`/`nImoveis` no estado de domicílio (compatível com as versões anteriores).
    */
   const TIPOS_IMOVEL = ['urbano', 'terreno', 'fazenda'];
-  const TIPOS_BEM = TIPOS_IMOVEL.concat(['veiculo']);
+  const TIPOS_BEM = TIPOS_IMOVEL.concat(['veiculo', 'rebanho']);
   function patrimonioDeBens(e) {
     const uf = e.uf || 'MT';
     if (!Array.isArray(e.bens)) {
       const v = Number(e.imoveis) || 0;   // sem limitar a zero: a validação recusa valor negativo
-      return { imoveis: v, nImoveis: e.nImoveis || 0, veiculos: Math.max(0, e.veiculos || 0), imoveisPorUF: v > 0 ? { [uf]: v } : {},
+      return { imoveis: v, nImoveis: e.nImoveis || 0, veiculos: Math.max(0, e.veiculos || 0), rebanho: Math.max(0, e.rebanho || 0), imoveisPorUF: v > 0 ? { [uf]: v } : {},
         imoveisPorTipo: { urbano: v, terreno: 0, fazenda: 0 }, bens: null };
     }
-    const out = { imoveis: 0, nImoveis: 0, veiculos: 0, imoveisPorUF: {}, imoveisPorTipo: { urbano: 0, terreno: 0, fazenda: 0 }, bens: [] };
+    const out = { imoveis: 0, nImoveis: 0, veiculos: 0, rebanho: 0, imoveisPorUF: {}, imoveisPorTipo: { urbano: 0, terreno: 0, fazenda: 0 }, bens: [] };
     e.bens.forEach(b => {
       const valor = Number(b.valor), qtd = Math.max(0, Math.round(Number(b.qtd) || 0));
       const item = { tipo: b.tipo, uf: b.uf || uf, qtd, valor };
       out.bens.push(item);
       if (!(valor > 0)) return;
       if (b.tipo === 'veiculo') { out.veiculos += valor; return; }
+      if (b.tipo === 'rebanho') { out.rebanho += valor; return; }
       if (TIPOS_IMOVEL.indexOf(b.tipo) < 0) return;
       out.imoveis += valor; out.nImoveis += qtd;
       out.imoveisPorUF[item.uf] = (out.imoveisPorUF[item.uf] || 0) + valor;
@@ -510,7 +512,7 @@
       doacaoCustoPct: 0.01, sobraMensal: 0, sucessaoCasal: true
     }, e, {
       premissas: pr, holding: h, conjuge: cj, partilha: part, meacaoPct: part.meacaoPct, sustento: sus,
-      imoveis: pat.imoveis, nImoveis: pat.nImoveis, veiculos: pat.veiculos, imoveisPorUF: pat.imoveisPorUF, imoveisPorTipo: pat.imoveisPorTipo, bens: pat.bens,
+      imoveis: pat.imoveis, nImoveis: pat.nImoveis, veiculos: pat.veiculos, rebanho: pat.rebanho, imoveisPorUF: pat.imoveisPorUF, imoveisPorTipo: pat.imoveisPorTipo, bens: pat.bens,
       custos: Object.assign({}, CUSTOS_PADRAO, e.custos || {}),
       wholeLife: wholeLifeDaIdade(e.idade === undefined ? 55 : e.idade, e.wholeLife),
       offshore: Object.assign({}, OFFSHORE_PADRAO, e.offshore || {}),
@@ -540,7 +542,7 @@
     const X = Math.max(0, cfg.X || 0), C = Math.max(0, cfg.C || 0);
     const P = !!cfg.P && pgblAtivo(e), pg = e.pgbl;
     const aportesPGBL = [];                  // um registro por aporte (ano, valor corrente): o IR regressivo conta o prazo de cada um
-    let imov = e.imoveis, emp = e.empresa, ext = e.exterior, veic = e.veiculos || 0;
+    let imov = e.imoveis, emp = e.empresa, ext = e.exterior, veic = e.veiculos || 0, reb = e.rebanho || 0;
     let aplic = e.aplicacoes, aplicBase = e.aplicacoes;
     // PGBL: o IR incide sobre todo o saldo (as contribuições foram deduzidas do IR); VGBL: só sobre o rendimento
     let prevV = e.previdencia, prevVBase = e.previdenciaTipo === 'pgbl' ? 0 : (e.previdenciaAportado === null ? e.previdencia : e.previdenciaAportado);
@@ -585,6 +587,7 @@
       imov *= 1 + ipca; emp *= 1 + ipca; ext *= 1 + r; prevV *= 1 + r; prevN *= 1 + r;
       aportesPGBL.forEach(a => { a.valor *= 1 + r; });
       veic *= 1 - Math.max(-1, Math.min(1, pr.depreciacaoVeiculos));
+      reb *= 1 + ipca;
       const rend = Math.max(0, aplic) * r;
       aplic += Math.max(0, aplic) * r;
       externoFV *= 1 + r;
@@ -639,7 +642,7 @@
       const cotasInv = cfg.holding ? integ() * (1 - doado) : 0;
       const imovInv = (cfg.holding || cfg.doaImoveis) ? 0 : imov;
       const empInv = (cfg.holding && hp.incluirEmpresa) ? 0 : emp;
-      const moveisInv = Math.max(0, empInv + cotasInv + aplic + ext + veic);
+      const moveisInv = Math.max(0, empInv + cotasInv + aplic + ext + veic + reb);
       // dívidas do espólio (R$ de hoje, corrigidas pelo IPCA): saem do monte antes do ITCMD e dos custos
       const divida = (e.dividas || 0) * Math.pow(1 + ipca, t);
       const liq = abaterDividas(partesITCMD(e, imovInv, moveisInv), Math.max(0, imovInv + moveisInv), divida);
@@ -733,7 +736,7 @@
   /** Dimensiona as quatro variantes de liquidez para uma estrutura. */
   function variantesLiquidez(e, estr, H, ate, extra) {
     const base = Object.assign({}, CFG_ESTR[estr], extra || {});
-    const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + mensalTravado(e) * e.sustento.meses) * 2);
+    const tetoC = Math.max(1e5, (e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + e.rebanho + mensalTravado(e) * e.sustento.meses) * 2);
     const custo0 = simular(e, Object.assign({}, base, { X: 0, C: 0 }), 1).custoEstruturacao;
     const disp = Math.max(0, e.aplicacoes - custo0);
     const Xp = menorQueCobre(e, base, 'X', disp, H, ate);
@@ -818,7 +821,7 @@
 
     const sem = caminhos.find(c => c.id === 'inventario');
     const hoje = sem.sim.anos[0];
-    const bruto0 = e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos;
+    const bruto0 = e.imoveis + e.aplicacoes + e.empresa + e.exterior + e.veiculos + e.rebanho;
     const liq0 = abaterDividas(partesITCMD(e, e.imoveis, bruto0 - e.imoveis), bruto0, e.dividas);
     const monte0 = liq0.monte, partes0 = liq0.partes;
     const custoHoje = custoInventario({ monte: monte0, imoveis: e.imoveis, partes: partes0,
@@ -912,7 +915,7 @@
       const dif = venc ? venc.em.expectativa.familiaReal - melhorH.em.expectativa.familiaReal : 0;
       if (venc && dif > 0) motivos.push({ id: 'numeros', diferenca: dif, vencedor: venc.id, holding: melhorH.id });
       if (!comparaveis.length) motivos.push({ id: 'caixa', externoMensalMax: melhorH.pagamento.externoMensalMax, externoHoje: melhorH.pagamento.externoHoje });
-      const total = e.imoveis + e.aplicacoes + e.previdencia + e.empresa + e.exterior + e.veiculos;
+      const total = e.imoveis + e.aplicacoes + e.previdencia + e.empresa + e.exterior + e.veiculos + e.rebanho;
       if (total > 0 && (e.aplicacoes + e.previdencia + e.exterior) / total >= 0.6) motivos.push({ id: 'financeiro' });
       if (e.nImoveis > 0 && e.nImoveis <= 2 && e.empresa === 0) motivos.push({ id: 'poucosImoveis', n: e.nImoveis });
       if ((e.aluguelMensal || 0) > 0) {
@@ -959,7 +962,7 @@
     if (!ITCMD.ESTADOS[e.uf]) erros.push('Escolha um dos estados disponíveis: MT, MS, RO ou PA.');
     if (!(e.idade >= 18 && e.idade <= 100)) erros.push('A idade precisa estar entre 18 e 100 anos.');
     if (!(e.herdeiros >= 1)) erros.push('Informe ao menos um herdeiro.');
-    const tot = e.imoveis + e.aplicacoes + e.previdencia + e.empresa + e.exterior + e.veiculos;
+    const tot = e.imoveis + e.aplicacoes + e.previdencia + e.empresa + e.exterior + e.veiculos + e.rebanho;
     if (e.bens) e.bens.forEach(b => {
       if (TIPOS_BEM.indexOf(b.tipo) < 0) erros.push('Tipo de bem desconhecido.');
       if (!ITCMD.ESTADOS[b.uf]) erros.push('Estado do bem desconhecido.');

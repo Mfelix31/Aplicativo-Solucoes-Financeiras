@@ -30,7 +30,7 @@ Ajuda.iniciar({
   topicos: {
     'A família': 'Quem herda e como. O regime de bens define a meação (a parte que já é do cônjuge) e se o cônjuge também é herdeiro; o tipo de inventário define prazo e custo.',
     'O patrimônio': 'Os bens a valor de mercado de hoje, que é a base do ITCMD (LC 227/2026). Previdência e seguro de vida ficam fora do inventário.',
-    'Imóveis, terrenos, fazendas e veículos': 'Um item por linha, com tipo, estado onde fica, quantidade e valor total. Imóveis, terrenos e fazendas valorizam pelo IPCA; veículos perdem valor e ficam fora da holding e da doação.',
+    'Imóveis, terrenos, fazendas, veículos e rebanho': 'Um item por linha, com tipo, estado onde fica, quantidade e valor total. Imóveis, terrenos e fazendas valorizam pelo IPCA; veículos perdem valor e ficam fora da holding e da doação. O rebanho (gado e outros animais) é bem móvel: paga ITCMD no estado de domicílio e acompanha a inflação.',
     'O que já existe fora do inventário': 'Previdência (VGBL/PGBL) e seguro de vida vão direto aos beneficiários, sem inventário e sem ITCMD. O que já existe reduz o que falta estruturar.',
     'Renda': 'Opcional, mas importante: a renda mostra se a parcela de um seguro cabe no orçamento, e os aluguéis permitem comparar o imposto na pessoa física e na holding.',
     'PGBL (dedução no imposto de renda)': 'Previdência em que o aporte é deduzido do IR, até 12% da renda bruta tributável. Fica fora do inventário e sem ITCMD (STF, Tema 1.214), como o VGBL. Quando a caixa está marcada, a ferramenta testa as combinações com e sem PGBL e mostra a melhor.',

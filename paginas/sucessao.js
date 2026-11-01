@@ -80,7 +80,7 @@ const LIMITE_MESES_TABELA = 6;   // tabela de ITCMD com referência mais antiga 
 /* =========================================================================
  * 3b. Lista de bens (tipo, estado onde fica, quantidade, valor)
  * ========================================================================= */
-const TIPO_BEM = { urbano: 'Imóvel urbano', terreno: 'Terreno', fazenda: 'Fazenda / imóvel rural', veiculo: 'Automóvel / veículo' };
+const TIPO_BEM = { urbano: 'Imóvel urbano', terreno: 'Terreno', fazenda: 'Fazenda / imóvel rural', veiculo: 'Automóvel / veículo', rebanho: 'Rebanho (gado e outros animais)' };
 const BENS_INICIAIS = [{ tipo: 'urbano', uf: 'MT', qtd: 3, valor: 2500000 }];
 const opcoesUF = sel => T.SIGLAS.map(uf => '<option value="' + uf + '"' + (uf === sel ? ' selected' : '') + '>' + esc(T.ESTADOS[uf].nome) + '</option>').join('');
 function linhaBem(b){
@@ -161,10 +161,10 @@ function atualizarDicas(){
   $('campoMargem').hidden = fixo; $('campoMeta').hidden = !fixo;
   // resumo da lista de bens
   const bl = lerBens(), somaTipo = k => bl.filter(b => b.tipo === k).reduce((t, b) => t + b.valor, 0);
-  const ufsImoveis = [...new Set(bl.filter(b => b.tipo !== 'veiculo' && b.valor > 0).map(b => b.uf))];
+  const ufsImoveis = [...new Set(bl.filter(b => b.tipo !== 'veiculo' && b.tipo !== 'rebanho' && b.valor > 0).map(b => b.uf))];
   const partesTxt = Object.keys(TIPO_BEM).filter(k => somaTipo(k) > 0).map(k => TIPO_BEM[k].toLowerCase() + ' ' + fmtBRL0(somaTipo(k)));
   $('hintBens').textContent = (partesTxt.length ? 'Total: ' + partesTxt.join(' · ') + '. ' : 'Nenhum bem informado. ') +
-    (ufsImoveis.some(u => u !== uf) ? 'O ITCMD dos imóveis é pago no estado onde ficam; veículos, aplicações e cotas, no estado de domicílio.' : 'Veículos, aplicações e cotas pagam ITCMD no estado de domicílio.');
+    (ufsImoveis.some(u => u !== uf) ? 'O ITCMD dos imóveis é pago no estado onde ficam; veículos, rebanho, aplicações e cotas, no estado de domicílio.' : 'Veículos, rebanho, aplicações e cotas pagam ITCMD no estado de domicílio.');
   $('hintMulta').textContent = est.multa;
   $('hintRegime').textContent = seg.regime === 'vigente' ? 'Tabela em vigor no estado (referência ' + est.dataRef.split('-').reverse().join('/') + ').'
     : seg.regime === 'reforma' ? (est.reformaIgualVigente ? 'O estado já cumpre a LC 227/2026: igual à lei vigente.' : T.hipoteseReforma(uf))
@@ -536,7 +536,7 @@ function renderDestaques(){
 
 function renderBase(){
   const {r} = ultimo, b = r.base, e = r.entrada;
-  const total = e.imoveis + e.aplicacoes + e.empresa + e.exterior + (e.veiculos || 0);
+  const total = e.imoveis + e.aplicacoes + e.empresa + e.exterior + (e.veiculos || 0) + (e.rebanho || 0);
   $('baseSub').innerHTML = 'Quatro respostas para a pergunta: <b>se o falecimento fosse hoje, sem planejamento nenhum, o que aconteceria?</b> ' + fmtBRL0(b.monteHoje) + (b.dividas > 0 ? ' (bens de ' + fmtBRL0(b.brutoHoje) + ' menos ' + fmtBRL0(b.dividas) + ' de dívidas)' : '') + ' iriam a inventário em ' + T.ESTADOS[e.uf].nome + ', ' + ({cartorio:'em cartório', judicial:'na Justiça', litigio:'na Justiça, com conflito'})[e.tipoInventario] + '.';
   const pat = total, mil = v => fmtCurto(v);
   const barra = partes => '<div class="qbar">' + partes.filter(x => x.v > 0).map(x => '<span class="' + x.c + '" style="--w:' + Math.max(1.5, x.v * 100).toFixed(2) + '%" title="' + esc(x.t) + '"></span>').join('') + '</div>';
@@ -704,6 +704,7 @@ function renderAlertas(){
   const ufsCaso = [...new Set([e.uf].concat(Object.keys(e.imoveisPorUF || {})))];
   ufsCaso.forEach(u => { const est = T.ESTADOS[u]; if(est && est.alerta) out.push('<b>' + est.nome + (u === e.uf ? ' (domicílio)' : ' (imóveis)') + ':</b> ' + est.alerta); });
   if(ufsCaso.length > 1) out.push('<b>Bens em mais de um estado:</b> o ITCMD dos imóveis é pago a cada estado onde ficam, com a tabela de cada um; o inventário é aberto no domicílio, mas avaliação e guias seguem as regras de cada Sefaz.');
+  if(e.rebanho > 0) out.push('<b>Rebanho:</b> gado e outros animais são bens móveis: pagam ITCMD no estado de domicílio (mesmo que estejam em fazenda de outro estado), acompanham a inflação na simulação e não entram na holding nem na doação simuladas. O inventário exige a avaliação do rebanho (nota de produtor e cadastro na defesa sanitária animal).');
   if(e.veiculos > 0) out.push('<b>Veículos:</b> são bens móveis, pagam ITCMD no domicílio e não entram na holding nem na doação simulada; consideramos depreciação de ' + pct0(e.premissas.depreciacaoVeiculos) + ' ao ano.');
   if(r.caminhos.some(c => c.cfg.C > 0)) out.push('<b>Whole life:</b> a contratação depende de declaração de saúde e análise da seguradora; a parcela usada vem da cotação base informada' + (e.wholeLife.fatorIdade !== 1 ? ', ajustada pela idade' : '') + '.');
   if(e.exterior > 0) out.push('<b>Bens no exterior:</b> desde 2026 pagam ITCMD no estado de domicílio (LC 227/2026) e os rendimentos pagam IR de 15% ao ano (Lei 14.754/2023).');
