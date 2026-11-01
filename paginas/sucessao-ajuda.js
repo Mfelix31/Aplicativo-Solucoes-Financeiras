@@ -1,9 +1,9 @@
 /* Planejamento Sucessório — textos de ajuda (botões "?", dicas das etapas e guia "Como usar").
  * Só textos: o componente fica em assets/ajuda.js. Não altera nenhum cálculo. */
-/* Composição do custo do inventário: mostra ao cliente de onde vem o custo e por que usamos a média de mercado. */
+/* Composição do custo do inventário: mostra ao cliente de onde vem o custo e como a ferramenta chega ao custo esperado. */
 const COMPOSICAO_INVENTARIO = '**De onde vem o custo do inventário** (referências de mercado; variam por estado e por caso):\n\n' +
   '| Componente | Faixa usual | Base |\n| ITCMD | 1% a 8% | Lei de cada estado; teto de 8% do Senado |\n| Honorários do advogado | 5% a 10% | Tabelas das seccionais da OAB |\n| Custas, cartório e registro | 1% a 2% | Escritura ou custas, registro, certidões |\n| Avaliações, contador, multas e atrasos | Varia | Depende do caso e do tempo |\n| **Soma dos componentes** | **Muitas vezes acima de 15%** | |' +
-  '\n\n**Por que 18%:** somar componente por componente costuma subestimar o custo, porque deixa de fora avaliações, multas, atrasos e imprevistos. Por isso a comparação usa a **média observada no mercado de MT e MS: 18%** do que vai a inventário. A conta item por item aparece no quadro 2 como conferência.';
+  '\n\n**Como a ferramenta calcula:** soma a **conta pela lei** (ITCMD do estado, que com a reforma passa a ser progressivo: quanto maior o patrimônio, maior a alíquota; honorários e custas pelo tipo de inventário) e uma **margem de mercado de 5%** para o que a conta não vê (avaliações, contador, atrasos e imprevistos). A margem foi calibrada para que um patrimônio de **R$ 10 milhões em MT chegue aos 18%** observados no mercado. Assim, patrimônios menores custam menos de 18% e maiores, ou inventários com conflito, custam mais.';
 
 Ajuda.iniciar({
   guia: {
@@ -11,7 +11,7 @@ Ajuda.iniciar({
     intro: 'Para o planejador usar junto com o cooperado. Compara os caminhos para o patrimônio chegar à família (inventário planejado, previdência, whole life, doação com usufruto, holding e offshore) e mostra a solução que protege e entrega mais, com quanto custa e como pagar.\n\nQuando a holding não compensa, a ferramenta diz claramente, com o custo evitado.',
     passos: [
       { titulo: 'Família e patrimônio', texto: 'Informe idade, estado, herdeiros, regime de bens e o tipo de inventário provável. Liste os imóveis, terrenos, fazendas e veículos (com o estado onde ficam), as aplicações, a previdência e a renda.' },
-      { titulo: 'Premissas e custos', texto: 'Confira o cenário de rentabilidade, a inflação e o custo esperado do inventário (padrão 18%). Os custos de inventário, holding, whole life e offshore já vêm com referências de mercado; ajuste ao orçamento do advogado, contador ou corretor.' },
+      { titulo: 'Premissas e custos', texto: 'Confira o cenário de rentabilidade, a inflação e o custo esperado do inventário (pela lei do estado + margem de mercado). Os custos de inventário, holding, whole life e offshore já vêm com referências de mercado; ajuste ao orçamento do advogado, contador ou corretor.' },
       { titulo: 'Análise', texto: 'No topo, a solução: o que fazer, quanto chega à família, por que, como pagar e o passo a passo. Abaixo, o custo de não planejar, todas as combinações testadas, a liquidez ano a ano e os alertas. Baixe o PDF.' }
     ],
     dicas: [
@@ -90,7 +90,9 @@ Ajuda.iniciar({
     nResid: 'Quantos dos alugados são residenciais. Têm redutor social no IBS e na CBS.',
     rentab: 'A rentabilidade nominal ao ano das aplicações, previdência e bens no exterior. Já vem do cenário escolhido.',
     ipca: 'A inflação média prevista. Corrige imóveis e empresas e traz os resultados para reais de hoje.',
-    meta: 'O custo médio de todo o inventário (ITCMD, advogado, cartório, contador e trâmites), observado em MT e MS: 18% do que vai a inventário. É o custo usado na comparação e o valor que previdência e seguro precisam pagar.\n\n' + COMPOSICAO_INVENTARIO + '\n\nPara outros estados, confirme se a média vale.',
+    custoModo: 'Como a ferramenta chega ao custo do inventário usado na comparação.\n\n**Pela lei + margem (padrão):** conta pelo ITCMD do estado, honorários e custas do tipo de inventário, mais a margem de mercado. Ajusta sozinha ao patrimônio, ao estado e ao tipo de inventário.\n\n**Percentual fixo:** o mesmo percentual para qualquer caso.\n\n' + COMPOSICAO_INVENTARIO,
+    margemMercado: 'O que a conta pela lei não vê: avaliações, contador, atrasos, multas e imprevistos. Com 5%, um patrimônio de R$ 10 milhões em MT (média entre cartório e judicial) chega aos 18% observados no mercado. Ajuste se a sua experiência com o caso indicar outro valor.',
+    meta: 'Percentual fixo sobre o que vai a inventário, para quem prefere não usar o cálculo pela lei. A média observada em MT e MS para patrimônios a partir de R$ 10 milhões é 18%.',
     taxaAdm: 'A taxa de administração da previdência ao ano. Só é descontada se você marcar que a rentabilidade informada é bruta.',
     rentBruta: 'Marque se a rentabilidade acima é antes da taxa de administração. O app desconta a taxa da previdência.',
     irAplic: 'O IR que os herdeiros pagam ao resgatar as aplicações, em % do ganho. Use 0% se for LCA.',

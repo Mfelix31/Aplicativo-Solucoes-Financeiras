@@ -114,7 +114,7 @@ test('IR regressivo da previdência no pagamento', () => {
 });
 
 test('previdência que paga sozinha o inventário: X = 18%/1,18 do patrimônio (sem ganho a tributar)', () => {
-  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, aplicacoes: 5e6, premissas: { rentabilidade: 0, ipca: 0 } });
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, aplicacoes: 5e6, premissas: { rentabilidade: 0, ipca: 0, custoModo: 'fixo' } });
   assert.ok(r.ok);
   perto(r.previdencia.X / 5e6, 0.18 / 1.18, 1e-6);
   assert.equal(r.seguroDesnecessario, true);
@@ -465,16 +465,43 @@ test('PGBL: IR sobre todo o saldo; VGBL: só sobre o rendimento', () => {
   assert.equal(S.analisar(Object.assign({}, c, { previdenciaTipo: 'outro' })).ok, false);
 });
 
-test('custo do inventário na comparação = custo esperado (18%), inclusive no 2º inventário do cônjuge', () => {
-  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0 });
+test('modo fixo: custo do inventário na comparação = 18%, inclusive no 2º inventário do cônjuge', () => {
+  const fixo = { custoModo: 'fixo' };
+  const e = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, premissas: fixo });
   const a = S.simular(e, {}, 1).anos[0];
   perto(a.custoEsperado, 0.18 * a.monte, 1e-6);
   perto(a.familia, a.monte * 0.82, 1e-6);
-  const ec = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, conjuge: { regime: 'universal' } });
+  const ec = S.normalizar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 1e6, aplicacoes: 0, conjuge: { regime: 'universal' }, premissas: fixo });
   const b = S.simular(ec, {}, 1).anos[0];
   perto(b.familia, b.monte * 0.82 - 0.18 * b.monte * 0.5, 1e-6);
   const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 2, imoveis: 60e6, aplicacoes: 1e6 });
   assert.equal(r.base.patrimonioGrande, true);
+});
+
+/* ---------- custo esperado pela lei + margem de mercado (modo padrão) ---------- */
+// Calibração com o usuário (01/11/2026): os 18% observados valem para patrimônios a partir de R$ 10 mi.
+// Caso de referência: R$ 10 mi em MT (R$ 6 mi em fazendas, R$ 4 mi em aplicações), 2 herdeiros, sem cônjuge, lei vigente.
+// Conta pela lei: 11,34% em cartório e 14,64% judicial (ITCMD 4,89%, faixas de MT conferidas no stress test);
+// média 12,99% + margem de 5% ≈ 18%.
+const ref10 = tipo => ({ idade: 60, uf: 'MT', herdeiros: 2, tipoInventario: tipo, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 2, valor: 6e6 }], aplicacoes: 4e6, rendaMensal: 50000 });
+test('custo esperado: conta pela lei + 5% de margem; o caso de referência de R$ 10 mi dá 18% na média', () => {
+  const c = S.analisar(ref10('cartorio'), { semEstresse: true }).base, j = S.analisar(ref10('judicial'), { semEstresse: true }).base;
+  perto(c.metaInventarioHoje, c.custoHoje.total + 0.05 * 1e7, 1e-6);
+  perto((c.pctEsperado + j.pctEsperado) / 2, 0.18, 0.003);
+  assert.ok(j.pctEsperado > c.pctEsperado, 'judicial custa mais que cartório');
+});
+test('custo esperado acompanha o patrimônio (ITCMD progressivo) e o tipo de inventário', () => {
+  const pct = (v, tipo) => S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, tipoInventario: tipo, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: v * 0.6 }], aplicacoes: v * 0.4 }, { semEstresse: true }).base.pctEsperado;
+  const p15 = pct(1.5e6, 'cartorio'), p10 = pct(10e6, 'cartorio'), p50 = pct(50e6, 'cartorio');
+  assert.ok(p15 < p10 && p10 < p50, 'cresce com o patrimônio');
+  assert.ok(p15 < 0.14, 'família de R$ 1,5 mi fica bem abaixo de 18% (stress test, teste 22)');
+  assert.ok(pct(30e6, 'litigio') > 0.20, 'litígio de R$ 30 mi passa de 20% (stress test, teste 24)');
+});
+test('custo esperado: o 2º inventário do cônjuge usa a mesma regra sobre a meação', () => {
+  const r = S.analisar({ idade: 60, uf: 'MT', herdeiros: 2, bens: [{ tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 6e6 }], aplicacoes: 4e6, conjuge: { regime: 'universal' } }, { semEstresse: true });
+  const cj = r.base.conjugeHoje;
+  perto(cj.total, cj.conferencia.total + 0.05 * 1e7 * 0.5, 1e-6);
+  assert.equal(S.analisar(Object.assign(ref10('cartorio'), { premissas: { margemMercado: -0.01 } })).ok, false);
 });
 
 /* ---------- 27 estados (contas à mão a partir das tabelas de itcmd.com.br, set/2026) ---------- */

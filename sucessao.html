@@ -266,9 +266,19 @@
           <div class="row-input"><input type="number" id="ipca" value="4" step="0.1"><span class="suffix">% a.a.</span></div>
         </div>
         <div class="field">
-          <label for="meta">Custo esperado do inventário</label>
+          <label for="custoModo">Custo esperado do inventário</label>
+          <div class="row-input"><select id="custoModo"><option value="lei">Pela lei do estado + margem de mercado</option><option value="fixo">Percentual fixo</option></select></div>
+          <div class="hint" id="hintMeta">Calculado pelo patrimônio, pelo estado e pelo tipo de inventário. É o custo usado na comparação dos caminhos e o valor que previdência e seguro precisam pagar, mais as despesas da família.</div>
+        </div>
+        <div class="field" id="campoMargem">
+          <label for="margemMercado">Margem de mercado</label>
+          <div class="row-input"><input type="number" id="margemMercado" value="5" min="0" max="49" step="0.5"><span class="suffix">% do patrimônio</span></div>
+          <div class="hint">Somada à conta pela lei: avaliações, contador, atrasos e imprevistos. Com 5%, um patrimônio de R$ 10 milhões em MT chega aos 18% observados no mercado.</div>
+        </div>
+        <div class="field" id="campoMeta" hidden>
+          <label for="meta">Percentual fixo</label>
           <div class="row-input"><input type="number" id="meta" value="18" min="1" max="99" step="0.5"><span class="suffix">% do patrimônio</span></div>
-          <div class="hint" id="hintMeta">Média observada em MT e MS: 18% do que vai a inventário (ITCMD, advogado, cartório, contador e trâmites). É o custo usado na comparação dos caminhos e o valor que previdência e seguro precisam pagar, mais as despesas da família.</div>
+          <div class="hint">O mesmo percentual para qualquer patrimônio, estado e tipo de inventário.</div>
         </div>
         <div class="field">
           <label for="taxaAdm">Taxa de administração da previdência</label>
@@ -440,7 +450,7 @@
         <h3>Como o cálculo funciona</h3>
         <ul>
           <li><b>Regra de recomendação:</b> vence a combinação que paga o custo esperado do inventário (e as despesas da família) já no primeiro ano, cabe no orçamento (sobra, aplicações e, se preciso, um valor à parte dentro do limite da renda) e entrega mais à família na expectativa de vida, em R$ de hoje. Diferença menor que a margem de empate favorece quem não pede dinheiro à parte e, depois, o mais simples.</li>
-          <li><b>Valor que chega à família:</b> tudo o que a família recebe (bens, previdência líquida de IR, capital do seguro) menos o custo esperado do inventário (18% do que vai a inventário, também no inventário futuro do cônjuge), os custos do caminho, o dinheiro pago à parte e o IR latente das aplicações. Os custos saem das aplicações e deixam de render; tudo é deflacionado pelo IPCA.</li>
+          <li><b>Valor que chega à família:</b> tudo o que a família recebe (bens, previdência líquida de IR, capital do seguro) menos o custo esperado do inventário (conta pela lei + margem de mercado, ou o percentual fixo escolhido, sobre o que vai a inventário, também no inventário futuro do cônjuge), os custos do caminho, o dinheiro pago à parte e o IR latente das aplicações. Os custos saem das aplicações e deixam de render; tudo é deflacionado pelo IPCA.</li>
           <li><b>Três momentos:</b> falecimento no próximo ano, em 10 anos e na expectativa de vida pela Tábua Completa de Mortalidade do IBGE (2024).</li>
           <li><b>Conferência do inventário:</b> ITCMD pela tabela do estado sobre o quinhão de cada herdeiro, honorários, escritura ou custas, registro, certidões e multa opcional. <b>Previdência e seguro</b> não entram no inventário nem pagam ITCMD (LC 227/2026, art. 150, III); a previdência paga IR regressivo sobre o rendimento; a indenização do seguro é isenta.</li>
           <li><b>Dimensionamento:</b> previdência e seguro são o menor valor que paga o custo esperado do inventário e as despesas da família em todos os anos até a expectativa de vida. Quando as aplicações não bastam para a previdência, o seguro cobre o restante.</li>
