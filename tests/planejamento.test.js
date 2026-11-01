@@ -239,3 +239,77 @@ test('renda com consumo: taxa zero, prazo zero e patrimônio zero', () => {
   assert.equal(E.rendaComConsumo(0, 0.05, 120), 0);
   assert.equal(E.rendaPerpetua(0, 0.05), 0);
 });
+
+/* ---------- Stress Test MT (protocolo de 31/10/2026) — Planejamento ----------
+   Valores de referência refeitos à parte (Python, fórmulas fechadas) e iguais ao
+   relatório "Stress Test MT — Resultado dos 30 cenários". */
+
+test('aporte reajustado pela inflação uma vez por ano (igual à planilha, aba Cenários)', () => {
+  assert.equal(E.aporteDoMes(1000, 12, 0.10, true), 1000);          // 1º ano sem reajuste
+  perto(E.aporteDoMes(1000, 13, 0.10, true), 1100, 1e-9);           // 2º ano: +10%
+  assert.equal(E.aporteDoMes(1000, 13, 0.10, false), 1000);         // padrão: fixo
+  const r = E.simular({ patrimonioInicial: 0, aporteMensal: 1000, rentabNominalAnual: 0.10,
+    inflacaoAnual: 0.10, meses: 24, objetivos: [], reajusteAporte: true });
+  perto(r.final.nominal, 27589.180547, 1e-5);                       // FV ano a ano, como a planilha
+});
+
+test('teste 4 (IPCA 10%, 14% nominal): o padrão atual ignora a inflação; o poder de compra não', () => {
+  const meta = E.patrimonioNecessario(15000, 0.0516);
+  const caso = (inflacao, base, reajuste) => E.planejarCenario({ patrimonioInicial: 0, aporteMensal: 5000,
+    rentabNominalAnual: 0.14, inflacaoAnual: inflacao, objetivos: [], anosParaRenda: 20, metaHoje: meta,
+    mesesMaximo: 1500, baseComparacao: base, reajusteAporte: reajuste }).mesLiberdade;
+  assert.equal(caso(0.10, 'nominal', false), 200);                  // 16,7 anos
+  assert.equal(caso(0.00, 'nominal', false), 200);                  // mesmo resultado sem inflação
+  assert.equal(caso(0.10, 'real', false), 692);                     // 57,7 anos com aporte fixo
+  assert.equal(caso(0.10, 'real', true), 395);                      // 32,9 anos com aporte reajustado
+});
+
+test('aporte necessário com reajuste é o do 1º ano e atinge a meta', () => {
+  const p = { patrimonioInicial: 0, rentabNominalAnual: 0.10, inflacaoAnual: 0.05, objetivos: [], meses: 240, reajusteAporte: true };
+  const a = E.aporteNecessario(p, 1e6, 'real');
+  assert.ok(E.simular({ ...p, aporteMensal: a }).final.real >= 1e6);
+  assert.ok(E.simular({ ...p, aporteMensal: a - 0.01 }).final.real < 1e6);
+  assert.ok(a < E.aporteNecessario({ ...p, reajusteAporte: false }, 1e6, 'real'));
+});
+
+test('teste 10: venda de terra de R$ 3 mi no ano 10 (entrada extraordinária)', () => {
+  const base = { patrimonioInicial: 0, aporteMensal: 2000, rentabNominalAnual: 0.0516, inflacaoAnual: 0,
+    meses: 240, objetivos: [] };
+  perto(E.simular(base).final.nominal, 826050.92, 0.01);
+  const com = E.simular({ ...base, entradas: [{ id: 1, nome: 'Venda de terra', tipo: 'terra', valorHoje: 3e6, mes: 120, recorrenciaAnos: 0 }] });
+  perto(com.final.nominal, 5787711.24, 0.01);
+  assert.equal(com.entradas.length, 1);
+});
+
+test('entrada corrigida pela inflação, recorrente (safra) e só até o início da renda', () => {
+  const ent = [{ id: 7, nome: 'Sobra da safra', tipo: 'safra', valorHoje: 100000, mes: 12, recorrenciaAnos: 1 }];
+  const r = E.planejarCenario({ patrimonioInicial: 0, aporteMensal: 0, rentabNominalAnual: 0, inflacaoAnual: 0.04,
+    objetivos: [], entradas: ent, anosParaRenda: 5, metaHoje: 1e9, mesesMaximo: 120 });
+  assert.deepEqual(r.entradas.map(e => e.mes), [12, 24, 36, 48, 60]);
+  perto(r.entradas[1].valorNominal, 100000 * 1.04 * 1.04, 1e-6);
+  perto(r.serie[120].nominal, r.entradas.reduce((s, e) => s + e.valorNominal, 0), 1e-6); // nada entra depois
+});
+
+test('entrada no mesmo mês chega antes do objetivo e permite pagá-lo', () => {
+  const r = E.simular({ patrimonioInicial: 0, aporteMensal: 0, rentabNominalAnual: 0, inflacaoAnual: 0, meses: 12,
+    entradas: [{ id: 1, nome: 'Herança', tipo: 'heranca', valorHoje: 200000, mes: 6, recorrenciaAnos: 0 }],
+    objetivos: [{ id: 2, nome: 'Carro', tipo: 'carro', valorHoje: 150000, mes: 6, recorrenciaAnos: 0 }] });
+  assert.equal(r.eventos[0].atingido, true);
+  perto(r.final.nominal, 50000, 1e-9);
+});
+
+test('teste 6: quem aporta mais vence quem rende mais (R$ 500 a 8% × R$ 3.000 a 3%, 20 anos)', () => {
+  const c = E.compararAportes({ aporteMensal: 500, rentabNominalAnual: 0.08 }, { aporteMensal: 3000, rentabNominalAnual: 0.03 },
+    { meses: 240, inflacaoAnual: 0, reajusteAporte: false });
+  perto(c.a.nominal, 284499.53, 0.01);
+  perto(c.b.nominal, 980563.33, 0.01);
+  assert.equal(c.maior, 'b');
+  perto(c.vezes, 3.4466, 1e-4);
+  perto(c.taxaEmpate, 0.18253, 1e-4);                                // R$ 500 só empata a 18,3% a.a.
+});
+
+test('comparar aportes: aporte zero no plano menor não tem taxa de empate', () => {
+  const c = E.compararAportes({ aporteMensal: 0, rentabNominalAnual: 0.1 }, { aporteMensal: 100, rentabNominalAnual: 0.05 },
+    { meses: 120, inflacaoAnual: 0.04 });
+  assert.equal(c.maior, 'b'); assert.equal(c.taxaEmpate, null); assert.equal(c.vezes, null);
+});
