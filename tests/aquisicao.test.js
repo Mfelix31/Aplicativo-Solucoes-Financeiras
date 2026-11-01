@@ -330,3 +330,57 @@ test('IR no resgate rende mais que o IR mês a mês (diferimento)', () => {
 test('Lance em parcelas: 43 parcelas de 1,5352% = 66% da carta', () => {
   perto(E.lanceDeParcelas(43, 71, 0.07, 0.02), 43 * 1.09 / 71, 1e-12);
 });
+
+/* ---------- custos visíveis: crédito, aluguel, valorização na espera e rendimento perdido ---------- */
+test('Rendimento perdido da compra à vista hoje = preço × ((1 + r)^H − 1)', () => {
+  const r = 0.01, H = 60;
+  const a = E.analisar(caso({ capital: 800000, taxaMes: r, horizonteMeses: H, financiamento: { ativo: false }, consorcio: { ativo: false } })).cenarios.avista;
+  assert.equal(a.mesCompra, 0);
+  perto(a.custos.rendimentoPerdido, 700000 * (Math.pow(1 + r, H) - 1), 1e-4);
+  perto(a.custos.credito, 0, 1e-6);
+  perto(a.custos.valorizacao, 0, 1e-6);
+});
+
+test('Sem rendimento, não há rendimento perdido em nenhum caminho', () => {
+  const r = E.analisar(caso({ taxaMes: 0, capital: 2e6 }));
+  for (const c of Object.values(r.cenarios)) perto(c.custos.rendimentoPerdido, 0, 1e-6, c.id);
+});
+
+test('Identidade: patrimônio = capital sem compra + valorização do bem − custo total (menor custo = maior patrimônio)', () => {
+  for (const over of [{}, { custoEsperaMensal: 2500, aporteMensal: 500 }, { valorizacaoAnual: 0.04, consorcio: { reajusteAnual: 0.05, mesContemplacao: 25, lanceTotal: 0.3, lanceEmbutido: 0.1 } }]) {
+    const e = caso(over);
+    const r = E.analisar(e);
+    const H = r.horizonteMeses;
+    const semCompra = E.analisar(caso(Object.assign({}, over, { custoEsperaMensal: 0, valorBem: 1e12, financiamento: { ativo: false }, consorcio: { ativo: false } })))
+      .cenarios.avista.serie[H].capital;
+    const ganhoBem = e.valorBem * Math.pow(1 + (e.valorizacaoAnual || 0), H / 12) - e.valorBem;
+    for (const c of Object.values(r.cenarios)) {
+      if (c.custos.total === null) continue;
+      perto(c.horizonte.patrimonio, semCompra + ganhoBem - c.custos.total, 1e-4, c.id);
+      assert.ok(c.custos.rendimentoPerdido >= -1e-6, c.id);
+    }
+  }
+});
+
+test('Custo do crédito do financiamento = juros + TR + seguros + tarifas + despesas (contrato inteiro)', () => {
+  const f = E.analisar(caso({ horizonteMeses: 420, financiamento: PROPOSTA })).cenarios.financiamento;
+  perto(f.custos.credito, f.juros + f.correcao + f.seguros + f.tarifas + f.despesas, 1e-4);
+});
+
+test('Custo do crédito do consórcio = taxa de administração sobre a carta cheia (lance embutido)', () => {
+  // carta R$ 1 mi, 25% embutido, bem R$ 700 mil: o cliente desembolsa 115% − 25% embutido − 5% de sobra = 85% = R$ 850 mil
+  // por um bem de R$ 700 mil → R$ 150 mil, ou seja, 15% de administração sobre R$ 1 mi (e não sobre os R$ 700 mil usados)
+  const c = E.analisar(caso({ horizonteMeses: 240 })).cenarios.consorcio;
+  perto(c.custos.credito, 0.15 * 1000000, 1e-4);
+});
+
+test('Aluguel pago só até ter o bem (consórcio contemplado no mês 36)', () => {
+  const r = E.analisar(caso({ custoEsperaMensal: 3500, consorcio: { carta: 700000, lanceTotal: 0, lanceEmbutido: 0, mesContemplacao: 37 } }));
+  perto(r.cenarios.consorcio.custos.aluguel, 3500 * 36, 1e-6);
+  perto(r.cenarios.financiamento.custos.aluguel, 0, 0);
+});
+
+test('Valorização durante a espera: à vista comprando no mês 10 paga o bem 10 meses mais caro', () => {
+  const a = E.analisar(caso({ valorizacaoAnual: 0.04 })).cenarios.avista;
+  perto(a.custos.valorizacao, 700000 * (Math.pow(1.04, a.mesCompra / 12) - 1), 1e-6);
+});

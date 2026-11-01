@@ -161,11 +161,17 @@
    *   resgate, o imposto continua rendendo. Capital exibido = saldo líquido de IR.
    *   Premissa: o capital de hoje entra com custo = saldo (sem ganho anterior a tributar).
    * - Saldo negativo = dinheiro que precisaria vir de fora, corrigido pela mesma taxa.
+   * - Contadores para mostrar o custo de cada caminho: `saidas` (tudo o que saiu do capital
+   *   para comprar e pagar o bem, inclusive aluguel; aportes não contam) e `aluguel`.
+   *   Use pagar/pagarAluguel/receber para movimentos da compra e sacar/depositar para o resto.
    */
   function novaConta(ctx) {
     const a = ctx.aliquotaIR || 0;
     return {
-      B: ctx.capital, K: ctx.capital, irPago: 0,
+      B: ctx.capital, K: ctx.capital, irPago: 0, saidas: 0, aluguel: 0,
+      pagar(v) { this.saidas += v; this.sacar(v); },
+      pagarAluguel(v) { if (v > 0) { this.aluguel += v; this.pagar(v); } },
+      receber(v) { this.saidas -= v; this.depositar(v); },
       liquido() { return this.B > 0 ? this.B - a * Math.max(0, this.B - this.K) : this.B; },
       /** rende o mês t; devolve a renda líquida do mês (ganho bruto menos o IR que ele vai gerar) */
       render(t) {
@@ -199,10 +205,21 @@
     };
   }
 
-  function novoRegistro(ctx, m, C, saldo, temBem, extra) {
+  /** registro do mês m; os acumulados da `conta` alimentam o custo de cada caminho */
+  function novoRegistro(ctx, m, conta, saldo, temBem, extra) {
+    const C = conta.liquido();
     const bem = temBem ? ctx.precoBem(m) : 0;
     const pl = C + bem - saldo;
-    return Object.assign({ mes: m, capital: C, saldoDevedor: saldo, valorBem: bem, temBem, patrimonio: pl, patrimonioReal: pl / ctx.deflator(m) }, extra);
+    return Object.assign({ mes: m, capital: C, saldoDevedor: saldo, valorBem: bem, temBem, patrimonio: pl, patrimonioReal: pl / ctx.deflator(m),
+      acumSaidas: conta.saidas, acumAluguel: conta.aluguel }, extra);
+  }
+
+  /** capital líquido mês a mês se o cliente não comprasse nada (base do rendimento perdido) */
+  function serieSemCompra(ctx, Hsim) {
+    const conta = novaConta(ctx);
+    const v = [conta.liquido()];
+    for (let t = 1; t <= Hsim; t++) { conta.render(t); conta.depositar(ctx.aporteMensal); v.push(conta.liquido()); }
+    return v;
   }
 
   /** Métricas comuns, a partir da série mensal. */
@@ -227,7 +244,27 @@
       retirado += Math.max(0, s.parcela - r);
       mesesComParcela++; if (r >= s.parcela - 1e-6) mesesCobertos++;
     });
+    // Quanto custa comprar o bem por este caminho até o horizonte (valores nominais). As quatro parcelas somam
+    // exatamente a diferença para quem não comprou nada:
+    //   patrimônio = capital sem compra + (valor do bem no horizonte − valor do bem hoje) − total
+    // por isso o menor total é sempre o maior patrimônio.
+    //  - credito: juros, TR, seguros, tarifas e taxas = tudo o que foi pago e ainda se deve além do preço do bem
+    //    (no consórcio inclui taxa de administração, fundo de reserva, seguro, reajuste e o custo do lance embutido)
+    //  - aluguel: custo de espera pago até ter o bem
+    //  - valorizacao: quanto o bem encareceu enquanto o cliente esperava para comprar
+    //  - rendimentoPerdido: o que o dinheiro tirado do investimento teria rendido
+    //    (capital sem compra − capital do caminho − tudo o que saiu)
+    const comprou = base.mesCompra !== null && base.mesCompra <= H;
+    const custos = { aluguel: h.acumAluguel, saidas: h.acumSaidas,
+      rendimentoPerdido: ctx.semCompra[H] - h.capital - h.acumSaidas,
+      credito: null, valorizacao: null, total: null };
+    if (comprou) {
+      custos.credito = h.acumSaidas - h.acumAluguel - base.precoCompra + h.saldoDevedor;
+      custos.valorizacao = base.precoCompra - ctx.valorBem;
+      custos.total = custos.credito + custos.aluguel + custos.valorizacao + custos.rendimentoPerdido;
+    }
     return Object.assign(base, {
+      custos,
       periodo: { somaParcelas, rendaUsada, retiradoDoCapital: retirado, mesesComParcela, mesesCobertos,
         cobertura: somaParcelas > 0 ? rendaUsada / somaParcelas : null },
       capitalMinimo: capMin ? capMin.capital : null,
@@ -287,7 +324,7 @@
       if (t >= 1) {
         rendaMes = conta.render(t);
         conta.depositar(ctx.aporteMensal);
-        if (!temBem) conta.sacar(ctx.custoEsperaMensal);
+        if (!temBem) conta.pagarAluguel(ctx.custoEsperaMensal);
       }
       if (t > D && p < n && saldo > 1e-9) {
         p += 1;
@@ -307,7 +344,7 @@
         det = { correcao: cm, amortizacao: amort, juros: j, mip, dfi: dfiV, tac };
         juros += j; seguros += mip + dfiV; tarifas += tac; correcao += cm;
         totalParcelas += pago; parcelaFinal = pago;
-        conta.sacar(pago);
+        conta.pagar(pago);
         fluxos[t] = (fluxos[t] || 0) - pago;
         if (p === 1) info.parcelaInicial = pago;
       }
@@ -315,15 +352,16 @@
         valorImovel = ctx.precoBem(t);
         entrada = valorImovel - f.valorFinanciado; // negativo = sobra de crédito volta ao capital
         saldo = f.valorFinanciado;
-        conta.sacar(entrada + despesas);
+        conta.pagar(entrada + despesas);
         temBem = true;
         fluxos[t] = (fluxos[t] || 0) + f.valorFinanciado - despesas;
         info.mesCompra = t;
+        info.precoCompra = valorImovel;
         info.desembolsoCompra = Math.max(0, entrada) + despesas;
         info.capitalAposCompra = conta.liquido();
         info.rendaInicial = conta.rendaPrevista(t + 1);
       }
-      serie.push(novoRegistro(ctx, t, conta.liquido(), saldo, temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago, detalhe: det }));
+      serie.push(novoRegistro(ctx, t, conta, saldo, temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago, detalhe: det }));
     }
     for (let t = 0; t < fluxos.length; t++) if (fluxos[t] === undefined) fluxos[t] = 0;
     const ti = fluxos.length > 1 ? tir(fluxos) : null;
@@ -381,7 +419,7 @@
       if (t >= 1) {
         rendaMes = conta.render(t);
         conta.depositar(ctx.aporteMensal);
-        if (!temBem) conta.sacar(ctx.custoEsperaMensal);
+        if (!temBem) conta.pagarAluguel(ctx.custoEsperaMensal);
       }
       let pago = 0, fluxo = 0, compraAgora = false;
       if (t + 1 === k) {
@@ -399,11 +437,11 @@
           const abate = Math.min(dif / cartaP, pct);
           excedente = abate * cartaP;
           pct -= abate;
-          conta.depositar(dif - excedente);
+          conta.receber(dif - excedente);
         } else {
-          complemento = -dif; conta.sacar(complemento);
+          complemento = -dif; conta.pagar(complemento);
         }
-        conta.sacar(lanceProprio);
+        conta.pagar(lanceProprio);
         totalPago += lanceProprio;
         fluxo += credito - lanceProprio;
         if (pct <= 1e-12) { pct = 0; mesFim = t; }
@@ -419,17 +457,18 @@
         pago = amort * cartaP + seguro;
         totalSeguro += seguro;
         if (pct <= 1e-12) { pct = 0; mesFim = t; }
-        conta.sacar(pago); totalPago += pago; fluxo -= pago;
+        conta.pagar(pago); totalPago += pago; fluxo -= pago;
       }
       if (compraAgora) {
         info.mesCompra = t;
+        info.precoCompra = ctx.precoBem(t);
         info.desembolsoCompra = lanceProprio + complemento;
         info.parcelaInicial = pago;
         info.capitalAposCompra = conta.liquido();
         info.rendaInicial = conta.rendaPrevista(t + 1);
       }
       if (pago > 0 || compraAgora) fluxos[t] = fluxo;
-      serie.push(novoRegistro(ctx, t, conta.liquido(), pct * carta(Math.max(p, 1)), temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago }));
+      serie.push(novoRegistro(ctx, t, conta, pct * carta(Math.max(p, 1)), temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago }));
     }
     for (let t = 0; t < fluxos.length; t++) if (fluxos[t] === undefined) fluxos[t] = 0;
     const ti = fluxos.some(f => f > 0) && fluxos.some(f => f < 0) ? tir(fluxos) : null;
@@ -457,19 +496,19 @@
       const preco = ctx.precoBem(m);
       if (!temBem && m >= ctx.mesCompraAlvo && conta.liquido() >= preco - 1e-6) {
         info.rendaAntesCompra = conta.rendaPrevista(m + 1);
-        conta.sacar(preco); temBem = true;
-        info.mesCompra = m; info.desembolsoCompra = preco; info.capitalAposCompra = conta.liquido();
+        conta.pagar(preco); temBem = true;
+        info.mesCompra = m; info.precoCompra = preco; info.desembolsoCompra = preco; info.capitalAposCompra = conta.liquido();
         info.rendaInicial = conta.rendaPrevista(m + 1);
       }
     };
     comprar(0);
-    const serie = [novoRegistro(ctx, 0, conta.liquido(), 0, temBem, { renda: 0, parcela: 0 })];
+    const serie = [novoRegistro(ctx, 0, conta, 0, temBem, { renda: 0, parcela: 0 })];
     for (let m = 1; m <= Hsim; m++) {
       rendaMes = conta.render(m);
       conta.depositar(ctx.aporteMensal);
-      if (!temBem) conta.sacar(ctx.custoEsperaMensal);
+      if (!temBem) conta.pagarAluguel(ctx.custoEsperaMensal);
       comprar(m);
-      serie.push(novoRegistro(ctx, m, conta.liquido(), 0, temBem, { renda: rendaMes, parcela: 0 }));
+      serie.push(novoRegistro(ctx, m, conta, 0, temBem, { renda: rendaMes, parcela: 0 }));
     }
     return metricas(ctx, serie, Object.assign(info, {
       id: 'avista',
@@ -495,6 +534,7 @@
     if (erros.length) return { ok: false, erros };
     const ctx = contexto(e, override);
     const Hsim = horizonteSimulacao(e);
+    ctx.semCompra = serieSemCompra(ctx, Hsim);
     const cenarios = {};
     if (e.financiamento && e.financiamento.ativo) cenarios.financiamento = simularFinanciamento(e.financiamento, ctx, Hsim);
     if (e.consorcio && e.consorcio.ativo) cenarios.consorcio = simularConsorcio(e.consorcio, ctx, Hsim);

@@ -303,7 +303,7 @@
             <label for="consReaj">Reajuste anual da carta</label>
             <div class="row-input"><input type="number" id="consReaj" value="0" min="0" step="0.1"><span class="suffix">% a.a.</span>
               <select id="consIndice" class="indice"><option>INCC</option><option>IPCA</option><option>Outro</option></select></div>
-            <div class="hint">A parcela e o saldo devedor sobem a cada 12 meses.</div>
+            <div class="hint"><span id="hintReaj"></span> <button type="button" class="ghost mini-btn" id="btnReajIpca" hidden>usar IPCA</button></div>
           </div>
         </div>
         <div class="seg-wrap">
@@ -397,7 +397,11 @@
       </div>
 
       <div class="block">
-        <h3>Quanto custa cada caminho</h3>
+        <h3 id="placarTitulo">Quanto custa cada caminho</h3>
+        <p class="sub">Comprar à vista evita juros, mas o dinheiro deixa de render. Aqui os dois custos aparecem lado a lado, em reais, até o horizonte da comparação.</p>
+        <div class="table-scroll"><table class="t" id="tabPlacar"></table></div>
+        <p class="hint nota" id="placarNota"></p>
+        <h3 class="sub-titulo">Detalhes do crédito</h3>
         <p class="sub">Custo efetivo = taxa interna de retorno do que o cliente recebe e paga ao credor. No consórcio, já considera o lance embutido e as taxas sobre a carta cheia.</p>
         <div class="table-scroll"><table class="t" id="tabCusto"></table></div>
       </div>

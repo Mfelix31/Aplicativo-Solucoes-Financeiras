@@ -38,14 +38,15 @@ Ajuda.iniciar({
     'A renda do investimento paga a parcela?': 'A pergunta central. Para cada caminho mostra quanto das parcelas a renda do capital pagou até o horizonte, quanto precisou sair do próprio capital e por quantos meses a renda cobriu a parcela.',
     'Evolução ao longo do tempo': 'O patrimônio líquido (ou só o capital investido) de cada caminho, mês a mês. Troque entre "Horizonte" e "Contrato completo" para ver até o fim das parcelas.',
     'Teste de estresse: até onde a vantagem aguenta': 'Refaz a conta com rendimentos de 8% a 14% ao ano. Mostra a partir de que taxa um caminho deixa de compensar: se o CDI cair abaixo disso, a vantagem some.',
-    'Quanto custa cada caminho': 'O custo efetivo ao ano de cada caminho, pela taxa interna de retorno do que o cliente recebe e paga. No consórcio já entram as taxas sobre a carta cheia e o lance embutido.',
+    'Quanto custa cada caminho': 'O placar em reais até o horizonte. **Juros, taxas e encargos:** tudo o que se paga ao credor além do preço do bem. **Aluguel:** o que o cliente paga enquanto espera o bem. **Bem mais caro:** quanto o bem encareceu enquanto ele esperava. **Rendimento perdido:** o que o dinheiro tirado do investimento (entrada, lance, parcelas, compra à vista) teria rendido.\n\nComprar à vista zera os juros, mas costuma ter o maior rendimento perdido. O menor custo total é sempre o maior patrimônio.',
+    'Detalhes do crédito': 'O custo efetivo ao ano de cada caminho, pela taxa interna de retorno do que o cliente recebe e paga. No financiamento, com a TR projetada (o CET da proposta não inclui a TR). No consórcio já entram as taxas sobre a carta cheia e o lance embutido.',
     'Como o cálculo funciona': 'As regras do cálculo e as limitações da simulação. Vale ler antes de apresentar o resultado.'
   },
 
   campos: {
     tipoBem: 'Imóvel, carro, terreno ou outro bem. Ao escolher carro, o app desmarca a valorização pelo IPCA, porque veículos costumam perder valor; informe a desvalorização ao ano.',
     valorBem: 'O preço do bem hoje, à vista.',
-    custoEspera: 'Opcional. O que o cliente gasta por mês enquanto não tem o bem (ex.: aluguel enquanto não tem o imóvel). Para quando ele recebe o bem, em qualquer caminho.',
+    custoEspera: 'Opcional. O que o cliente gasta por mês enquanto não tem o bem (ex.: aluguel enquanto não tem o imóvel). Para quando ele recebe o bem, em qualquer caminho. No consórcio, soma-se às parcelas até a contemplação; o total aparece no card e no placar de custos.',
     valIpca: 'Marcado, o bem sobe de preço com a inflação. Desmarque para informar outra valorização.',
     valOutra: 'Quanto o bem valoriza ao ano. Use valor negativo para bens que perdem valor, como veículos.',
     capital: 'O total investido hoje que pode ser usado na compra (entrada, lance ou compra à vista).',
@@ -75,7 +76,7 @@ Ajuda.iniciar({
     consAdm: 'A taxa de administração do grupo, total do contrato, em % da carta.',
     consFr: 'O fundo de reserva do grupo, total do contrato, em % da carta.',
     consSeg: 'O valor do seguro na primeira parcela, como está na simulação. Cai na mesma proporção da parcela depois do lance.',
-    consReaj: 'Quanto a carta, a parcela e o saldo sobem a cada 12 meses.',
+    consReaj: 'Quanto a carta, a parcela e o saldo sobem a cada 12 meses (INCC para imóveis, IPCA para veículos). Com 0%, a simulação trata a parcela como fixa, o que não acontece na prática. Com o índice IPCA, o botão "usar IPCA" preenche o valor das premissas.',
     consLance: 'O lance total oferecido, em % da carta ou em número de parcelas, conforme a escolha acima.',
     consEmb: 'A parte do lance que sai do próprio crédito: o cliente desembolsa menos, mas recebe um crédito menor.',
     consMedia: 'Opcional. A média de lance vencedor do grupo. Lance abaixo da média tem menos chance de ser contemplado: o app avisa.',

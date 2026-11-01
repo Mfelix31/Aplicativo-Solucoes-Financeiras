@@ -232,12 +232,34 @@ function dicaFinanciamento(e){
 function dicaConsorcio(e){
   const c = e.consorcio;
   const k = mesesAte($('consMes').value);
-  if(!isNaN(k) && k >= 0) $('hintConsMes').textContent = (k === 0 ? 'Contemplação neste mês (1ª assembleia): compra imediata.' : 'Contemplação na ' + (k+1) + 'ª assembleia, daqui a ' + fmtPrazo(k) + '. Até lá, as parcelas saem do capital, que segue rendendo.') + ' Sem lance vencedor, a data é incerta.';
+  if(!isNaN(k) && k >= 0) $('hintConsMes').textContent = (k === 0 ? 'Contemplação neste mês (1ª assembleia): compra imediata.' : 'Contemplação na ' + (k+1) + 'ª assembleia, daqui a ' + fmtPrazo(k) + '. Até lá, as parcelas saem do capital, que segue rendendo.' + textoAluguelEspera(k, e.custoEsperaMensal)) + ' Sem lance vencedor, a data é incerta.';
+  dicaReajuste(c);
   const valido = c.carta > 0 && c.prazoMeses > 0;
   if(valido) $('consResumo').innerHTML = resumoConsorcio(c, e.valorBem);
   $('sufLance').textContent = seg.lanceEm === 'parcelas' ? 'parcelas' : '% da carta';
   if(valido) $('hintLance').innerHTML = textoLance(c);
   dicaModalidade(e.valorBem);
+}
+
+/** lembra o aluguel pago enquanto o cliente espera a contemplação */
+function textoAluguelEspera(meses, aluguel){
+  if(aluguel > 0) return ' Nesse período o cliente também paga ' + fmtBRL0(aluguel) + '/mês de aluguel: ' + fmtBRL0(aluguel * meses) + ' no total.';
+  return ' Se o cliente paga aluguel, informe em "Custo de esperar pelo bem" (etapa 1) para somá-lo às parcelas.';
+}
+
+/** reajuste da carta: avisa quando a parcela está fixa e sugere o IPCA das premissas */
+function dicaReajuste(c){
+  const indice = $('consIndice').value;
+  const ipca = num('ipca');
+  const btn = $('btnReajIpca');
+  btn.hidden = !(indice === 'IPCA' && isFinite(ipca) && Math.abs(c.reajusteAnual * 100 - ipca) > 0.005);
+  btn.textContent = 'usar IPCA (' + (isFinite(ipca) ? fmtPct(ipca/100) : '—') + ')';
+  if(!(c.reajusteAnual > 0)){
+    $('hintReaj').innerHTML = '<span class="cor-no">Com 0%, a parcela fica fixa na simulação.</span> Na prática ela sobe todo ano pelo índice da carta (INCC para imóveis, IPCA para veículos).' +
+      (indice === 'INCC' ? ' Informe o INCC acumulado em 12 meses ou o da administradora.' : '');
+    return;
+  }
+  $('hintReaj').textContent = 'A parcela, o saldo e a carta sobem ' + fmtPct(c.reajusteAnual, 1) + ' a cada 12 parcelas. A carta acompanha o preço do bem; a parcela também sobe.';
 }
 
 function resumoConsorcio(c, valorBem){
@@ -340,7 +362,7 @@ function mostrarErros(erros){
 
 function renderTudo(){
   if(!ultimo) return;
-  renderConclusao(); renderResposta(); renderCards(); renderEstresse(); renderCusto(); renderFluxo(); desenharGrafico();
+  renderConclusao(); renderResposta(); renderCards(); renderEstresse(); renderPlacar(); renderCusto(); renderFluxo(); desenharGrafico();
 }
 
 /* =========================================================================
@@ -409,9 +431,24 @@ function linhasDoCard(id, c, inp){
   linhas.push(['Fica investido', '<span class="' + (c.capitalAposCompra < inp.e.reservaMinima ? 'no-t' : '') + '">' + fmtBRL0(c.capitalAposCompra) + '</span>']);
   linhas.push(['Renda do capital no 1º mês', fmtBRL0(c.rendaInicial)]);
   if(id !== 'avista') linhas.push(['Parcela no 1º mês após a compra', fmtBRL0(c.parcelaInicial) + (id === 'financiamento' && seg.sistema === 'SAC' ? '<small>cai até ' + fmtBRL0(c.parcelaFinal) + '</small>' : '')]);
+  if(id === 'consorcio') { const ev = evolucaoParcela(c, inp.e.horizonteMeses); if(ev) linhas.push(['Evolução da parcela', ev]); }
+  if(c.custos.aluguel > 0) linhas.push(['Aluguel até ter o bem', '<span class="no-t">' + fmtBRL0(c.custos.aluguel) + '</span><small>' + fmtPrazo(c.mesCompra) + ' de espera</small>']);
   linhas.push(['Menor capital no caminho', '<span class="' + (c.capitalMinimo < 0 ? 'no-t' : '') + '">' + fmtBRL0(Math.max(0, c.capitalMinimo)) + '</span><small>' + (c.capitalMinimo < 0 ? 'precisa de dinheiro de fora' : 'em ' + mesAno(c.mesCapitalMinimo)) + '</small>']);
   if(c.mesEsgota !== null) linhas.push(['Capital zera', '<span class="no-t">em ' + fmtPrazo(c.mesEsgota) + '</span><small>' + mesAno(c.mesEsgota) + '</small>']);
   return linhas;
+}
+
+/** parcela do consórcio ao longo do tempo: hoje → em 3 anos → no horizonte (só os pontos que existem) */
+function evolucaoParcela(c, H){
+  const pontos = [];
+  const valor = t => { const s = c.serie[t]; return s && s.parcela > 0 ? s.parcela : null; };
+  const marcos = [[0, 'hoje'], [36, 'em 3 anos'], [Math.min(H, c.fimContrato) - 1, 'em ' + fmtPrazo(Math.min(H, c.fimContrato))]];
+  marcos.forEach(([t, rotulo]) => {
+    const v = t >= 0 ? valor(t) : null;
+    if(v !== null && !pontos.some(p => p.t === t) && (!pontos.length || t > pontos[pontos.length-1].t)) pontos.push({t, v, rotulo});
+  });
+  if(pontos.length < 2) return null;
+  return pontos.map(p => fmtBRL0(p.v) + ' ' + p.rotulo).join(' → ');
 }
 
 function renderResposta(){
@@ -457,6 +494,8 @@ function textoConclusao(){
   if(C.consorcio) p.push(paragrafoConsorcio(C.consorcio));
   if(C.avista) p.push(paragrafoAVista(C.avista, inp));
   if(C.consorcio && C.consorcio.mesCompra !== null) p.push(...alertasConsorcio(inp.e.consorcio));
+  const placar = fraseCusto(C, anos);
+  if(placar) p.push(placar);
   const cdi = alertaCdi(C, r);
   if(cdi) p.push(cdi);
   return {head, p};
@@ -471,15 +510,17 @@ function paragrafoFinanciamento(f){
 function paragrafoConsorcio(c){
   if(c.mesCompra === null) return '<b>Consórcio:</b> não chega à contemplação dentro do período simulado.';
   const inicio = c.mesCompra === 0 ? 'com o lance, ' : 'contemplado em ' + fmtPrazo(c.mesCompra) + ', ';
-  if(c.mesEsgota === null) return '<b>Consórcio:</b> ' + inicio + 'ficam ' + fmtBRL0(c.capitalAposCompra) + ' investidos e a renda cobre ' + fmtPct(c.cobertura || 0,0) + ' da parcela; o capital não zera.';
-  if(c.capitalAposCompra < 0) return '<b>Consórcio:</b> ' + inicio + 'o capital não cobre o lance' + (c.complemento > 0 ? ' e a diferença entre o crédito e o preço do bem (' + fmtBRL0(c.complemento) + ')' : '') + ': faltariam ' + fmtBRL0(-c.capitalAposCompra) + ' de outra fonte.';
-  return '<b>Consórcio:</b> ' + inicio + 'sobram só ' + fmtBRL0(c.capitalAposCompra) + ' investidos; a renda (' + fmtBRL0(c.rendaInicial) + ') não paga a parcela (' + fmtBRL0(c.parcelaInicial) + ') e o capital zera em ' + fmtPrazo(c.mesEsgota) + '. O custo do crédito (' + (c.custoEfetivoAnual !== null ? fmtPct(c.custoEfetivoAnual) + ' a.a.' : '—') + ') não é o problema: o problema é a descapitalização do lance.';
+  const aluguel = c.custos.aluguel > 0 ? ' Até a contemplação, o cliente paga também ' + fmtBRL0(c.custos.aluguel) + ' de aluguel.' : '';
+  if(c.mesEsgota === null) return '<b>Consórcio:</b> ' + inicio + 'ficam ' + fmtBRL0(c.capitalAposCompra) + ' investidos e a renda cobre ' + fmtPct(c.cobertura || 0,0) + ' da parcela; o capital não zera.' + aluguel;
+  if(c.capitalAposCompra < 0) return '<b>Consórcio:</b> ' + inicio + 'o capital não cobre o lance' + (c.complemento > 0 ? ' e a diferença entre o crédito e o preço do bem (' + fmtBRL0(c.complemento) + ')' : '') + ': faltariam ' + fmtBRL0(-c.capitalAposCompra) + ' de outra fonte.' + aluguel;
+  return '<b>Consórcio:</b> ' + inicio + 'sobram só ' + fmtBRL0(c.capitalAposCompra) + ' investidos; a renda (' + fmtBRL0(c.rendaInicial) + ') não paga a parcela (' + fmtBRL0(c.parcelaInicial) + ') e o capital zera em ' + fmtPrazo(c.mesEsgota) + '. O custo do crédito (' + (c.custoEfetivoAnual !== null ? fmtPct(c.custoEfetivoAnual) + ' a.a.' : '—') + ') não é o problema: o problema é a descapitalização do lance.' + aluguel;
 }
 
 function paragrafoAVista(a, inp){
   if(a.mesCompra === null) return '<b>Capital próprio:</b> o capital não alcança o preço do bem no período simulado.';
   const reserva = inp.e.reservaMinima;
-  return '<b>Capital próprio:</b> ' + (a.mesCompra === 0 ? 'compra hoje' : 'compra em ' + fmtPrazo(a.mesCompra) + ', pagando ' + fmtBRL0(a.desembolsoCompra) + ' pelo bem já valorizado') + ', sem parcela, mas fica com ' + fmtBRL0(a.capitalAposCompra) + ' investidos' + (reserva > 0 && a.capitalAposCompra < reserva ? ' — abaixo da reserva mínima de ' + fmtBRL0(reserva) + '.' : '.');
+  return '<b>Capital próprio:</b> ' + (a.mesCompra === 0 ? 'compra hoje' : 'compra em ' + fmtPrazo(a.mesCompra) + ', pagando ' + fmtBRL0(a.desembolsoCompra) + ' pelo bem já valorizado') + ', sem parcela, mas fica com ' + fmtBRL0(a.capitalAposCompra) + ' investidos' + (reserva > 0 && a.capitalAposCompra < reserva ? ' — abaixo da reserva mínima de ' + fmtBRL0(reserva) + '.' : '.') +
+    (a.custos.aluguel > 0 ? ' Até comprar, paga ' + fmtBRL0(a.custos.aluguel) + ' de aluguel.' : '');
 }
 
 function alertasConsorcio(cc){
@@ -488,6 +529,16 @@ function alertasConsorcio(cc){
     (cc.lanceParcelas + 1e-9 < cc.mediaLanceParcelas ? ', então a chance de contemplação na data simulada é menor.' : '.'));
   p.push('<b>Atenção à contemplação:</b> o consórcio foi simulado com contemplação em ' + mesAno(cc.mesContemplacao - 1) + (cc.lanceTotal > 0 ? ' com lance de ' + fmtPct(cc.lanceTotal,0) + ' da carta' : ' sem lance') + '. Isso é uma hipótese, não uma garantia: confira o histórico de lances vencedores do grupo e simule também uma contemplação mais tarde.');
   return p;
+}
+
+/** o argumento em uma frase: juros evitados × rendimento perdido */
+function fraseCusto(C, anos){
+  const partes = ORDEM.filter(id => C[id] && C[id].custos.total !== null).map(id => {
+    const k = C[id].custos;
+    return CAM[id].nome.toLowerCase() + ': ' + fmtBRL0(k.credito) + ' em juros e encargos e ' + fmtBRL0(k.rendimentoPerdido) + ' de rendimento perdido';
+  });
+  if(partes.length < 2) return null;
+  return '<b>Custo de cada caminho em ' + fmtAnos(anos) + ':</b> ' + partes.join('; ') + '. Quem compra à vista não paga juros, mas o dinheiro deixa de render; o placar abaixo soma os dois.';
 }
 
 /** até que rendimento o caminho de crédito vence a compra à vista */
@@ -540,6 +591,33 @@ function renderEstresse(){
       '<td class="' + (i === melhor ? 'win' : '') + '">' + (v ? (v.comprou ? fmtBRL0(v.patrimonio) : 'não compra') + (v.mesEsgota !== null && v.mesEsgota <= H ? '<small>capital zera em ' + fmtPrazo(v.mesEsgota) + '</small>' : '') : '—') + '</td>').join('') + '</tr>';
   }).join('');
   $('sensNota').textContent = 'Patrimônio líquido nominal em ' + fmtAnos(anos) + ', com o rendimento líquido do capital constante em cada linha. Em verde, o maior de cada linha.';
+}
+
+/** placar em reais: juros e encargos, aluguel, bem mais caro e rendimento perdido; o menor total é o maior patrimônio */
+function linhasPlacar(C, ids){
+  const algum = campo => ids.some(id => (C[id].custos[campo] || 0) > 0.5);
+  const linhas = [['Juros, taxas e encargos do crédito', 'credito']];
+  if(algum('aluguel')) linhas.push(['Aluguel até ter o bem', 'aluguel']);
+  if(algum('valorizacao')) linhas.push(['Bem mais caro por comprar depois', 'valorizacao']);
+  linhas.push(['Rendimento que o dinheiro deixou de ganhar', 'rendimentoPerdido']);
+  return linhas;
+}
+function menorTotal(C, ids){
+  let melhor = null;
+  ids.forEach(id => { const t = C[id].custos.total; if(t !== null && (melhor === null || t < C[melhor].custos.total)) melhor = id; });
+  return melhor;
+}
+function renderPlacar(){
+  const {r, inp} = ultimo;
+  const ids = caminhosAtivos(r), C = r.cenarios, anos = anosDoHorizonte(inp);
+  const melhor = menorTotal(C, ids);
+  const valor = (id, campo) => { const v = C[id].custos[campo]; return v === null ? 'não compra' : fmtBRL0(v); };
+  let h = cabecalhoCaminhos(ids, 'Em ' + fmtAnos(anos));
+  linhasPlacar(C, ids).forEach(([rotulo, campo]) => { h += '<tr><td>' + rotulo + '</td>' + ids.map(id => '<td>' + valor(id, campo) + '</td>').join('') + '</tr>'; });
+  h += '<tr class="total"><td>Custo total do caminho</td>' + ids.map(id => '<td class="' + (id === melhor ? 'win' : '') + '">' + valor(id, 'total') + (id === melhor ? '<small>menor custo</small>' : '') + '</td>').join('') + '</tr>';
+  $('placarTitulo').textContent = 'Quanto custa cada caminho em ' + fmtAnos(anos);
+  $('tabPlacar').innerHTML = h;
+  $('placarNota').textContent = 'Valores nominais até o horizonte. Patrimônio = o que o cliente teria sem comprar nada + a valorização do bem − este custo total; por isso o menor custo é o maior patrimônio. No financiamento, os juros contam até o horizonte; no consórcio, a taxa de administração já entra inteira no saldo devedor.';
 }
 
 function renderCusto(){
@@ -689,6 +767,9 @@ function pdfResultado(inp, r){
     linha('Saiu do capital para pagar parcelas', soCredito(x => !x.periodo ? '—' : fmtBRL0(x.periodo.retiradoDoCapital))) +
     linha('Capital zera', x => x.mesEsgota === null ? 'não zera' : '<span class="no">em ' + fmtPrazo(x.mesEsgota) + '</span>') +
     linha('Custo efetivo do crédito', soCredito(x => x.custoEfetivoAnual === null ? '—' : fmtPct(x.custoEfetivoAnual) + ' a.a.')) +
+    (C.consorcio ? linha('Evolução da parcela', (x, id) => id === 'consorcio' ? (evolucaoParcela(x, H) || '—') : '—') : '') +
+    linhasPlacar(C, ids).map(([rotulo, campo]) => linha(rotulo + ' (' + fmtAnos(anos) + ')', x => x.custos[campo] === null ? '—' : fmtBRL0(x.custos[campo]))).join('') +
+    linha('<strong>Custo total do caminho</strong>', (x, id) => x.custos.total === null ? '—' : '<strong class="' + (id === menorTotal(C, ids) ? 'ok' : '') + '">' + fmtBRL0(x.custos.total) + '</strong>') +
     linha('<strong>Patrimônio líquido em ' + fmtAnos(anos) + '</strong>', (x, id) => '<strong class="' + (r.melhor === id ? 'ok' : '') + '">' + fmtBRL0(x.horizonte.patrimonio) + '</strong>') +
     linha('… em R$ de hoje', x => fmtBRL0(x.horizonte.patrimonioReal)) +
     '</table>';
@@ -948,6 +1029,8 @@ function iniciar(){
   ['onFin','onCons','onAv'].forEach(id => $(id).addEventListener('change', () => {
     $(id).closest('section').classList.toggle('off', !$(id).checked);
   }));
+  $('btnReajIpca').addEventListener('click', () => { $('consReaj').value = num('ipca').toFixed(2); agendar(); });
+  $('tipoBem').addEventListener('change', () => { $('consIndice').value = ['imovel','terreno'].includes($('tipoBem').value) ? 'INCC' : 'IPCA'; });
   $('btnCartaIdeal').addEventListener('click', () => { $('consCarta').value = moeda(Number($('btnCartaIdeal').dataset.valor)); agendar(); });
   $('usarFocus').addEventListener('change', () => {
     if($('usarFocus').checked && !curvaFocus) buscarFocus();
