@@ -72,6 +72,7 @@ Os commits "Ibovespa: fechamento de AAAA-MM-DD" são feitos pela automação di�
 |---|---|
 | `paginas.test.js` | Arquivos referenciados existem; `id`s usados no JavaScript existem e não se repetem; sintaxe dos scripts; nenhum estilo fixo em linha; valores de referência iguais aos padrões dos simuladores. |
 | `ajuda.test.js` | Cada texto de ajuda aponta para um campo, etapa ou título que existe; ordem de carregamento da ajuda; textos escapados. |
+| `investimentos.test.js` | Motor do Simulador: feriados e dias úteis (ANBIMA), IR e IOF nas mudanças de faixa, LCA, RDC, Compromissada, aportes, poupança, CDB, Tesouro Selic e casos-limite, conferidos em Python com data fixa. |
 | `planejamento.test.js` | Motor do Planejamento, conferido com a planilha do usuário. |
 | `aquisicao.test.js`, `propostas.test.js` | Motor da Aquisição e leitura dos PDFs, conferidos com as propostas do Sicoob. |
 | `sucessao.test.js`, `sucessao-robustez.test.js` | Motor do Sucessório (ITCMD por estado, partilha, whole life, recomendação) e casos aleatórios (sem erro, sempre uma solução). |
