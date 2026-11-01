@@ -543,7 +543,7 @@ function renderBase(){
   const {r} = ultimo, b = r.base, e = r.entrada;
   const total = e.imoveis + e.aplicacoes + e.empresa + e.exterior + (e.veiculos || 0) + (e.rebanho || 0);
   $('baseSub').innerHTML = 'Quatro respostas para a pergunta: <b>se o falecimento fosse hoje, sem planejamento nenhum, o que aconteceria?</b> ' + fmtBRL0(b.monteHoje) + (b.dividas > 0 ? ' (bens de ' + fmtBRL0(b.brutoHoje) + ' menos ' + fmtBRL0(b.dividas) + ' de dívidas)' : '') + ' iriam a inventário em ' + T.ESTADOS[e.uf].nome + ', ' + ({cartorio:'em cartório', judicial:'na Justiça', litigio:'na Justiça, com conflito'})[e.tipoInventario] + '.';
-  const pat = total, mil = v => fmtCurto(v);
+  const pat = b.monteHoje || total, mil = v => fmtCurto(v);
   const barra = partes => '<div class="qbar">' + partes.filter(x => x.v > 0).map(x => '<span class="' + x.c + '" style="--w:' + Math.max(1.5, x.v * 100).toFixed(2) + '%" title="' + esc(x.t) + '"></span>').join('') + '</div>';
   const legenda = itens => '<ul class="qleg">' + itens.filter(x => x.mostra !== false).map(x => '<li class="' + x.c + '"><span>' + x.t + '</span><b>' + x.v + '</b></li>').join('') + '</ul>';
   const card = (n, pergunta, valor, oque, visual, conta) => '<div class="q-card">' +
@@ -590,7 +590,7 @@ function renderBase(){
     legenda([{ c: 'p-meacao', t: 'meação do cônjuge', v: fmtBRL0(b.meacao), mostra: b.meacao > 0 },
       { c: 'p-leg', t: 'legítima (herdeiros necessários)', v: fmtBRL0(b.legitima) },
       { c: 'p-disp', t: 'parte disponível (testamento ou doação)', v: fmtBRL0(b.disponivel) }]),
-    'patrimônio ' + fmtBRL0(pat) + (b.meacao > 0 ? ' − meação ' + fmtBRL0(b.meacao) : '') + ' = herança ' + fmtBRL0(b.heranca) + '; metade legítima, metade disponível (Código Civil, arts. 1.789 e 1.846)' +
+    'patrimônio ' + (b.dividas > 0 ? 'líquido das dívidas ' : '') + fmtBRL0(pat) + (b.meacao > 0 ? ' − meação ' + fmtBRL0(b.meacao) : '') + ' = herança ' + fmtBRL0(b.heranca) + '; metade legítima, metade disponível (Código Civil, arts. 1.789 e 1.846)' +
       (e.partilha.conjugeHerdeiro ? '. O cônjuge também herda ' + pct1(e.partilha.fracConjuge) + ' da herança junto com os filhos' : '') + '.' +
       (b.conjugeHoje ? ' <b>Sucessão do casal:</b> quando a meação passar aos filhos, haverá um 2º inventário de cerca de ' + fmtBRL0(b.conjugeHoje.total) + ' (hoje); ele entra na comparação dos caminhos.' : ''));
   $('baseCards').innerHTML = c1 + c2 + c3 + c4;
@@ -908,6 +908,8 @@ function abrirArquivo(arquivo){
       const v = lerMoeda({ value: String(d.campos.imoveis) });
       desenharBens([{ tipo: 'urbano', uf: $('uf').value, qtd: parseInt(d.campos.nImoveis, 10) || 1, valor: v }]);
     }
+    // arquivo de antes do custo pela lei (01/11/2026): reabre com o percentual fixo, para reproduzir o resultado salvo
+    if(!Object.prototype.hasOwnProperty.call(d.campos, 'custoModo')) $('custoModo').value = 'fixo';
     ufHonorarios = $('uf').value;   // mantém os honorários do arquivo
     if(['vigente', 'reforma', 'estresse'].includes(d.regime)){
       seg.regime = d.regime;
