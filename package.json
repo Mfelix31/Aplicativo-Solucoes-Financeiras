@@ -1,7 +1,12 @@
 {
   "name": "inteligencia-financeira",
   "private": true,
-  "description": "Plataforma estática de simulação de investimentos, planejamento financeiro e estratégia de aquisição.",
+  "description": "Plataforma estática de simulação de investimentos e consultoria financeira: planejamento financeiro, estratégia de aquisição de bens e planejamento sucessório.",
+  "homepage": "https://mfelix31.github.io/Aplicativo-Solucoes-Financeiras/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mfelix31/Aplicativo-Solucoes-Financeiras.git"
+  },
   "scripts": {
     "test": "node --test tests/*.test.js"
   },

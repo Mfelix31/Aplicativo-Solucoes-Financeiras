@@ -1,0 +1,14 @@
+# Dependências e ferramentas locais (o projeto não usa nenhuma, mas evita envios acidentais)
+node_modules/
+.vscode/
+.idea/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos temporários e simulações salvas localmente
+*.log
+*.tmp
+simulacao-*.json
