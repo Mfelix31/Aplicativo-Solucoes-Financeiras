@@ -69,6 +69,7 @@
   /** Imposto sobre um valor (quinhão ou doação) por uma regra { metodo, faixas | aliquota, isencao }. */
   function itcmdValor(valor, regra) {
     if (!(valor > 0)) return 0;
+    if (regra.metodo === 'maior') return Math.max(...regra.regras.map(r => itcmdValor(valor, r)));
     if (regra.isencao && regra.isencao.tipo === 'tudoOuNada' && valor <= regra.isencao.ate) return 0;
     if (regra.metodo === 'unica') return valor * regra.aliquota;
     if (regra.metodo === 'total') {
@@ -90,6 +91,13 @@
    */
   function itcmdRegra(total, fracoes, regra, totalEspolio) {
     if (!(total > 0) || !regra) return 0;
+    // 'maior': o maior imposto entre duas tabelas (regime de estresse), quinhão a quinhão;
+    // se alguma delas olha o espólio inteiro, compara os totais
+    if (regra.metodo === 'maior') {
+      if (regra.regras.some(r => r.base === 'monte' || r.isencaoEspolio))
+        return Math.max(...regra.regras.map(r => itcmdRegra(total, fracoes, r, totalEspolio)));
+      return fracoes.reduce((t, f) => t + Math.max(...regra.regras.map(r => itcmdValor(total * f, r))), 0);
+    }
     if (regra.isencaoEspolio && (totalEspolio === undefined ? total : totalEspolio) <= regra.isencaoEspolio) return 0;
     if (regra.base === 'monte') return itcmdValor(total, regra);
     return fracoes.reduce((t, f) => t + itcmdValor(total * f, regra), 0);
@@ -140,7 +148,7 @@
     const c = Object.assign({}, CUSTOS_PADRAO, a.custos || {});
     const hon = Object.assign({}, honorariosPadrao(a.uf), (a.custos && a.custos.honorarios) || {});
     const monte = Math.max(0, a.monte || 0);
-    if (monte === 0) return { itcmd: 0, honorarios: 0, cartorio: 0, registro: 0, certidoes: 0, multa: 0, total: 0, pct: 0, heranca: 0 };
+    if (monte === 0) return { itcmd: 0, itcmdPorUF: {}, honorarios: 0, cartorio: 0, registro: 0, certidoes: 0, multa: 0, total: 0, pct: 0, heranca: 0 };
     const heranca = monte * (1 - (a.meacaoPct || 0));
     const n = Math.max(1, Math.round(a.herdeiros || 1));
     const fracoes = a.quinhoes && a.quinhoes.length ? a.quinhoes : Array.from({ length: n }, () => 1 / n);
@@ -702,7 +710,10 @@
           uf: e.uf, partes: partes.map(p => ({ uf: p.uf, valor: p.valor * e.meacaoPct })), regime: e.regime, tipo: e.tipoInventario, custos: e.custos })
         : null;
       const custoEsperadoConjuge = invConjuge ? custoEsperadoDe(pr, invConjuge, monte * e.meacaoPct) : 0;
-      const familia = monte - liq.excedente - custoEsperado - custoEsperadoConjuge - custoExterior - irLatente - extincaoUsufruto + doadoValor + previdenciaLiquida + seguro - externoFV;
+      // o que vem dos bens do inventário nunca fica negativo: dívida acima dos bens não passa aos herdeiros
+      // (CC, art. 1.792) nem alcança previdência e seguro, que vão direto aos beneficiários
+      const heranca = Math.max(0, monte - custoEsperado - custoEsperadoConjuge - custoExterior - irLatente);
+      const familia = heranca - extincaoUsufruto + doadoValor + previdenciaLiquida + seguro - externoFV;
       const brutoFamilia = Math.max(1, monte + doadoValor + prevV + prevN + prevP + seguro);
       anos.push({
         ano: t, monte, divida, veiculos: veic, inventario: inv, inventarioConjuge: invConjuge, custoEsperado, custoEsperadoConjuge, extincaoUsufruto, sustento, custoExterior, previdenciaLiquida, pgbl: prevP, irPgbl: irPrevP, seguro, liquidez, meta,
@@ -999,7 +1010,7 @@
 
   function validar(e) {
     const erros = [];
-    if (!ITCMD.ESTADOS[e.uf]) erros.push('Escolha um dos estados disponíveis: MT, MS, RO ou PA.');
+    if (!ITCMD.ESTADOS[e.uf]) erros.push('Escolha o estado de domicílio na lista (os 27 estados estão disponíveis).');
     if (!(e.idade >= 18 && e.idade <= 100)) erros.push('A idade precisa estar entre 18 e 100 anos.');
     if (!(e.herdeiros >= 1)) erros.push('Informe ao menos um herdeiro.');
     const tot = e.imoveis + e.aplicacoes + e.previdencia + e.empresa + e.exterior + e.veiculos + e.rebanho;
