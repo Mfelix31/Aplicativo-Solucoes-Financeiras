@@ -102,11 +102,29 @@ test('A7 consórcio contemplado na 1ª assembleia (100x, adm 10%, fundo 2%): par
   t.diagnostic(`parcela ${parcela.toFixed(2)} | custo efetivo ${(c.custoEfetivoAnual * 100).toFixed(3)}% a.a.`);
 });
 
-test('A8 consórcio contemplado tarde (mês 100 de 120): o custo efetivo deveria ser mostrado', { todo: 'custo efetivo some ("—") quando o fluxo troca de sinal duas vezes; melhoria 5 do Stress Test MT' }, t => {
-  const c = A.analisar(base({ capital: 500000, valorBem: 300000, avista: { ativo: false }, horizonteMeses: 120,
-    consorcio: cons({ carta: 300000, prazoMeses: 120, taxaAdm: 0.15, fundoReserva: 0.02, mesContemplacao: 100 }) })).cenarios.consorcio;
-  t.diagnostic(`custo efetivo do app: ${c.custoEfetivoAnual}`);
-  assert.notEqual(c.custoEfetivoAnual, null);
+test('A8 consórcio contemplado tarde: custo efetivo a partir da contemplação (parcelas anteriores corrigidas pela taxa do capital)', t => {
+  const mk = k => A.analisar(base({ capital: 1e7, valorBem: 300000, avista: { ativo: false }, horizonteMeses: 120,
+    consorcio: cons({ carta: 300000, prazoMeses: 120, taxaAdm: 0.15, fundoReserva: 0.02, mesContemplacao: k }) })).cenarios.consorcio;
+  // contemplação na 24ª assembleia: 23 parcelas antes, corrigidas a 10% a.a., saem do crédito; depois, crédito comum
+  const c = mk(24), parcela = 300000 * 1.17 / 120, i = im(0.10);
+  let antes = 0; for (let t = 0; t < 23; t++) antes = (antes + parcela) * (1 + i);
+  const g = Array.from({ length: 120 - 23 }, () => -parcela); g[0] += 300000 - antes;
+  perto(c.custoEfetivoAnual, Math.pow(1 + tirIndep(g), 12) - 1, 1e-6, 'mês 24');
+  assert.equal(c.custoEfetivoMetodo, 'contemplacao');
+  // contínuo com a 1ª assembleia e crescente com a demora
+  const k1 = mk(1).custoEfetivoAnual, k2 = mk(2).custoEfetivoAnual, k36 = mk(36).custoEfetivoAnual;
+  assert.ok(Math.abs(k2 - k1) < 0.002 && k1 < c.custoEfetivoAnual && c.custoEfetivoAnual < k36);
+  // mês 100 de 120: o que foi pago antes já passa do crédito → sem crédito a custear, com explicação
+  const tarde = mk(100);
+  assert.equal(tarde.custoEfetivoAnual, null);
+  assert.equal(tarde.custoEfetivoMetodo, 'semCredito');
+  assert.ok(tarde.parcelasAntesCorrigidas > tarde.creditoRecebido);
+  // lance que quita o saldo na contemplação: só houve parcelas antes e o crédito no fim → poupança, não custo de crédito
+  const quita = A.analisar(base({ capital: 1e7, valorBem: 700000, avista: { ativo: false }, horizonteMeses: 240,
+    consorcio: cons({ carta: 1e6, prazoMeses: 240, taxaAdm: 0.15, lanceTotal: 0.8, lanceEmbutido: 0.25, mesContemplacao: 169 }) })).cenarios.consorcio;
+  assert.equal(quita.custoEfetivoMetodo, 'semCredito', 'não mostra o rendimento da poupança como custo');
+  assert.equal(quita.custoEfetivoAnual, null);
+  t.diagnostic(`1ª assembleia ${(k1 * 100).toFixed(2)}% | 2ª ${(k2 * 100).toFixed(2)}% | 24ª ${(c.custoEfetivoAnual * 100).toFixed(2)}% | 36ª ${(k36 * 100).toFixed(2)}% | 100ª: pago antes ${tarde.parcelasAntesCorrigidas.toFixed(0)} > crédito ${tarde.creditoRecebido.toFixed(0)}`);
 });
 
 test('A9 lance de 30%: "reduz prazo" termina antes de "reduz parcela" e os dois pagam o mesmo total', t => {
