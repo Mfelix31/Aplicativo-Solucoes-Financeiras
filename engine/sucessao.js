@@ -537,7 +537,7 @@
     const pat = patrimonioDeBens(e);
     if (typeof sus.meses !== 'number' || !(sus.meses >= 0)) sus.meses = MESES_SUSTENTO[tipo] || 0;   // null >= 0 é true em JS
     return Object.assign({
-      idade: 55, uf: 'MT', herdeiros: 2, meacaoPct: 0, tipoInventario: 'cartorio', regime: 'vigente',
+      idade: 55, uf: 'MT', herdeiros: 2, meacaoPct: 0, tipoInventario: 'cartorio', regime: 'reforma',   // padrão: adequação à reforma
       imoveis: 0, nImoveis: 0, aplicacoes: 0, previdencia: 0, previdenciaAportado: null, previdenciaAnos: 10, previdenciaTipo: 'vgbl',
       seguroExistente: 0, empresa: 0, exterior: 0, dividas: 0, custoAquisicaoImoveis: 0, rendaMensal: 0,
       aluguelMensal: 0, deducoesAluguelMensal: 0, nImoveisAlugados: 0, nResidenciais: 0, outrasRendasMensais: 0,

@@ -60,7 +60,7 @@ test('S5 comunhão parcial com 40% comuns e 4 filhos: cônjuge herda só nos par
 });
 
 test('S6 bens em dois estados: fazenda em MS paga ITCMD de MS; casa e aplicações, de MT (domicílio)', t => {
-  const r = S.analisar(caso({ bens: [{ tipo: 'fazenda', uf: 'MS', qtd: 1, valor: 4e6 }, { tipo: 'urbano', uf: 'MT', qtd: 1, valor: 1e6 }], aplicacoes: 1e6 }));
+  const r = S.analisar(caso({ regime: 'vigente', bens: [{ tipo: 'fazenda', uf: 'MS', qtd: 1, valor: 4e6 }, { tipo: 'urbano', uf: 'MT', qtd: 1, valor: 1e6 }], aplicacoes: 1e6 }));
   const c = r.base.custoHoje;
   perto(c.itcmdPorUF.MS, 0.06 * 4e6, 0.01, 'MS: 6% acima de R$ 100 mil por herdeiro');
   perto(c.itcmdPorUF.MT, 2 * itcmdMT(1e6), 0.01, 'MT: R$ 2 mi ÷ 2 herdeiros');

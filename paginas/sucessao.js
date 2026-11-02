@@ -68,7 +68,7 @@ const MOTIVO_HOLDING = {
 /* =========================================================================
  * 3. Estado
  * ========================================================================= */
-const seg = { regime: 'vigente', grafico: null };
+const seg = { regime: 'reforma', grafico: null };   // padrão: adequação à reforma (cenário base a partir de 2027)
 let ultimo = null;          // { inp, r }
 let timer = null;
 let ufHonorarios = null;    // estado cujos honorários de referência estão nos campos
@@ -88,7 +88,7 @@ function linhaBem(b){
   tr.innerHTML = '<td><select class="bem-tipo" aria-label="Tipo do bem">' + Object.keys(TIPO_BEM).map(k => '<option value="' + k + '"' + (k === b.tipo ? ' selected' : '') + '>' + TIPO_BEM[k] + '</option>').join('') + '</select></td>' +
     '<td><select class="bem-uf" aria-label="Estado onde fica">' + opcoesUF(b.uf || $('uf').value) + '</select></td>' +
     '<td><input class="bem-qtd" type="number" min="0" step="1" value="' + (Number(b.qtd) || 1) + '" aria-label="Quantidade"></td>' +
-    '<td><input class="bem-valor money" type="text" inputmode="decimal" value="' + moeda(Number(b.valor) || 0) + '" aria-label="Valor total"></td>' +
+    '<td><input class="bem-valor money" type="text" inputmode="decimal" value="' + moeda(Number(b.valor) || 0) + '" aria-label="Valor de mercado hoje"></td>' +
     '<td><button type="button" class="bem-rem" title="Remover" aria-label="Remover bem">×</button></td>';
   mascara(tr.querySelector('.bem-valor'));
   return tr;
@@ -851,8 +851,8 @@ function gerarPdf(){
       '<td class="n ' + (c.protegeJa ? 'ok' : 'no') + '">' + coberturaTxt(c.coberturaAno1) + (c.cabe === 'nao' ? ' · não cabe' : c.cabe === 'aParte' ? ' · à parte' : '') + '</td></tr>').join('') + '</table>';
   const b = r.base;
   const inv = '<table>' + tr('Dinheiro necessário logo após o falecimento', fmtBRL0(b.metaHoje) + (b.sustentoHoje > 0 ? ' (custo esperado do inventário ' + fmtBRL0(b.metaInventarioHoje) + ' + despesas com os bens travados ' + fmtBRL0(b.sustentoHoje) + ')' : '')) +
-    tr('Herança · legítima · parte disponível', fmtBRL0(b.heranca) + ' · ' + fmtBRL0(b.legitima) + ' · ' + fmtBRL0(b.disponivel)) + tr('Estimativa por componentes (lei vigente)', fmtBRL0(b.regimes.vigente.total) + ' (' + pct1(b.regimes.vigente.pct) + ')') +
-    tr('Com a adequação à reforma · estresse 16%', fmtBRL0(b.regimes.reforma.total) + ' · ' + fmtBRL0(b.regimes.estresse.total)) + '</table>';
+    tr('Herança · legítima · parte disponível', fmtBRL0(b.heranca) + ' · ' + fmtBRL0(b.legitima) + ' · ' + fmtBRL0(b.disponivel)) + tr('Estimativa por componentes (' + ({vigente:'lei vigente', reforma:'adequação à reforma', estresse:'estresse 16%'})[r.entrada.regime] + ')', fmtBRL0(b.custoHoje.total) + ' (' + pct1(b.custoHoje.pct) + ')') +
+    tr('Lei vigente · adequação à reforma · estresse 16%', fmtBRL0(b.regimes.vigente.total) + ' · ' + fmtBRL0(b.regimes.reforma.total) + ' · ' + fmtBRL0(b.regimes.estresse.total)) + '</table>';
   const destaques = [...$('destaques').querySelectorAll('h4, p, .big')].map(x => x.textContent.trim()).join(' ').replace(/\s+/g, ' ').trim();
   const img = graficoParaImpressao();
   const seguro = r.seguro && venc(r).cfg.C > 0 ? '<div class="bloco"><h2>Whole life</h2><table>' + tr('Capital', fmtBRL0(r.seguro.capital)) +
