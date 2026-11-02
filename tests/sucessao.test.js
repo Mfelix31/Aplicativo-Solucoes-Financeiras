@@ -648,7 +648,7 @@ test('bens em vários estados: imóvel paga onde fica, móveis no domicílio; me
     partes: [{ uf: 'SP', valor: 1e6 }, { uf: 'MT', valor: 1e6 }, { uf: 'MT', valor: 1e6 }] });
   perto(inv.itcmdPorUF.SP, 40000, 1e-6);
   perto(inv.itcmdPorUF.MT, S.itcmdValor(2e6, tabMT), 1e-6);
-  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 1, aplicacoes: 1e6,
+  const r = S.analisar({ idade: 55, uf: 'MT', herdeiros: 1, aplicacoes: 1e6, regime: 'vigente',
     bens: [{ tipo: 'urbano', uf: 'SP', qtd: 1, valor: 1e6 }, { tipo: 'fazenda', uf: 'MT', qtd: 1, valor: 2e6 }, { tipo: 'veiculo', uf: 'MT', qtd: 2, valor: 300000 }] });
   assert.ok(r.ok);
   assert.equal(r.entrada.imoveis, 3e6); assert.equal(r.entrada.nImoveis, 2); assert.equal(r.entrada.veiculos, 300000);
@@ -674,3 +674,21 @@ test('nua-propriedade: base reduzida na doação; no falecimento, paga o restant
   perto(sp.pagamentos[0].itens.itcmdDoacao, 40000, 1e-6);           // fonte não informa redução: valor cheio
   assert.equal(sp.anos[0].extincaoUsufruto, 0);
 });
+
+test('regime padrão: adequação à reforma (cenário base a partir de 2027); doação de hoje continua pela lei vigente', () => {
+  const base = { idade: 55, uf: 'SP', herdeiros: 2, aplicacoes: 4e6, rendaMensal: 40000 };
+  const r = S.analisar(base);
+  assert.equal(r.entrada.regime, 'reforma');
+  perto(r.base.custoHoje.itcmd, r.base.regimes.reforma.itcmd, 1e-6);
+  assert.notEqual(r.base.regimes.reforma.itcmd, r.base.regimes.vigente.itcmd, 'SP: 4% fixo hoje, progressivo na reforma');
+  // MT já cumpre a LC 227/2026: reforma igual à lei vigente
+  const mt = S.analisar(Object.assign({}, base, { uf: 'MT' }));
+  perto(mt.base.regimes.reforma.itcmd, mt.base.regimes.vigente.itcmd, 1e-6);
+  // a doação feita hoje (ano 0) paga pela lei vigente em qualquer regime
+  const doa = rg => S.analisar(Object.assign({}, base, { regime: rg, bens: [{ tipo: 'urbano', uf: 'SP', qtd: 1, valor: 2e6 }] }))
+    .caminhos.find(c => c.id === 'doacao').sim.custoEstruturacao;
+  assert.ok(doa('reforma') > 0);
+  perto(doa('reforma'), doa('vigente'), 1e-6);
+  perto(doa('estresse'), doa('vigente'), 1e-6);
+});
+

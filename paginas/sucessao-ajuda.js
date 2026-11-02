@@ -5,6 +5,13 @@ const COMPOSICAO_INVENTARIO = '**De onde vem o custo do inventário** (referênc
   '| Componente | Faixa usual | Base |\n| ITCMD | 1% a 8% | Lei de cada estado; teto de 8% do Senado |\n| Honorários do advogado | 5% a 10% | Tabelas das seccionais da OAB |\n| Custas, cartório e registro | 1% a 2% | Escritura ou custas, registro, certidões |\n| Avaliações, contador, multas e atrasos | Varia | Depende do caso e do tempo |\n| **Soma dos componentes** | **Muitas vezes acima de 15%** | |' +
   '\n\n**Como a ferramenta calcula:** soma a **conta pela lei** (ITCMD do estado, que com a reforma passa a ser progressivo: quanto maior o patrimônio, maior a alíquota; honorários e custas pelo tipo de inventário) e uma **margem de mercado de 5%** para o que a conta não vê (avaliações, contador, atrasos e imprevistos). A margem foi calibrada para que um patrimônio de **R$ 10 milhões em MT chegue aos 18%** observados no mercado. Assim, patrimônios menores custam menos de 18% e maiores, ou inventários com conflito, custam mais.';
 
+/* Faixas de referência de cada custo do inventário (base passada pelo usuário: ITCMD 1% a 8%, honorários 5% a 10%
+ * pela OAB, custas e registro 1% a 2%; litígio até 15%). Servem para quem ajusta os campos entender quanto o custo oscila. */
+const FAIXA_HONORARIOS = '| Referência | Honorários do advogado |\n| Faixa usual (tabelas das seccionais da OAB) | 5% a 10% da herança |\n| Inventário com conflito, litígio longo | até 15% |\n| Rondônia (tabela OAB-RO 2024) | 10% |\n| Padrão da ferramenta | cartório 6% · judicial 8% · com conflito 10% |\n\n' +
+  'Fica perto do piso com herdeiros de acordo, poucos bens ou honorário negociado em patrimônio grande. Fica perto do teto com muitos bens, bens em vários estados, empresa ou fazenda a avaliar, ou briga entre herdeiros. Confirme o orçamento do advogado.';
+const FAIXA_CARTORIO = '| Componente | Referência da ferramenta | Faixa usual |\n| Escritura (cartório) | 0,5%, de R$ 1,5 mil a R$ 20 mil | Tabela de emolumentos do estado |\n| Custas judiciais | 1,5% | Tabela de custas do tribunal |\n| Registro dos imóveis | 0,4% do valor dos imóveis | Por matrícula, pela tabela do estado |\n| **Custas, cartório e registro somados** | | **1% a 2%** |\n\n' +
+  'Os emolumentos mudam por estado e por faixa de valor; com muitos imóveis de valor menor, o registro por matrícula pesa mais.';
+
 Ajuda.iniciar({
   guia: {
     titulo: 'Como usar o Planejamento Sucessório',
@@ -29,16 +36,16 @@ Ajuda.iniciar({
 
   topicos: {
     'A família': 'Quem herda e como. O regime de bens define a meação (a parte que já é do cônjuge) e se o cônjuge também é herdeiro; o tipo de inventário define prazo e custo.',
-    'O patrimônio': 'Os bens a valor de mercado de hoje, que é a base do ITCMD (LC 227/2026). Previdência e seguro de vida ficam fora do inventário.',
-    'Imóveis, terrenos, fazendas, veículos e rebanho': 'Um item por linha, com tipo, estado onde fica, quantidade e valor total. Imóveis, terrenos e fazendas valorizam pelo IPCA; veículos perdem valor e ficam fora da holding e da doação. O rebanho (gado e outros animais) é bem móvel: paga ITCMD no estado de domicílio e acompanha a inflação.',
+    'O patrimônio': 'Os bens a **valor de mercado de hoje**, não o valor de compra nem o da declaração do IR: com a reforma (LC 227/2026), a base do ITCMD é o valor de mercado. Previdência e seguro de vida ficam fora do inventário.\n\nO valor de compra só entra no campo de custo de aquisição, para estimar o IR sobre o ganho de capital.',
+    'Imóveis, terrenos, fazendas, veículos e rebanho': 'Um item por linha, com tipo, estado onde fica, quantidade e **valor de mercado de hoje** (quanto o bem seria vendido hoje, e não quanto custou). Imóveis, terrenos e fazendas valorizam pelo IPCA; veículos perdem valor e ficam fora da holding e da doação. O rebanho (gado e outros animais) é bem móvel: paga ITCMD no estado de domicílio e acompanha a inflação.',
     'O que já existe fora do inventário': 'Previdência (VGBL/PGBL) e seguro de vida vão direto aos beneficiários, sem inventário e sem ITCMD. O que já existe reduz o que falta estruturar.',
     'Renda': 'Opcional, mas importante: a renda mostra se a parcela de um seguro cabe no orçamento, e os aluguéis permitem comparar o imposto na pessoa física e na holding.',
     'PGBL (dedução no imposto de renda)': 'Previdência em que o aporte é deduzido do IR, até 12% da renda bruta tributável. Fica fora do inventário e sem ITCMD (STF, Tema 1.214), como o VGBL. Quando a caixa está marcada, a ferramenta testa as combinações com e sem PGBL e mostra a melhor.',
     'Aluguéis recebidos': 'Usados para comparar o imposto sobre os aluguéis na pessoa física (tabela do IR e, para grandes locadores, IBS e CBS) com o imposto na holding.',
     'Premissas': 'Rentabilidade, inflação e o custo esperado do inventário. Todas editáveis. Imóveis e empresas crescem pelo IPCA; aplicações, previdência e exterior, pelo cenário escolhido.',
     'Cenário de rentabilidade (já líquido da taxa de administração da previdência)': 'Quanto as aplicações rendem ao ano: 8%, 10% ou 12%. Para levar ao cooperado, o cenário conservador costuma ser o mais seguro.',
-    'Regime de ITCMD': '**Lei vigente:** a tabela atual do estado.\n\n**Adequação à reforma:** faixas progressivas até 8% (LC 227/2026), se o estado mudar a lei.\n\n**Estresse 16%:** hipótese de alíquota máxima de 16% (proposta não aprovada). Doações feitas hoje sempre pagam pela lei vigente.',
-    'Custos do inventário': 'Referências de mercado para a conferência item por item: honorários (tabela da OAB), escritura ou custas, registro, certidões e multa. Ajuste ao orçamento do advogado.',
+    'Regime de ITCMD': '**Adequação à reforma (padrão):** o cenário base. Alíquotas progressivas por quinhão até 8% e base no valor de mercado (LC 227/2026), como os estados devem aplicar a partir de 2027. Onde o estado já cumpre a lei, é igual à lei vigente; onde ainda não aprovou a nova tabela, é uma hipótese, indicada abaixo do botão.\n\n**Lei vigente:** a tabela de hoje do estado, sem a reforma.\n\n**Estresse 16%:** o maior entre a lei vigente e a hipótese da reforma com as alíquotas dobradas, até 16% (proposta não aprovada).\n\nDoações feitas hoje sempre pagam pela lei vigente, qualquer que seja o regime escolhido.',
+    'Custos do inventário': 'Referências de mercado para a conferência item por item: honorários (tabela da OAB), escritura ou custas, registro, certidões e multa. Cada "?" mostra quanto o item costuma variar. Ajuste ao orçamento do advogado e do cartório.\n\n' + COMPOSICAO_INVENTARIO,
     'Holding': 'Custos de abrir e manter a holding: jurídico, cartório, ITBI, laudo por doação e contabilidade. Padrões de mercado; ajuste ao orçamento do advogado e do contador.',
     'Doação direta com usufruto': 'Os pais doam os bens aos filhos em vida e ficam com o usufruto (o uso e a renda) até o falecimento. Paga ITCMD e escritura agora, mas evita o inventário desses bens.',
     'Whole life': 'Seguro de vida vitalício: paga um capital aos beneficiários no falecimento, sem inventário e sem IR, para cobrir o custo do inventário. A parcela vem da cotação base e é ajustada pela idade e pelo sexo do cooperado.',
@@ -105,14 +112,14 @@ Ajuda.iniciar({
     depVeic: 'Quanto os veículos perdem de valor ao ano. Padrão: 10%.',
     margem: 'Se dois caminhos entregam valores mais próximos que isso, vence o mais simples (e o que não pede dinheiro à parte). Padrão: 3%.',
     comprometimento: 'Quando a sobra e as aplicações não bastam, quanto da renda mensal o cooperado aceita usar para pagar a solução. Padrão: 30%.',
-    honCart: 'Honorários de advogado no inventário em cartório, em % da herança (referência da OAB).',
-    honJud: 'Honorários no inventário judicial sem conflito.',
-    honLit: 'Honorários no inventário judicial com conflito.',
-    escPct: 'Escritura do inventário em cartório, em % da herança, com mínimo e teto de referência.',
-    custasPct: 'Custas do inventário na Justiça, em % da herança.',
-    regPct: 'Registro dos imóveis em nome dos herdeiros, em % do valor dos imóveis.',
-    certidoes: 'Valor estimado das certidões do processo.',
-    multa: 'Opcional. Multa por abrir o inventário fora do prazo, em % do imposto.',
+    honCart: 'Honorários do advogado no inventário em cartório, em % da herança (sem a meação). Padrão da ferramenta: 6%.\n\n' + FAIXA_HONORARIOS,
+    honJud: 'Honorários do advogado no inventário judicial sem conflito (há menor, incapaz ou desacordo formal), em % da herança. Padrão: 8%.\n\n' + FAIXA_HONORARIOS,
+    honLit: 'Honorários do advogado quando há briga entre herdeiros, em % da herança. Padrão: 10%; em litígios longos pode chegar a 15%.\n\n' + FAIXA_HONORARIOS,
+    escPct: 'Escritura do inventário em cartório, em % da herança, com mínimo e teto de referência. Só vale no inventário em cartório; no judicial entram as custas.\n\n' + FAIXA_CARTORIO,
+    custasPct: 'Custas do inventário na Justiça, em % da herança. Só vale no inventário judicial; em cartório entra a escritura.\n\n' + FAIXA_CARTORIO,
+    regPct: 'Registro da partilha nos imóveis (passar cada matrícula para os herdeiros), em % do valor dos imóveis.\n\n' + FAIXA_CARTORIO,
+    certidoes: 'Valor estimado das certidões do processo (negativas de débito, matrículas, certidões dos herdeiros). Padrão: R$ 1 mil.\n\n| Situação | Tendência |\n| Poucos bens, todos no mesmo estado | Perto do padrão |\n| Muitos imóveis ou bens em vários estados | Acima: uma certidão por matrícula e por órgão |\n| Empresa ou bens no exterior | Acima: documentos e traduções |\n\nO valor é pequeno perto dos outros itens; ajuste quando tiver o orçamento do cartório.',
+    multa: 'Opcional. Multa por abrir o inventário fora do prazo, em % do ITCMD. Use quando o inventário já está atrasado ou deve atrasar.\n\n| Estado | Multa (referência) |\n| Mato Grosso | 5% após 120 dias do óbito; 10% após 240 dias |\n| Mato Grosso do Sul | 20% após 2 meses |\n| Rondônia | 10% ou 20%, conforme o atraso |\n| Pará | Fixa: 300 UPF-PA |\n| Demais estados | Confira na lei estadual |\n\nO inventário deve ser aberto em até 2 meses do óbito (CPC, art. 611); cada estado define quando a multa começa.',
     hJur: 'Honorários para estruturar a holding, em % do patrimônio integralizado.',
     hJurMin: 'O valor mínimo dos honorários de estruturação.',
     hCart: 'Cartório, Junta Comercial e registro dos imóveis na holding.',
