@@ -76,4 +76,5 @@ Os commits "Ibovespa: fechamento de AAAA-MM-DD" são feitos pela automação di�
 | `planejamento.test.js` | Motor do Planejamento, conferido com a planilha do usuário e com os cenários de Planejamento do Stress Test MT (testes 4, 6 e 10). |
 | `aquisicao.test.js`, `propostas.test.js` | Motor da Aquisição e leitura dos PDFs, conferidos com as propostas do Sicoob. |
 | `sucessao.test.js`, `sucessao-robustez.test.js` | Motor do Sucessório (ITCMD por estado, partilha, whole life, recomendação) e casos aleatórios (sem erro, sempre uma solução). |
+| `stress-planejamento.test.js`, `stress-aquisicao.test.js`, `stress-sucessao.test.js` | Stress test de 15 cenários por módulo da Consultoria, cada um conferido com conta independente (fórmula fechada, faixas da lei escritas à mão, taxa interna de retorno própria). Pendências conhecidas ficam marcadas como `todo`: aparecem no relatório sem quebrar a suíte e passam a valer quando forem corrigidas. |
 | `ibovespa.test.js` | Leitura e validação dos dados da B3. |
