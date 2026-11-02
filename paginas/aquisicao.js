@@ -513,7 +513,7 @@ function paragrafoConsorcio(c){
   const aluguel = c.custos.aluguel > 0 ? ' Até a contemplação, o cliente paga também ' + fmtBRL0(c.custos.aluguel) + ' de aluguel.' : '';
   if(c.mesEsgota === null) return '<b>Consórcio:</b> ' + inicio + 'ficam ' + fmtBRL0(c.capitalAposCompra) + ' investidos e a renda cobre ' + fmtPct(c.cobertura || 0,0) + ' da parcela; o capital não zera.' + aluguel;
   if(c.capitalAposCompra < 0) return '<b>Consórcio:</b> ' + inicio + 'o capital não cobre o lance' + (c.complemento > 0 ? ' e a diferença entre o crédito e o preço do bem (' + fmtBRL0(c.complemento) + ')' : '') + ': faltariam ' + fmtBRL0(-c.capitalAposCompra) + ' de outra fonte.' + aluguel;
-  return '<b>Consórcio:</b> ' + inicio + 'sobram só ' + fmtBRL0(c.capitalAposCompra) + ' investidos; a renda (' + fmtBRL0(c.rendaInicial) + ') não paga a parcela (' + fmtBRL0(c.parcelaInicial) + ') e o capital zera em ' + fmtPrazo(c.mesEsgota) + '. O custo do crédito (' + (c.custoEfetivoAnual !== null ? fmtPct(c.custoEfetivoAnual) + ' a.a.' : '—') + ') não é o problema: o problema é a descapitalização do lance.' + aluguel;
+  return '<b>Consórcio:</b> ' + inicio + 'sobram só ' + fmtBRL0(c.capitalAposCompra) + ' investidos; a renda (' + fmtBRL0(c.rendaInicial) + ') não paga a parcela (' + fmtBRL0(c.parcelaInicial) + ') e o capital zera em ' + fmtPrazo(c.mesEsgota) + '. O custo do crédito (' + textoCustoEfetivo(c, true) + ') não é o problema: o problema é a descapitalização do lance.' + aluguel;
 }
 
 function paragrafoAVista(a, inp){
@@ -633,10 +633,17 @@ function renderCusto(){
   if(f && f.modo === 'proposta'){
     h += linha('… juros · correção TR · seguros · tarifas', (c, id) => id === 'financiamento' ? fmtBRL0(f.juros) + ' · ' + fmtBRL0(f.correcao) + ' · ' + fmtBRL0(f.seguros) + ' · ' + fmtBRL0(f.tarifas + f.despesas) : '—');
   }
-  h += linha('Custo efetivo', (c, id) => id === 'avista' ? 'custo de oportunidade' : (c.custoEfetivoAnual === null ? '—' : fmtPct(c.custoEfetivoAnual) + ' a.a.' +
-    (id === 'financiamento' && c.modo === 'proposta' ? '<small class="suave">com TR projetada · CET da proposta ' + fmtPct(inp.e.financiamento.cetAnual) + ' (sem TR)</small>' : '')));
+  h += linha('Custo efetivo', (c, id) => id === 'avista' ? 'custo de oportunidade' : (id === 'consorcio' ? textoCustoEfetivo(c) : (c.custoEfetivoAnual === null ? '—' : fmtPct(c.custoEfetivoAnual) + ' a.a.' +
+    (id === 'financiamento' && c.modo === 'proposta' ? '<small class="suave">com TR projetada · CET da proposta ' + fmtPct(inp.e.financiamento.cetAnual) + ' (sem TR)</small>' : ''))));
   h += linha('Fim do contrato', credito((c, id) => fmtPrazo(c.fimContrato + (id === 'consorcio' ? 1 : 0)) + ' <small class="suave">' + mesAno(c.fimContrato) + '</small>'));
   $('tabCusto').innerHTML = h;
+}
+
+/** custo efetivo do crédito, com a explicação quando o consórcio é contemplado depois da 1ª assembleia */
+function textoCustoEfetivo(c, curto){
+  if(c.custoEfetivoMetodo === 'semCredito') return curto ? 'sem crédito a custear' : 'sem crédito a custear <small class="suave">as parcelas pagas antes da contemplação, corrigidas pela taxa do capital, já passam do crédito</small>';
+  if(c.custoEfetivoAnual === null) return '—';
+  return fmtPct(c.custoEfetivoAnual) + ' a.a.' + (!curto && c.custoEfetivoMetodo === 'contemplacao' ? ' <small class="suave">a partir da contemplação; as parcelas pagas antes entram corrigidas pela taxa do capital</small>' : '');
 }
 
 function renderFluxo(){
@@ -766,7 +773,7 @@ function pdfResultado(inp, r){
     linha('Renda pagou das parcelas em ' + fmtAnos(anos), soCredito(x => !x.periodo || x.periodo.somaParcelas === 0 ? '—' : fmtBRL0(x.periodo.rendaUsada) + ' de ' + fmtBRL0(x.periodo.somaParcelas) + ' (' + fmtPct(x.periodo.cobertura,0) + ')')) +
     linha('Saiu do capital para pagar parcelas', soCredito(x => !x.periodo ? '—' : fmtBRL0(x.periodo.retiradoDoCapital))) +
     linha('Capital zera', x => x.mesEsgota === null ? 'não zera' : '<span class="no">em ' + fmtPrazo(x.mesEsgota) + '</span>') +
-    linha('Custo efetivo do crédito', soCredito(x => x.custoEfetivoAnual === null ? '—' : fmtPct(x.custoEfetivoAnual) + ' a.a.')) +
+    linha('Custo efetivo do crédito', soCredito(x => textoCustoEfetivo(x, true))) +
     (C.consorcio ? linha('Evolução da parcela', (x, id) => id === 'consorcio' ? (evolucaoParcela(x, H) || '—') : '—') : '') +
     linhasPlacar(C, ids).map(([rotulo, campo]) => linha(rotulo + ' (' + fmtAnos(anos) + ')', x => x.custos[campo] === null ? '—' : fmtBRL0(x.custos[campo]))).join('') +
     linha('<strong>Custo total do caminho</strong>', (x, id) => x.custos.total === null ? '—' : '<strong class="' + (id === menorTotal(C, ids) ? 'ok' : '') + '">' + fmtBRL0(x.custos.total) + '</strong>') +

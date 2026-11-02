@@ -381,6 +381,44 @@
     }));
   }
 
+  /** Quantas vezes o fluxo troca de sinal (zeros ignorados). Uma troca = uma única taxa interna de retorno. */
+  function trocasDeSinal(f) {
+    let n = 0, ant = 0;
+    f.forEach(x => { if (Math.abs(x) < 1e-9) return; const s = x > 0 ? 1 : -1; if (ant && s !== ant) n++; ant = s; });
+    return n;
+  }
+
+  /*
+   * Custo efetivo do consórcio (a.a.).
+   *  - Contemplação na 1ª assembleia: o fluxo é o de um crédito comum (recebe, depois paga) e a taxa interna
+   *    de retorno é única → metodo 'tir'. Fluxo que começa por parcelas nunca é tratado assim: se só paga antes
+   *    e recebe no fim (o lance quita o saldo), a taxa interna seria o rendimento de uma poupança, não um custo.
+   *  - Contemplação depois: há parcelas antes e depois do crédito, o fluxo troca de sinal duas vezes e a taxa
+   *    interna de retorno pode ter duas soluções ou nenhuma. As parcelas pagas antes da contemplação são então
+   *    levadas até a data da contemplação pela taxa líquida do capital (o que esse dinheiro renderia) e
+   *    descontadas do crédito; daí em diante é um crédito comum, com taxa única → metodo 'contemplacao'.
+   *  - Se o que foi pago até a contemplação (corrigido) já passa do crédito, não há crédito líquido a custear:
+   *    custo efetivo null, metodo 'semCredito'.
+   */
+  function custoEfetivoConsorcio(fluxos, mesCompra, ctx) {
+    if (!(fluxos.some(f => f > 0) && fluxos.some(f => f < 0))) return { anual: null, metodo: null, nota: null, antes: 0 };
+    const primeiro = fluxos.find(f => Math.abs(f) >= 1e-9);
+    if (trocasDeSinal(fluxos) <= 1 && primeiro > 0) {   // crédito primeiro, parcelas depois: um crédito comum
+      const ti = tir(fluxos);
+      return { anual: ti === null ? null : taxaAnualDeMensal(ti), metodo: 'tir', nota: null, antes: 0 };
+    }
+    const k = mesCompra;
+    let antes = 0;
+    for (let t = 0; t < k; t++) antes = (antes - fluxos[t]) * (1 + ctx.taxa(t + 1) * (1 - (ctx.aliquotaIR || 0)));
+    const g = fluxos.slice(k);
+    g[0] -= antes;
+    if (!(g[0] > 0) || trocasDeSinal(g) !== 1) return { anual: null, metodo: 'semCredito', antes,
+      nota: 'as parcelas pagas antes da contemplação, corrigidas pela taxa do capital, já passam do crédito recebido' };
+    const ti = tir(g);
+    return { anual: ti === null ? null : taxaAnualDeMensal(ti), metodo: 'contemplacao', antes,
+      nota: 'a partir da contemplação, com as parcelas pagas antes corrigidas pela taxa do capital' };
+  }
+
   /* ---------- consórcio ---------- */
   /*
    * Padrão da simulação de lance do Sicoob (Sisbr, 26/10/2026):
@@ -471,9 +509,10 @@
       serie.push(novoRegistro(ctx, t, conta, pct * carta(Math.max(p, 1)), temBem, { renda: t >= 1 ? rendaMes : 0, parcela: pago }));
     }
     for (let t = 0; t < fluxos.length; t++) if (fluxos[t] === undefined) fluxos[t] = 0;
-    const ti = fluxos.some(f => f > 0) && fluxos.some(f => f < 0) ? tir(fluxos) : null;
+    const ce = custoEfetivoConsorcio(fluxos, info.mesCompra, ctx);
     return metricas(ctx, serie, Object.assign(info, {
       id: 'consorcio',
+      custoEfetivoMetodo: ce.metodo, custoEfetivoNota: ce.nota, parcelasAntesCorrigidas: ce.antes,
       pagamentoAntecipado: true,
       parcelaOriginal: pctOrig * c.carta + seguroBase,
       creditoRecebido: credito,
@@ -482,7 +521,7 @@
       custoCredito: totalPago - credito,
       creditoUtil: credito,
       irPagoNoPeriodo: conta.irPago,
-      custoEfetivoAnual: ti === null ? null : taxaAnualDeMensal(ti),
+      custoEfetivoAnual: ce.anual,
       fimContrato: mesFim === null ? n - 1 : mesFim
     }));
   }
@@ -592,7 +631,7 @@
   }
 
   return {
-    MAX_MESES, lanceDeParcelas, novaConta,
+    MAX_MESES, lanceDeParcelas, novaConta, trocasDeSinal, custoEfetivoConsorcio,
     taxaMensal, taxaAnualDeMensal, aliquotaIR, taxaMensalLiquida, pmt, tir,
     validar, analisar, taxaEquilibrio, sensibilidade, patrimonioComTaxa
   };
