@@ -321,10 +321,14 @@
     if (regime === 'vigente' || !regime) return e.vigente;
     if (regime === 'reforma') return ref;
     if (regime === 'estresse') {
+      // estresse = o maior entre a lei vigente e a hipótese da reforma com as alíquotas dobradas (até 16%):
+      // nos estados de alíquota fixa, a hipótese parte de faixas com isenção e sozinha cobraria menos que a lei atual
       const dobra = t => t && Object.assign({}, t, { metodo: 'sucessivas', base: 'quinhao',
         faixas: (t.faixas || [{ ate: Infinity, aliq: t.aliquota }]).map(x => ({ ate: x.ate, aliq: Math.min(0.16, x.aliq * 2) })) });
-      const o = { heranca: dobra(ref.heranca), doacao: dobra(ref.doacao) };
-      if (ref.doacaoMoveis) o.doacaoMoveis = dobra(ref.doacaoMoveis);
+      const maior = (vig, hip) => vig && hip ? { metodo: 'maior', regras: [vig, dobra(hip)] } : dobra(hip || vig);
+      const o = { heranca: maior(e.vigente.heranca, ref.heranca), doacao: maior(e.vigente.doacao, ref.doacao) };
+      if (ref.doacaoMoveis || e.vigente.doacaoMoveis)
+        o.doacaoMoveis = maior(e.vigente.doacaoMoveis || e.vigente.doacao, ref.doacaoMoveis || ref.doacao);
       return o;
     }
     throw new Error('Regime desconhecido: ' + regime);

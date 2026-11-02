@@ -48,7 +48,10 @@ test('regimes: reforma aplica faixas sucessivas em RO; estresse dobra até 16%',
   perto(S.itcmdValor(lim + 1, T.tabela('RO', 'reforma').heranca), lim * 0.02 + 1 * 0.03, 1e-6);
   perto(S.itcmdDividido(5e6, 2, 'MT', 'estresse', 'heranca'), 2 * 157456.2, 0.01);
   assert.ok(T.tabela('MS', 'reforma').hipotese, 'hipótese de MS precisa estar rotulada');
-  for (const f of T.tabela('PA', 'estresse').heranca.faixas) assert.ok(f.aliq <= 0.16);
+  for (const r of T.tabela('PA', 'estresse').heranca.regras) for (const f of (r.faixas || [{ aliq: r.aliquota }])) assert.ok(f.aliq <= 0.16);
+  // estresse nunca abaixo da lei vigente: SP (4% fixo) com quinhão de R$ 300 mil
+  perto(S.itcmdDividido(6e5, 2, 'SP', 'estresse', 'heranca'), S.itcmdDividido(6e5, 2, 'SP', 'vigente', 'heranca'), 1e-6);
+  assert.ok(S.itcmdDividido(2e7, 2, 'SP', 'estresse', 'heranca') > S.itcmdDividido(2e7, 2, 'SP', 'vigente', 'heranca'));
 });
 
 /* ---------- custo do inventário ---------- */
@@ -607,10 +610,15 @@ test('27 estados: tabelas válidas nos três regimes', () => {
     const t = T.tabela(uf, rg);
     for (const k of ['heranca', 'doacao']) {
       const r = t[k];
-      assert.ok(['sucessivas', 'total', 'unica'].includes(r.metodo), uf + rg + k);
+      // no estresse, 'maior' compara a lei vigente com a hipótese dobrada; cada uma é uma tabela comum
+      const partes = rg === 'estresse' ? (assert.equal(r.metodo, 'maior', uf + ' estresse'), r.regras) : [r];
+      for (const p of partes) {
+        assert.ok(['sucessivas', 'total', 'unica'].includes(p.metodo), uf + rg + k);
+        if (p.faixas) for (let i = 1; i < p.faixas.length; i++) assert.ok(p.faixas[i].ate > p.faixas[i - 1].ate, uf + ' faixas em ordem');
+      }
       const v = S.itcmdValor(2e6, r);
       assert.ok(v >= 0 && v <= 2e6 * 0.16 + 1e-6, uf + ' ' + rg + ' ' + k + ' = ' + v);
-      if (r.faixas) for (let i = 1; i < r.faixas.length; i++) assert.ok(r.faixas[i].ate > r.faixas[i - 1].ate, uf + ' faixas em ordem');
+      if (rg === 'estresse') assert.ok(v >= S.itcmdValor(2e6, T.tabela(uf, 'vigente')[k]) - 1e-6, uf + ' ' + k + ': estresse ≥ lei vigente');
     }
     if (rg === 'reforma') assert.equal(t.heranca.metodo, 'sucessivas', uf + ': reforma faixa a faixa');
   }

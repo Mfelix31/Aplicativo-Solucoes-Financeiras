@@ -275,6 +275,10 @@ function renderCurvas(){
     const n = NOME_TIPO[c.tipo];
     $('cvT'+i).textContent = n.titulo;
     $('cvD'+i).textContent = n.txt;
+    if(!(meta > 0)){   // outras rendas já cobrem a renda desejada: não há patrimônio necessário a consumir
+      $('cvR'+i).textContent = 'As outras rendas já cobrem a renda desejada: não é preciso patrimônio para gerar renda, nem consumi-lo.';
+      return;
+    }
     const fim = c.serie[anosVer];
     const sinal = c.variacaoReal >= 0 ? '+' : '−';
     $('cvR'+i).innerHTML =

@@ -67,8 +67,7 @@ test('S6 bens em dois estados: fazenda em MS paga ITCMD de MS; casa e aplicaçõ
   t.diagnostic(`MS ${c.itcmdPorUF.MS.toFixed(0)} + MT ${c.itcmdPorUF.MT.toFixed(2)} = ${c.itcmd.toFixed(2)}`);
 });
 
-test('S7 dívidas maiores que os bens: herdeiros não pagam o excedente e a previdência não responde por ele (CC, art. 1.792)',
-  { todo: 'achado novo: o excedente da dívida é descontado do que a família recebe (fica negativo e consome a previdência)' }, t => {
+test('S7 dívidas maiores que os bens: herdeiros não pagam o excedente e a previdência não responde por ele (CC, art. 1.792)', t => {
     const r = S.analisar(caso({ bens: [{ tipo: 'urbano', uf: 'MT', qtd: 1, valor: 2e6 }], dividas: 3e6 }));
     assert.equal(r.base.monteHoje, 0);
     assert.equal(r.base.custoHoje.itcmd, 0);
@@ -163,8 +162,7 @@ test('S15 robustez: 100 famílias aleatórias — sempre uma solução, números
     if (r.base.regimes.estresse.itcmd < r.base.regimes.vigente.itcmd - 1e-6) estresseAbaixo.push(`${k} (${e.uf}: ${Math.round(r.base.regimes.vigente.itcmd)} → ${Math.round(r.base.regimes.estresse.itcmd)})`);
   }
   t.diagnostic(`100 famílias em 7 estados com solução válida; ${infinitos} caminhos com cobertura infinita (custo esperado zero)`);
-  await t.test('o regime de estresse nunca cobra menos ITCMD que a lei vigente',
-    { todo: 'achado novo: em estados de alíquota fixa (SP, PR, MS) o estresse parte das faixas de MT com isenção e cobra menos que a lei atual' }, () => {
+  await t.test('o regime de estresse nunca cobra menos ITCMD que a lei vigente', () => {
       t.diagnostic(`estresse abaixo da lei vigente em ${estresseAbaixo.length} de 100 casos: ${estresseAbaixo.slice(0, 5).join('; ')}`);
       assert.deepEqual(estresseAbaixo, []);
     });
