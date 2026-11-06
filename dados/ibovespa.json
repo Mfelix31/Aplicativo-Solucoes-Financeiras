@@ -4,19 +4,15 @@
   "fonte": "B3 — Índice Bovespa, estatísticas históricas (fechamento diário)",
   "link": "https://b3.com.br/en_us/market-data-and-indices/indices/broad-indices/indice-ibovespa-ibovespa-historic-statistics.htm",
   "fechamento": {
+    "data": "2026-11-05",
+    "valor": 166191.45
+  },
+  "anterior": {
     "data": "2026-11-04",
     "valor": 167563.47
   },
-  "anterior": {
-    "data": "2026-11-03",
-    "valor": 165528.92
-  },
-  "variacao": 0.012291205669679783,
+  "variacao": -0.00818806151483964,
   "ultimos": [
-    {
-      "data": "2026-10-02",
-      "valor": 192114.55
-    },
     {
       "data": "2026-10-05",
       "valor": 206911.89
@@ -100,7 +96,11 @@
     {
       "data": "2026-11-04",
       "valor": 167563.47
+    },
+    {
+      "data": "2026-11-05",
+      "valor": 166191.45
     }
   ],
-  "consultadoEm": "2026-11-05T01:50:22.488Z"
+  "consultadoEm": "2026-11-06T01:49:24.416Z"
 }
