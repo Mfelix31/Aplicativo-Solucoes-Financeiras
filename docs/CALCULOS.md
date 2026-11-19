@@ -26,6 +26,7 @@ Motor: `engine/investimentos.js` · testes: `tests/investimentos.test.js`.
 - **Prazos** em meses e anos são convertidos pelas datas do calendário (12 meses = 365 dias, portanto IR de 17,5%).
 - **Garantia:** LCA e RDC com FGCoop até R$ 250 mil por CPF.
 - **CDI:** constante durante o prazo por padrão; opcionalmente projetado por ano pelo Boletim Focus (mediana da Selic de fim de ano − 0,10 p.p.), editável e rotulado como expectativa de mercado.
+- **Comparação RDC × Poupança:** a poupança é isenta de IR e IOF e rende só a cada mês completo (aniversário) à taxa (1 + 0,5%) × (1 + TR) − 1 ao mês enquanto a Meta Selic (CDI + 0,10 p.p.) for maior que 8,5% a.a.; senão, 70% da Selic mensalizada, também composta com a TR. A rentabilidade bruta anual mostrada é a taxa mensal capitalizada em 12 meses; a líquida anual usa a base 252 como os demais produtos.
 - **Comparativo de mercado:** poupança (0,5% a.m. + TR enquanto a Selic passa de 8,5% a.a.; senão 70% da Selic + TR; só meses completos; isenta), CDB (% do CDI editável; IR, IOF; FGC até R$ 250 mil) e Tesouro Selic (Selic = CDI + 0,10 p.p.; IR, IOF e custódia B3 de 0,20% a.a. sobre o que passar de R$ 10 mil). A rentabilidade anual da tabela é a taxa interna de retorno, que considera o tempo de cada aporte.
 - **Aporte mensal:** cada aporte paga IR e IOF pelo próprio prazo até o resgate.
 

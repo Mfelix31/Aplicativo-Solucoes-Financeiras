@@ -33,7 +33,7 @@ Ajuda.iniciar({
     'Comparativo com referências de mercado': 'O mesmo valor, prazo e aportes aplicados em opções conhecidas, todos líquidos de impostos:\n\n**Poupança:** 0,5% ao mês + TR enquanto a Selic está acima de 8,5% ao ano; isenta de IR.\n\n**CDB:** % do CDI que você informar, com IR e IOF; FGC até R$ 250 mil.\n\n**Tesouro Selic:** Selic com IR, IOF e a taxa de custódia da B3.',
     'Evolução do valor líquido': 'Mostra quanto você teria se resgatasse em cada momento do prazo, já descontados os impostos daquele momento. Passe o dedo ou o mouse para ver os valores.',
     'Cenários Salvos': 'Guarde simulações para comparar depois: dê um nome e toque em "Salvar cenário atual". Marque dois cenários para ver os gráficos juntos e baixar o PDF comparativo.\n\nOs cenários ficam só nesta tela e somem ao fechar a página.',
-    '#c_lca_cardTitle': 'O produto comparado com o RDC (LCA ou Operação Compromissada). O selo **MELHOR OPÇÃO** vai para o que entrega o maior valor final líquido.',
+    '#c_lca_cardTitle': 'O produto comparado com o RDC (LCA, Operação Compromissada ou Poupança). O selo **MELHOR OPÇÃO** vai para o que entrega o maior valor final líquido.',
     '#c_lca_blockTitle': 'Escolha se o produto paga um percentual do CDI (pós-fixado) ou uma taxa fixa ao ano (pré-fixado) e informe a taxa oferecida.'
   },
 
@@ -54,6 +54,7 @@ Ajuda.iniciar({
     c_cdiProj: 'Opcional. Usa a expectativa do mercado para o CDI de cada ano (Boletim Focus). É uma expectativa, não garantia.',
     c_ipca: 'A inflação dos últimos 12 meses, usada só na rentabilidade real.',
     c_percLCA: 'O percentual do CDI que o produto paga.',
+    c_poup_tr: 'A TR mensal usada no rendimento da poupança (0,5% ao mês + TR enquanto a Selic está acima de 8,5% ao ano). O valor de referência vem do Banco Central e pode ser editado; a Selic é estimada pelo CDI informado.',
     c_lca_taxaPre: 'A taxa fixa ao ano contratada.',
     c_percRDC: 'O percentual do CDI que o RDC paga, antes do IR.',
     c_rdc_taxaPre: 'A taxa fixa ao ano contratada no RDC, antes do IR.'

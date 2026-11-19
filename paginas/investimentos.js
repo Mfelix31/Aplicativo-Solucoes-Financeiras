@@ -59,8 +59,8 @@ function atualizarCaixasRealCmp(){
    A página só lê os campos, chama o motor e mostra os resultados. */
 const HOJE0 = (()=>{ const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); })();
 const Calc = InvestEngine.calculadora(HOJE0);
-const {taxaReal, irAliquota} = InvestEngine;
-const {prazoEmDias, datasAportes, taxaEquivalente, simular} = Calc;
+const {taxaReal, irAliquota, rendimentoPoupanca} = InvestEngine;
+const {prazoEmDias, datasAportes, taxaEquivalente, simular, simularPoupanca, evolucaoPoupanca} = Calc;
 
 function textoPrazo(valor, unidade){
   const v = Math.round(valor);
@@ -603,12 +603,14 @@ function calcularReferencias(pv, aporte, dias, cdi, valorFinalSim){
 const DESC_PRODUTO = {
   lca: 'Letra de Crédito do Agronegócio — isenta de IR para pessoa física',
   rdc: 'Recibo de Depósito Cooperativo — tributado pela tabela regressiva de IR',
-  compromissada: 'A operação é lastreada em título de crédito privado, o que garante isenção de IOF, proporcionando maior eficiência tributária para aplicações de curto prazo'
+  compromissada: 'A operação é lastreada em título de crédito privado, o que garante isenção de IOF, proporcionando maior eficiência tributária para aplicações de curto prazo',
+  poupanca: 'Caderneta de poupança — isenta de IR e IOF para pessoa física; rende apenas a cada mês completo (aniversário)'
 };
 const GARANTIA_PRODUTO = {
   lca: '🛡️ <span>Garantia: <strong>FGCoop</strong>, até R$ 250 mil por CPF</span>',
   rdc: '🛡️ <span>Garantia: <strong>FGCoop</strong>, até R$ 250 mil por CPF</span>',
-  compromissada: '🛡️ <span>Lastro: <strong>título de crédito privado</strong></span>'
+  compromissada: '🛡️ <span>Lastro: <strong>título de crédito privado</strong></span>',
+  poupanca: '🛡️ <span>Garantia: <strong>FGC/FGCoop</strong>, até R$ 250 mil por CPF</span>'
 };
 
 /* ---------------- VALIDAÇÃO DO PRAZO ----------------
@@ -877,15 +879,19 @@ function calcularComparacao(){
   }
 
   const isEsquerdaLCA = parComparacao === 'lca';
+  const isPoup = parComparacao === 'poupanca';
   const isentoIResq = isEsquerdaLCA;       // LCA: isenta de IR / Compromissada: não isenta
   const isentoIOFesq = !isEsquerdaLCA;     // Compromissada: isenta de IOF / LCA: não isenta
-  const nomeEsq = isEsquerdaLCA ? 'LCA' : 'Operação Compromissada';
+  const nomeEsq = isEsquerdaLCA ? 'LCA' : (isPoup ? 'Poupança' : 'Operação Compromissada');
 
-  const rLCA = simular(pv, taxaLCA, dias, isentoIResq, isentoIOFesq);
+  // Poupança não é indexada ao CDI: o rendimento vem da regra legal (0,5% a.m. + TR) e a Selic é estimada pelo CDI informado
+  const trPoup = parseFloat($('c_poup_tr').value) || 0;
+  const rLCA = isPoup ? simularPoupanca(pv, cdi, trPoup, dias) : simular(pv, taxaLCA, dias, isentoIResq, isentoIOFesq);
   const rRDC = simular(pv, taxaRDC, dias, false, false);
+  if(isPoup) atualizarInfoPoupanca();
 
-  const corEsq = isEsquerdaLCA ? '#7DB61C' : '#7774D4';
-  const pontosEsq = evolucaoMensal(pv, 0, taxaLCA, dias, isentoIResq, isentoIOFesq);
+  const corEsq = isEsquerdaLCA ? '#7DB61C' : (isPoup ? '#E08A00' : '#7774D4');
+  const pontosEsq = isPoup ? evolucaoPoupanca(pv, cdi, trPoup, dias) : evolucaoMensal(pv, 0, taxaLCA, dias, isentoIResq, isentoIOFesq);
   const pontosDir = evolucaoMensal(pv, 0, taxaRDC, dias, false, false);
   ultimoGraficoCmp = [
     {pontos: pontosEsq, cor: corEsq, nome: nomeEsq},
@@ -918,8 +924,8 @@ function calcularComparacao(){
   } else if(diff > 0){
     $('c_tagLCA').style.display = 'inline-block';
     $('c_cardLCA').classList.add('winner');
-    const descEsq = indexadorLCA === 'pre' ? fmtPct(rLCA.pBrutoAnual) + ' a.a. fixos' : fmtPct(rLCA.pBrutoAnual) + ' a.a. equivalentes';
-    const motivoEsq = isEsquerdaLCA ? 'Isenta de IR' : 'Isenta de IOF';
+    const descEsq = isPoup ? fmtPct(rLCA.taxaMensalPoupanca, 4) + ' a.m. (≈ ' + fmtPct(rLCA.pBrutoAnual) + ' a.a.)' : (indexadorLCA === 'pre' ? fmtPct(rLCA.pBrutoAnual) + ' a.a. fixos' : fmtPct(rLCA.pBrutoAnual) + ' a.a. equivalentes');
+    const motivoEsq = isEsquerdaLCA ? 'Isenta de IR' : (isPoup ? 'Isenta de IR e IOF' : 'Isenta de IOF');
     headline = 'A <b>' + nomeEsq + '</b> rende mais no líquido';
     body = motivoEsq + ' e rendendo ' + descEsq + ', a ' + nomeEsq + ' supera o RDC por ' + fmtBRL(diff) + ' no valor final líquido, uma diferença de ' + fmtPct((diff/pv)*100) + ' sobre o valor investido.';
   } else {
@@ -934,6 +940,15 @@ function calcularComparacao(){
 
   $('c_resultsBlock').style.display = 'block';
 }
+/** mostra o rendimento mensal da poupança e a regra aplicada (Selic estimada pelo CDI informado) */
+function atualizarInfoPoupanca(){
+  const rp = rendimentoPoupanca(parseFloat($('c_cdi').value) || 0, parseFloat($('c_poup_tr').value) || 0);
+  const regra = rp.regra === 'fixa' ? 'Selic ≈ ' + fmtPct(rp.selic) + ' a.a. (acima de 8,5%): 0,5% a.m. + TR' : 'Selic ≈ ' + fmtPct(rp.selic) + ' a.a. (até 8,5%): 70% da Selic + TR';
+  $('c_poup_info').textContent = 'Rendimento estimado: ' + fmtPct(rp.taxaMensal, 4) + ' a.m. — ' + regra + '. A TR é uma estimativa do Banco Central e muda a cada mês.';
+}
+$('c_poup_tr').addEventListener('input', atualizarInfoPoupanca);
+$('c_poup_tr').addEventListener('change', calcularComparacao);
+$('c_cdi').addEventListener('input', atualizarInfoPoupanca);
 $('c_btnCalc').addEventListener('click', calcularComparacao);
 $('c_btnCdi').addEventListener('click', ()=>buscarCDI('c_cdi', false, 'c_cdiStatus'));
 $('c_btnIpca').addEventListener('click', async ()=>{
@@ -942,7 +957,7 @@ $('c_btnIpca').addEventListener('click', async ()=>{
 });
 $('c_ipca').addEventListener('input', atualizarCaixasRealCmp);
 
-/* ------------- alternância do par comparado (LCA x Compromissada) ------------- */
+/* ------------- alternância do par comparado (LCA, Compromissada ou Poupança x RDC) ------------- */
 let parComparacao = 'lca';
 
 function selecionarParComparacao(par){
@@ -951,7 +966,12 @@ function selecionarParComparacao(par){
     el.classList.toggle('active', el.dataset.par === par);
   });
 
-  const accent = par === 'lca' ? 'var(--gold)' : 'var(--blue)';
+  const accent = par === 'lca' ? 'var(--gold)' : (par === 'poupanca' ? 'var(--poup)' : 'var(--blue)');
+  const ehPoup = par === 'poupanca';
+  $('c_lca_idxSwitch').classList.toggle('hidden', ehPoup);
+  $('c_poup_block').classList.toggle('hidden', !ehPoup);
+  $('c_lca_percBlock').classList.toggle('hidden', ehPoup || indexadorLCA !== 'pos');
+  $('c_lca_preBlock').classList.toggle('hidden', ehPoup || indexadorLCA !== 'pre');
   $('c_lca_block').style.setProperty('--accent', accent);
   $('c_lca_idxSwitch').style.setProperty('--accent', accent);
   $('c_cardLCA').style.setProperty('--accent', accent);
@@ -965,6 +985,12 @@ function selecionarParComparacao(par){
     $('c_lca_cardDesc').textContent = DESC_PRODUTO.lca;
     $('c_barLCALabel').textContent = 'LCA';
     $('c_lca_realLabel').textContent = 'Rentabilidade Real de LCA (após IPCA)';
+  } else if(par === 'poupanca'){
+    $('c_lca_blockTitle').textContent = 'Poupança';
+    $('c_lca_cardTitle').textContent = 'Poupança';
+    $('c_lca_cardDesc').textContent = DESC_PRODUTO.poupanca;
+    $('c_barLCALabel').textContent = 'Poupança';
+    $('c_lca_realLabel').textContent = 'Rentabilidade Real da Poupança (após IPCA)';
   } else {
     $('c_lca_blockTitle').textContent = 'Operação Compromissada';
     $('c_lca_cardTitle').textContent = 'Operação Compromissada';

@@ -2,6 +2,9 @@
 /* papéis das cores neste módulo: verde = LCA (--gold), turquesa = RDC (--teal) */
 :root{ --gold:#437526; --gold-dim:#7DB61C; --teal:#007A73; --teal-dim:#00AE9D; }
 :root[data-theme="dark"]{ --gold:#A3D24A; --gold-dim:#7DB61C; --teal:#40CDBD; --teal-dim:#00AE9D; }
+/* âmbar = Poupança (comparação), distinto de LCA, RDC e Compromissada */
+:root{ --poup:#9A5B00; }
+:root[data-theme="dark"]{ --poup:#FFC15A; }
 body, .ledger, section.panel, .equiv-box, .chart-box, .scenario-box, .field .row-input, .field select{
   transition: background-color .2s ease, border-color .2s ease, color .2s ease;
 }

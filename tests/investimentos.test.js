@@ -154,6 +154,45 @@ test('poupança: 0,5% a.m. + TR com Selic acima de 8,5%; só meses completos', (
   perto(selicBaixa.poupanca.taxaMensal / 100, 0.0034905363507502507, 1e-12, '70% da Selic quando ela é até 8,5%');
 });
 
+/* ---------- poupança na comparação RDC × Poupança ---------- */
+// Conferência à parte em Python: (1,005 × 1,00169)^12 × 10.000 = 10.834,0989...; 70% da Selic de 7,10% a.a. mensalizada = 0,40502%
+test('rendimentoPoupanca: 0,5% a.m. + TR (composta) com Selic acima de 8,5%; 70% da Selic até 8,5%', () => {
+  const alta = E.rendimentoPoupanca(CDI, 0.1690);
+  assert.equal(alta.regra, 'fixa');
+  perto(alta.selic, 13.75, 1e-12);
+  perto(alta.taxaMensal, 0.669845, 1e-6);
+  const baixa = E.rendimentoPoupanca(7, 0);
+  assert.equal(baixa.regra, 'selic');
+  perto(baixa.taxaMensal, 0.40502141257, 1e-9);
+  perto(E.rendimentoPoupanca(8.4, 0).selic, 8.5, 1e-12);
+  assert.equal(E.rendimentoPoupanca(8.4, 0).regra, 'selic', 'Selic exatamente 8,5% já cai na regra de 70%');
+});
+
+test('simularPoupanca: 12 meses completos, isenta de IR e IOF; abaixo de 1 mês não rende; TR zero', () => {
+  const r = C.simularPoupanca(10000, CDI, 0.1690, 365);
+  assert.equal(r.meses, 12);
+  perto(r.valorFinal, 10834.098986090601, 1e-6);
+  perto(r.bruto, 834.098986090601, 1e-6);
+  assert.equal(r.irValor, 0); assert.equal(r.iofValor, 0);
+  assert.equal(r.liquido, r.bruto);
+  perto(r.pBrutoAnual, 8.340989860906, 1e-9);
+  perto(r.pPeriodo, 8.340989860906, 1e-9);
+  perto(r.panual, (Math.pow(r.valorFinal / 10000, 252 / r.du) - 1) * 100, 1e-9);
+  const curto = C.simularPoupanca(10000, CDI, 0.1690, 29);
+  assert.equal(curto.valorFinal, 10000, 'antes do primeiro aniversário não rende');
+  const semTr = C.simularPoupanca(10000, CDI, 0, 365);
+  perto(semTr.valorFinal, 10000 * Math.pow(1.005, 12), 1e-9);
+  // bate com a linha de Poupança do comparativo de mercado (mesma regra)
+  perto(r.valorFinal, C.referencias({ pv: 10000, aporte: 0, dias: 365, cdi: CDI, trMensal: 0.1690, percCdb: 100 }).poupanca.vf, 1e-9);
+});
+
+test('evolucaoPoupanca: degraus a cada aniversário, começa e termina no valor da simulação', () => {
+  const pts = C.evolucaoPoupanca(10000, CDI, 0.1690, 365);
+  assert.equal(pts[0].valor, 10000);
+  perto(pts[pts.length - 1].valor, C.simularPoupanca(10000, CDI, 0.1690, 365).valorFinal, 1e-9);
+  for (let i = 1; i < pts.length; i++) assert.ok(pts[i].valor >= pts[i - 1].valor, 'nunca diminui');
+});
+
 test('CDB igual a um RDC com a mesma taxa; Tesouro Selic com custódia só acima de R$ 10 mil', () => {
   const ref = C.referencias({ pv: 10000, aporte: 0, dias: 365, cdi: CDI, trMensal: 0, percCdb: 100 });
   perto(ref.cdb.vf, C.simular(10000, CDI, 365, false, false).valorFinal, 1e-9);

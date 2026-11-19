@@ -43,8 +43,22 @@
   const PRODUTOS = {
     lca: { nome: 'LCA', isentoIR: true, isentoIOF: false },
     rdc: { nome: 'RDC', isentoIR: false, isentoIOF: false },
-    compromissada: { nome: 'Operação Compromissada', isentoIR: false, isentoIOF: true }
+    compromissada: { nome: 'Operação Compromissada', isentoIR: false, isentoIOF: true },
+    poupanca: { nome: 'Poupança', isentoIR: true, isentoIOF: true }
   };
+
+  /**
+   * Rendimento mensal da poupança (Lei 12.703/2012): Selic meta acima de 8,5% a.a. → 0,5% a.m. + TR;
+   * caso contrário, 70% da Selic (mensalizada) + TR. Selic ≈ CDI + 0,10 p.p. A TR entra de forma composta.
+   * Devolve {selic, regra ('fixa' | 'selic'), taxaMensal (% a.m.)}.
+   */
+  function rendimentoPoupanca(cdi, trMensal) {
+    const selic = cdi + SPREAD_CDI_SELIC;
+    const tr = (trMensal || 0) / 100;
+    const fixa = selic > POUPANCA.selicLimite;
+    const rBase = fixa ? POUPANCA.rendaMensalFixa : Math.pow(1 + POUPANCA.fatorSelic * selic / 100, 1 / 12) - 1;
+    return { selic, regra: fixa ? 'fixa' : 'selic', taxaMensal: ((1 + rBase) * (1 + tr) - 1) * 100 };
+  }
 
   /* ---------- tributação ---------- */
   function iofAliquota(dias) {
@@ -260,6 +274,35 @@
       return pontos;
     }
 
+    /**
+     * Poupança: pv rende só a cada mês completo (aniversário), isenta de IR e IOF.
+     * Mesmo formato de resultado de simular(); a rentabilidade anual usa a base 252 como os demais produtos.
+     */
+    function simularPoupanca(pv, cdi, trMensal, dias) {
+      const rp = rendimentoPoupanca(cdi, trMensal);
+      const meses = mesesCompletos(Math.round(dias));
+      const valorFinal = pv * Math.pow(1 + rp.taxaMensal / 100, meses);
+      const bruto = valorFinal - pv;
+      const du = diasUteisEntre(0, Math.round(dias));
+      const panual = du > 0 ? (Math.pow(valorFinal / pv, 252 / du) - 1) * 100 : 0;
+      return {
+        bruto, pBrutoAnual: (Math.pow(1 + rp.taxaMensal / 100, 12) - 1) * 100, iofValor: 0, aliqIOF: 0, isentoIOF: false,
+        irValor: 0, aliqIR: 0, liquido: bruto, valorFinal, pPeriodo: (bruto / pv) * 100, panual, pmensal: taxaMensal(panual),
+        du, dc: Math.round(dias), meses, taxaMensalPoupanca: rp.taxaMensal, regra: rp.regra, selic: rp.selic
+      };
+    }
+    /** valor da poupança se resgatada em cada momento do prazo (degraus a cada aniversário) */
+    function evolucaoPoupanca(pv, cdi, trMensal, diasTotal) {
+      const rMes = rendimentoPoupanca(cdi, trMensal).taxaMensal / 100;
+      const nPontos = Math.min(24, Math.max(6, Math.round(diasTotal / 15)));
+      const pontos = [];
+      for (let i = 0; i <= nPontos; i++) {
+        const dia = Math.round((diasTotal * i) / nPontos);
+        pontos.push({ dia, valor: pv * Math.pow(1 + rMes, mesesCompletos(dia)) });
+      }
+      return pontos;
+    }
+
     /* ---------- referências de mercado ---------- */
     function lotesAplicacao(pv, aporte, dias) {
       const lotes = [{ off: 0, v: pv }];
@@ -294,9 +337,7 @@
       const selic = p.cdi + SPREAD_CDI_SELIC;
 
       // Poupança: rende só a cada mês completo (aniversário); isenta de IR
-      const tr = (p.trMensal || 0) / 100;
-      const rBase = selic > POUPANCA.selicLimite ? POUPANCA.rendaMensalFixa : Math.pow(1 + POUPANCA.fatorSelic * selic / 100, 1 / 12) - 1;
-      const rMes = (1 + rBase) * (1 + tr) - 1;
+      const rMes = rendimentoPoupanca(p.cdi, p.trMensal).taxaMensal / 100;
       const meses = mesesCompletos(p.dias);
       let vfPoupanca = 0;
       lotes.forEach((l, i) => { vfPoupanca += l.v * Math.pow(1 + rMes, Math.max(0, meses - i)); });
@@ -329,14 +370,14 @@
     return {
       hoje, dataEm, anoDoDia,
       diasUteisAte, diasUteisEntre, diasAteMesesDepois, prazoEmDias, mesesCompletos, datasAportes,
-      fatorRend, taxaEquivalente, simular, simularComAportes, evolucao,
+      fatorRend, taxaEquivalente, simular, simularComAportes, evolucao, simularPoupanca, evolucaoPoupanca,
       lotesAplicacao, liquidoLotes, tirAnual, referencias
     };
   }
 
   return {
     SPREAD_CDI_SELIC, LCA_PRAZO_MINIMO_MESES, IOF_TABELA, POUPANCA, TESOURO_CUSTODIA, PRODUTOS,
-    iofAliquota, irAliquota, taxaEquivalenteIR, taxaReal, taxaMensal, taxaNoAno,
+    iofAliquota, irAliquota, taxaEquivalenteIR, taxaReal, taxaMensal, taxaNoAno, rendimentoPoupanca,
     pascoa, feriadosNacionais, ehDiaUtil, calculadora
   };
 });
